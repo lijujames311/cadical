@@ -141,6 +141,8 @@ int Internal::trivially_false_satisfiable () {
     lucky_assume_decision (-idx);
     if (propagate ())
       continue;
+    if (flags (idx).unused ())
+      continue;
     assert (level > 0);
     LOG ("propagation failed including redundant clauses");
     return unlucky (0);
@@ -187,6 +189,8 @@ int Internal::trivially_true_satisfiable () {
     if (terminated_asynchronously (10))
       return unlucky (-1);
     if (val (idx))
+      continue;
+    if (flags (idx).unused ())
       continue;
     lucky_assume_decision (idx);
     if (propagate ())

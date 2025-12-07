@@ -33,24 +33,25 @@ void External::enlarge (int new_max_var) {
 
 int External::declare_var (int new_var, bool extension) {
   assert ((size_t)new_var < e2i.size());
-  if (internal->i2e.size () <= (size_t)new_var) {
-    reserve_at_least (internal->i2e, new_var + 1);
-    internal->i2e.resize (new_var + 1);
-  }
   if (!e2i[new_var]) {
-    LOG ("new mapping external %d to internal %d", new_var, new_var);
-    e2i[new_var] = new_var;
-    internal->i2e[new_var] = new_var;
-    internal->declare_variable (new_var);
+    int ilit = internal->max_var+1;
+    if (internal->i2e.size () <= (size_t)ilit) {
+      reserve_at_least (internal->i2e, ilit + 1);
+      internal->i2e.resize (ilit + 1);
+    }
+    LOG ("new mapping external %d to internal %d", new_var, ilit);
+    e2i[new_var] = ilit;
+    internal->i2e[ilit] = new_var;
+    internal->declare_variable (ilit);
+    assert (internal->max_var >= ilit);
   }
 
   (void)extension;
-  return new_var;
-
+  return e2i[new_var];
 }
 void External::init (int new_max_var, bool extension) {
   assert (!extended);
-  LOG ("declaring new %d external variables from %d", new_max_var, max_var);
+  LOG ("%d external variables from %d", new_max_var, max_var);
   assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
   assert (!max_var || e2i.size () == (size_t)max_var + 1);
   if (new_max_var <= max_var) {

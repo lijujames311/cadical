@@ -738,7 +738,6 @@ bool Internal::apply_factoring (Factoring &factoring, Quotient *q) {
 
 void Internal::update_factor_candidate (Factoring &factoring, int lit) {
   FactorSchedule &schedule = factoring.schedule;
-  assert (lit != 7);
   const size_t size = occs (lit).size ();
   const unsigned idx = vlit (lit);
   if (schedule.contains (idx))

@@ -468,8 +468,10 @@ void Solver::resize (int min_max_var) {
   TRACE ("resize", min_max_var);
   REQUIRE_VALID_STATE ();
   transition_to_steady_state ();
-  external->reset_extended ();
-  external->init (min_max_var);
+  if (min_max_var) {
+    external->reset_extended ();
+    external->init (min_max_var);
+  }
   LOG_API_CALL_END ("resize", min_max_var);
 }
 

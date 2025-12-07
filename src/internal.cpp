@@ -196,6 +196,11 @@ void Internal::reserve_vars (int new_min_vsize) {
   enlarge_zero (marks, new_vsize);
   enlarge_vals (new_vsize);
   enlarge_only (vtab, new_vsize);
+  // try to accomodate backtrack during external addition
+  // but this is not going to be enough
+  enlarge_only (phases.saved, new_vsize);
+  enlarge_zero (stab, new_vsize);
+  enlarge_zero (btab, new_vsize);
   if (!vsize || watching ())
     enlarge_only (wtab, 2 * new_vsize);
   LOG ("reserving %d new internal variables, reserved so far: %d", new_vars, max_var);
@@ -1301,8 +1306,7 @@ void Internal::declare_variable (int ilit) {
   if (f.declared())
     return;
 
-  LOG ("declaring %d", ilit);
-  assert (!val (ilit));
+  LOG ("declaring %s", LOGLIT(ilit));
   mark_declared (ilit);
   imports.push_back (ilit);
 }
@@ -1333,6 +1337,7 @@ void Internal::activating_all_new_imported_literals () {
     mark_active (idx);
     init_enqueue (idx);
     scores.push_back (idx);
+    assert (scores.contains(idx));
     assert (f.active ());
   }
 

@@ -81,7 +81,7 @@ void Internal::backtrack (int new_level) {
   if (new_level == level)
     return;
 
-  update_target_and_best ();
+  //update_target_and_best ();
   backtrack_without_updating_phases (new_level);
 }
 
