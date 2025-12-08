@@ -912,6 +912,9 @@ void Internal::otfs_strengthen_clause (Clause *c, int lit, int new_size,
   c->used = max_used;
   LOG (c, "strengthened");
   external->check_shrunken_clause (c);
+
+  if (c->size == 2)
+    new_binary_since_dedup = true;
 }
 
 /*------------------------------------------------------------------------*/

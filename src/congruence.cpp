@@ -7932,6 +7932,9 @@ bool Internal::extract_gates (bool remove_units_before_run) {
   closure.init_closure ();
   assert (unsat || closure.chain.empty ());
   assert (unsat || lrat_chain.empty ());
+  const int64_t inital_old_merged =
+      stats.congruence
+          .congruent; // the binary stuff is covered by other techniques
   closure.extract_binaries ();
   const int64_t old_merged =
       stats.congruence
@@ -8015,6 +8018,8 @@ bool Internal::extract_gates (bool remove_units_before_run) {
   } else {
     congruence_delay.bumpreasons.reduce_delay ();
   }
+  if (inital_old_merged != new_merged)
+    new_binary_since_dedup = true;
 
   return new_merged != old_merged;
 }

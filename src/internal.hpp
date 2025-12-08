@@ -214,6 +214,7 @@ struct Internal {
       probehbr_chains;          // only used if opts.probehbr=false
   bool lrat;                    // generate LRAT internally
   bool frat;                    // finalize non-deleted clauses in proof
+  bool new_binary_since_dedup;// new binary clause has been learned since last decompose round
   int level;                    // decision level ('control.size () - 1')
   Phases phases;                // saved, target and best phases
   signed char *vals;            // assignment [-max_var,max_var]

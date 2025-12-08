@@ -1947,6 +1947,8 @@ bool Internal::sweep () {
 
   uint64_t eliminated = equivalences + units;
   report ('=', !eliminated);
+  if (eliminated)
+    new_binary_since_dedup = true;
 
   if (relative (eliminated, swept) < 0.001) {
     delaying_sweep.bumpreasons.bump_delay ();

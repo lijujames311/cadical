@@ -25,6 +25,10 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
     return;
   if (terminated_asynchronously ())
     return;
+#ifndef NDEBUG
+  if (!new_binary_since_dedup)
+    return;
+#endif
 
   START_SIMPLIFIER (deduplicate, DEDUP);
   stats.deduplications++;
@@ -164,6 +168,8 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
       }
     }
   }
+  assert (new_binary_since_dedup || !(subsumed + units));
+  new_binary_since_dedup = false;
   STOP_SIMPLIFIER (deduplicate, DEDUP);
 
   report ('2', !opts.reportall && !(subsumed + units));
