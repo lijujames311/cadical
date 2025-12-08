@@ -190,7 +190,19 @@ int ccadical_vars (CCaDiCaL *ptr) {
   return ((Wrapper *) ptr)->solver->vars ();
 }
 
-int ccadical_reserve_difference (CCaDiCaL *ptr, int number_of_vars) {
-  return ((Wrapper *) ptr)->solver->reserve_difference (number_of_vars);
+int ccadical_declare_more_variables (CCaDiCaL *ptr, int number_of_vars) {
+  return ((Wrapper *) ptr)->solver->declare_more_variables (number_of_vars);
+}
+
+int ccadical_declare_one_more_variable (CCaDiCaL *ptr) {
+  return ((Wrapper *) ptr)->solver->declare_one_more_variable ();
+}
+
+void ccadical_phase (CCaDiCaL *wrapper, int lit) {
+  ((Wrapper *) wrapper)->solver->phase (lit);
+}
+
+void ccadical_unphase (CCaDiCaL *wrapper, int lit) {
+  ((Wrapper *) wrapper)->solver->unphase (lit);
 }
 }

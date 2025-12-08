@@ -13,8 +13,8 @@ namespace CaDiCaL {
 // remaining occurrences (or 'fastelimbound + 1' if some limit was hit).
 
 int64_t Internal::flush_elimfast_occs (int lit) {
-  const int64_t occslim = opts.fastelimbound;
-  const int64_t clslim = opts.fastelimocclim;
+  const int64_t occslim = opts.fastelimocclim;
+  const int64_t clslim = opts.fastelimclslim;
   const int64_t failed = occslim + 1;
   Occs &os = occs (lit);
   const const_occs_iterator end = os.end ();
@@ -192,17 +192,18 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
 
   // First flush garbage clauses and check limits.
 
+  const int64_t occ_bound = opts.fastelimocclim;
   int64_t bound = opts.fastelimbound;
 
   int64_t pos = flush_elimfast_occs (pivot);
-  if (pos > bound) {
+  int64_t neg = flush_elimfast_occs (-pivot);
+  if (neg && pos > occ_bound) {
     LOG ("too many occurrences thus not eliminated %d", pivot);
     assert (!eliminator.schedule.contains (abs (pivot)));
     return;
   }
 
-  int64_t neg = flush_elimfast_occs (-pivot);
-  if (neg > bound) {
+  if (pos && neg > occ_bound) {
     LOG ("too many occurrences thus not eliminated %d", -pivot);
     assert (!eliminator.schedule.contains (abs (pivot)));
     return;
@@ -277,12 +278,11 @@ int Internal::elimfast_round (bool &completed,
 
   if (opts.elimlimited) {
     int64_t delta = stats.propagations.search;
-    delta *= 1e-3 * opts.elimeffort;
+    delta *= opts.elimeffort;
     if (delta < opts.elimmineff)
       delta = opts.elimmineff;
     if (delta > opts.elimmaxeff)
       delta = opts.elimmaxeff;
-    delta = max (delta, (int64_t) 2l * active ());
 
     PHASE ("fastelim-round", stats.elimfastrounds,
            "limit of %" PRId64 " resolutions", delta);

@@ -207,6 +207,7 @@ int Internal::recompute_glue (Clause *c) {
   int res = 0;
   const int64_t stamp = ++stats.recomputed;
   for (const auto &lit : *c) {
+    assert (val (lit));
     int level = var (lit).level;
     assert (gtab[level] <= stamp);
     if (gtab[level] == stamp)
@@ -679,7 +680,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
     int best_idx = 0, best_pos = 0;
 
     if (use_scores ()) {
-      for (size_t i = control[jump + 1].trail; i < trail.size (); i++) {
+      for (int i = control[jump + 1].trail; i < (int)trail.size (); i++) {
         const int idx = abs (trail[i]);
         if (best_idx && !score_smaller (this) (best_idx, idx))
           continue;
@@ -688,7 +689,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       }
       LOG ("best variable score %g", score (best_idx));
     } else {
-      for (size_t i = control[jump + 1].trail; i < trail.size (); i++) {
+      for (int i = control[jump + 1].trail; i < (int)trail.size (); i++) {
         const int idx = abs (trail[i]);
         if (best_idx && bumped (best_idx) >= bumped (idx))
           continue;
@@ -915,6 +916,9 @@ void Internal::otfs_strengthen_clause (Clause *c, int lit, int new_size,
   c->used = max_used;
   LOG (c, "strengthened");
   external->check_shrunken_clause (c);
+
+  if (c->size == 2)
+    new_binary_since_dedup = true;
 }
 
 /*------------------------------------------------------------------------*/
@@ -1050,7 +1054,7 @@ void Internal::analyze () {
   assert (lrat_chain.empty ());
 
   const auto &t = &trail;
-  int i = t->size ();      // Start at end-of-trail.
+  int i = (int)t->size ();      // Start at end-of-trail.
   int open = 0;            // Seen but not processed on this level.
   int uip = 0;             // The first UIP literal.
   int resolvent_size = 0;  // without the uip
@@ -1146,16 +1150,15 @@ void Internal::analyze () {
     uip = 0;
     while (!uip) {
       if (!i) {
-	lazy_external_propagator_out_of_order_clause (uip);
-	if (unsat)
-	  return;
-	else if (uip){
-	  open = 1;
-	  break;
-	}
-	else {
+        lazy_external_propagator_out_of_order_clause (uip);
+        if (unsat)
+          return;
+        else if (uip) {
+          open = 1;
+          break;
+        } else {
           LOG (reason, "restarting the analysis on the new conflict");
-	  ++stats.conflicts;
+          ++stats.conflicts;
           reason = conflict;
           resolvent_size = 0;
           antecedent_size = 1;
@@ -1293,13 +1296,16 @@ void Internal::analyze () {
     recompute_tier ();
 }
 
-// In the special case where the external propagator is lazy, the same invariants as OTFS break
-// (but even more complicated). There are three possible cases:
+// In the special case where the external propagator is lazy, the same
+// invariants as OTFS break (but even more complicated). There are three
+// possible cases:
 //   - the clause becomes empty (unsat must be answered)
 //   - the clause is a unit (backtrack and set the clause)
-//   - the clause is a new conflict on lower level and we restart the analysis
+//   - the clause is a new conflict on lower level and we restart the
+//   analysis
 //
-// TODO: we do not really need to keep the clause longer than the conflict analysis.
+// TODO: we do not really need to keep the clause longer than the conflict
+// analysis.
 void Internal::lazy_external_propagator_out_of_order_clause (int &uip) {
   assert (!opts.exteagerreasons);
   assert (external_prop);
@@ -1327,10 +1333,9 @@ void Internal::lazy_external_propagator_out_of_order_clause (int &uip) {
     backtrack (var (uip).level);
     assert (val (uip) > 0);
     clause.clear ();
-  }
-  else {
+  } else {
     int jump;
-    const int glue = clause.size () - 1;
+    const int glue = (int)clause.size () - 1;
     conflict = new_driving_clause (glue, jump);
     UPDATE_AVERAGE (averages.current.level, jump);
     backtrack (jump);
@@ -1343,8 +1348,8 @@ void Internal::lazy_external_propagator_out_of_order_clause (int &uip) {
   clear_analyzed_levels ();
   clause.clear ();
 
-  lrat_chain.clear ();
   if (unsat) {
+    lrat_chain.clear ();
     STOP (analyze);
   }
 }

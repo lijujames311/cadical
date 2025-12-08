@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <functional>
 
 namespace CaDiCaL {
 
@@ -8,6 +9,11 @@ namespace CaDiCaL {
 // latter situation this can be done either in the order of all variables
 // (forward or backward) or in the order of all clauses.  These lucky
 // assignments can be tested initially in a kind of pre-solving step.
+
+// We extended the search to do discrepency search to strengthen the original
+// idea. We try both direction of a literal if it leads to a conflict. On top of
+// that, as long as we are on level 1, we actually learn the unit, similarly to
+// how probing is done.
 
 // This function factors out clean up code common among the 'lucky'
 // functions for backtracking and resetting a potential conflict.  One could
@@ -21,16 +27,92 @@ namespace CaDiCaL {
 
 int Internal::unlucky (int res) {
   if (level > 0)
-    backtrack ();
+    backtrack_without_updating_phases ();
+  assert (propagated == trail.size ());
   if (conflict)
     conflict = 0;
   return res;
 }
 
+inline void Internal::lucky_search_assign (int lit, Clause *reason) {
+  assert (searching_lucky_phases);
+  if (level)
+    require_mode (SEARCH);
+
+  const int idx = vidx (lit);
+  assert (reason != external_reason);
+  assert (!val (idx));
+  assert (!flags (idx).eliminated () || reason == decision_reason ||
+          reason == external_reason);
+  Var &v = var (idx);
+  int lit_level;
+  assert (!lrat || level || reason == external_reason ||
+          reason == decision_reason || !lrat_chain.empty ());
+  // The following cases are explained in the two comments above before
+  // 'decision_reason' and 'assignment_level'.
+  //
+  // External decision reason means that the propagation was done by
+  // an external propagation and the reason clause not known (yet).
+  // In that case it is assumed that the propagation is NOT out of
+  // order (i.e. lit_level = level), because due to lazy explanation,
+  // we can not calculate the real assignment level.
+  // The function assignment_level () will also assign the current level
+  // to literals with external reason.
+  if (!reason)
+    lit_level = 0; // unit
+  else if (reason == decision_reason)
+    lit_level = level, reason = 0;
+  else
+    lit_level = level;
+  if (!lit_level)
+    reason = 0;
+
+  v.level = lit_level;
+  v.trail = trail.size ();
+  v.reason = reason;
+  assert ((int) num_assigned < max_var);
+  assert (num_assigned == trail.size ());
+  num_assigned++;
+  if (!lit_level)
+    learn_unit_clause (lit); // increases 'stats.fixed'
+  assert (lit_level);
+  const signed char tmp = sign (lit);
+  set_val (idx, tmp);
+  assert (val (lit) > 0);  // Just a bit paranoid but useful.
+  assert (val (-lit) < 0); // Ditto.
+  trail.push_back (lit);
+#ifdef LOGGING
+  if (!lit_level)
+    LOG ("root-level unit assign %d @ 0", lit);
+  else
+    LOG (reason, "search assign %d @ %d", lit, lit_level);
+#endif
+
+  if (watching ()) {
+    const Watches &ws = watches (-lit);
+    if (!ws.empty ()) {
+      const Watch &w = ws[0];
+      __builtin_prefetch (&w, 0, 1);
+    }
+  }
+  lrat_chain.clear ();
+}
+
+void Internal::lucky_assume_decision (int lit) {
+  require_mode (SEARCH);
+  assert (propagated == trail.size ());
+  new_trail_level (lit);
+  LOG ("lucky decide %d", lit);
+  lucky_search_assign (lit, decision_reason);
+}
+
 int Internal::trivially_false_satisfiable () {
-  LOG ("checking that all clauses contain a negative literal");
+  VERBOSE (3, "checking that all clauses contain a negative literal");
   assert (!level);
-  assert (assumptions.empty ());
+  ++stats.lucky.constant.zero;
+  int res = lucky_decide_assumptions ();
+  if (res)
+    return res;
   for (const auto &c : clauses) {
     if (terminated_asynchronously (100))
       return unlucky (-1);
@@ -63,7 +145,7 @@ int Internal::trivially_false_satisfiable () {
       return unlucky (-1);
     if (val (idx))
       continue;
-    search_assume_decision (-idx);
+    lucky_assume_decision (-idx);
     if (propagate ())
       continue;
     assert (level > 0);
@@ -75,9 +157,12 @@ int Internal::trivially_false_satisfiable () {
 }
 
 int Internal::trivially_true_satisfiable () {
-  LOG ("checking that all clauses contain a positive literal");
+  VERBOSE (3, "checking that all clauses contain a positive literal");
   assert (!level);
-  assert (assumptions.empty ());
+  ++stats.lucky.constant.one;
+  int res = lucky_decide_assumptions ();
+  if (res)
+    return res;
   for (const auto &c : clauses) {
     if (terminated_asynchronously (100))
       return unlucky (-1);
@@ -110,26 +195,26 @@ int Internal::trivially_true_satisfiable () {
       return unlucky (-1);
     if (val (idx))
       continue;
-    search_assume_decision (idx);
+    lucky_assume_decision (idx);
     if (propagate ())
       continue;
     assert (level > 0);
     LOG ("propagation failed including redundant clauses");
     return unlucky (0);
   }
-  stats.lucky.constant.one++;
   return 10;
 }
 
 /*------------------------------------------------------------------------*/
 inline bool Internal::lucky_propagate_discrepency (int dec) {
-  search_assume_decision (dec);
+  lucky_assume_decision (dec);
   bool no_conflict = propagate ();
   if (no_conflict)
     return false;
   if (level > 1) {
-    backtrack (level - 1);
-    search_assume_decision (-dec);
+    conflict = nullptr;
+    backtrack_without_updating_phases (level - 1);
+    lucky_assume_decision (-dec);
     no_conflict = propagate ();
     if (no_conflict)
       return false;
@@ -147,43 +232,27 @@ inline bool Internal::lucky_propagate_discrepency (int dec) {
   return false;
 }
 
-int Internal::forward_false_satisfiable () {
-  LOG ("checking increasing variable index false assignment");
+template<class Iterator>
+int Internal::lucky_fixed_test (Iterator begin, Iterator end, signed char pol, std::string str) {
+  VERBOSE (3, "checking %s variable index %s assignment", str.c_str (), pol == 1 ? "true" : "false");
+#ifdef QUIET
+  (void) str;
+#endif
   assert (!unsat);
   assert (!level);
-  assert (assumptions.empty ());
-  for (auto idx : vars) {
+  stats.lucky.forward.one++;
+  int res = lucky_decide_assumptions ();
+  if (res)
+    return res;
+  for (auto it = begin; it != end; ++it) {
   START:
-    if (terminated_asynchronously (100))
-      return unlucky (-1);
-    if (val (idx))
-      continue;
-    if (lucky_propagate_discrepency (-idx)) {
-      if (unsat)
-        return 20;
-      else
-        return unlucky (0);
-    } else
-      goto START;
-  }
-  VERBOSE (1, "forward assuming variables false satisfies formula");
-  assert (satisfied ());
-  stats.lucky.forward.zero++;
-  return 10;
-}
-
-int Internal::forward_true_satisfiable () {
-  LOG ("checking increasing variable index true assignment");
-  assert (!unsat);
-  assert (!level);
-  assert (assumptions.empty ());
-  for (auto idx : vars) {
-  START:
+    int idx = *it;
+    int lit = idx * pol;
     if (terminated_asynchronously (10))
       return unlucky (-1);
     if (val (idx))
       continue;
-    if (lucky_propagate_discrepency (idx)) {
+    if (lucky_propagate_discrepency (lit)) {
       if (unsat)
         return 20;
       else
@@ -191,62 +260,29 @@ int Internal::forward_true_satisfiable () {
     } else
       goto START;
   }
-  VERBOSE (1, "forward assuming variables true satisfies formula");
+  VERBOSE (1, "%s assuming variables %s satisfies formula", str.c_str (), pol == 1 ? "true" : "false");
   assert (satisfied ());
-  stats.lucky.forward.one++;
   return 10;
+}
+
+
+
+int Internal::forward_false_satisfiable () {
+  return lucky_fixed_test (vars.begin(), vars.end (), -1, "forward");
+}
+
+int Internal::forward_true_satisfiable () {
+  return lucky_fixed_test (vars.begin(), vars.end (), 1, "forward");
 }
 
 /*------------------------------------------------------------------------*/
 
 int Internal::backward_false_satisfiable () {
-  LOG ("checking decreasing variable index false assignment");
-  assert (!unsat);
-  assert (!level);
-  assert (assumptions.empty ());
-  for (int idx = max_var; idx > 0; idx--) {
-  START:
-    if (terminated_asynchronously (10))
-      return unlucky (-1);
-    if (val (idx))
-      continue;
-    if (lucky_propagate_discrepency (-idx)) {
-      if (unsat)
-        return 20;
-      else
-        return unlucky (0);
-    } else
-      goto START;
-  }
-  VERBOSE (1, "backward assuming variables false satisfies formula");
-  assert (satisfied ());
-  stats.lucky.backward.zero++;
-  return 10;
+  return lucky_fixed_test (vars.rbegin(), vars.rend (), -1, "backward");
 }
 
 int Internal::backward_true_satisfiable () {
-  LOG ("checking decreasing variable index true assignment");
-  assert (!unsat);
-  assert (!level);
-  assert (assumptions.empty ());
-  for (int idx = max_var; idx > 0; idx--) {
-  START:
-    if (terminated_asynchronously (10))
-      return unlucky (-1);
-    if (val (idx))
-      continue;
-    if (lucky_propagate_discrepency (idx)) {
-      if (unsat)
-        return 20;
-      else
-        return unlucky (0);
-    } else
-      goto START;
-  }
-  VERBOSE (1, "backward assuming variables true satisfies formula");
-  assert (satisfied ());
-  stats.lucky.backward.one++;
-  return 10;
+  return lucky_fixed_test (vars.rbegin(), vars.rend (), 1, "backward");
 }
 
 /*------------------------------------------------------------------------*/
@@ -258,9 +294,12 @@ int Internal::backward_true_satisfiable () {
 // is not implemented yet.
 
 int Internal::positive_horn_satisfiable () {
-  LOG ("checking that all clauses are positive horn satisfiable");
+  VERBOSE (3, "checking that all clauses are positive horn satisfiable");
   assert (!level);
-  assert (assumptions.empty ());
+  stats.lucky.horn.positive++;
+  int res = lucky_decide_assumptions ();
+  if (res)
+    return res;
   for (const auto &c : clauses) {
     if (terminated_asynchronously (10))
       return unlucky (-1);
@@ -291,7 +330,7 @@ int Internal::positive_horn_satisfiable () {
     }
     assert (positive_literal > 0);
     LOG (c, "found positive literal %d in", positive_literal);
-    search_assume_decision (positive_literal);
+    lucky_assume_decision (positive_literal);
     if (propagate ())
       continue;
     LOG ("propagation of positive literal %d leads to conflict",
@@ -303,7 +342,7 @@ int Internal::positive_horn_satisfiable () {
       return unlucky (-1);
     if (val (idx))
       continue;
-    search_assume_decision (-idx);
+    lucky_assume_decision (-idx);
     if (propagate ())
       continue;
     LOG ("propagation of remaining literal %d leads to conflict", -idx);
@@ -312,14 +351,54 @@ int Internal::positive_horn_satisfiable () {
   VERBOSE (1, "clauses are positive horn satisfied");
   assert (!conflict);
   assert (satisfied ());
-  stats.lucky.horn.positive++;
   return 10;
 }
 
-int Internal::negative_horn_satisfiable () {
-  LOG ("checking that all clauses are negative horn satisfiable");
+int Internal::lucky_decide_assumptions () {
   assert (!level);
-  assert (assumptions.empty ());
+  assert (!constraint.size ());
+  int res = 0;
+  while ((size_t) level < assumptions.size ()) {
+    res = decide ();
+    if (res == 20) {
+      marked_failed = false;
+      return 20;
+    }
+    if (!propagate ()) {
+      break;
+    }
+  }
+
+  if (conflict) {
+    // analyze and learn from the conflict.
+    LOG (conflict, "setting assumption lead to conflict");
+    analyze_wrapper ();
+    backtrack_without_updating_phases (0);
+    assert (!conflict);
+    int res = 0;
+    while (!res) {
+      assert ((size_t) level <= assumptions.size ());
+      if (unsat)
+        res = 20;
+      else if (!propagate ()) {
+        analyze_wrapper ();
+      } else {
+        res = decide_wrapper ();
+      }
+    }
+    assert (res == 20);
+    return 20;
+  }
+  return 0;
+}
+
+int Internal::negative_horn_satisfiable () {
+  assert (!level);
+  VERBOSE (3, "checking that all clauses are negative horn satisfiable");
+  stats.lucky.horn.negative++;
+  int res = lucky_decide_assumptions ();
+  if (res)
+    return res;
   for (const auto &c : clauses) {
     if (terminated_asynchronously (10))
       return unlucky (-1);
@@ -346,13 +425,13 @@ int Internal::negative_horn_satisfiable () {
       continue;
     if (!negative_literal) {
       if (level > 0)
-        backtrack ();
+        backtrack_without_updating_phases ();
       LOG (c, "no negative unassigned literal in");
       return unlucky (0);
     }
     assert (negative_literal < 0);
     LOG (c, "found negative literal %d in", negative_literal);
-    search_assume_decision (negative_literal);
+    lucky_assume_decision (negative_literal);
     if (propagate ())
       continue;
     LOG ("propagation of negative literal %d leads to conflict",
@@ -364,7 +443,7 @@ int Internal::negative_horn_satisfiable () {
       return unlucky (-1);
     if (val (idx))
       continue;
-    search_assume_decision (idx);
+    lucky_assume_decision (idx);
     if (propagate ())
       continue;
     LOG ("propagation of remaining literal %d leads to conflict", idx);
@@ -373,7 +452,6 @@ int Internal::negative_horn_satisfiable () {
   VERBOSE (1, "clauses are negative horn satisfied");
   assert (!conflict);
   assert (satisfied ());
-  stats.lucky.horn.negative++;
   return 10;
 }
 
@@ -385,50 +463,120 @@ int Internal::lucky_phases () {
   if (!opts.lucky)
     return 0;
 
-  // TODO: Some of the lucky assignments can also be found if there are
-  // assumptions, but this is not completely implemented nor tested yet.
-  // Nothing done for constraint either.
-  // External propagator assumes a CDCL loop, so lucky is not tried here.
-  if (!assumptions.empty () || !constraint.empty () || external_prop)
+  if (!opts.luckyassumptions && !assumptions.empty ())
     return 0;
-  if (!propagate()) {
-    learn_empty_clause();
+  // TODO: Some of the lucky assignments can also be found if there are
+  // constraint.
+  // External propagator assumes a CDCL loop, so lucky is not tried here.
+  if (!constraint.empty () || external_prop)
+    return 0;
+  if (unsat)
+    return 20;
+  if (!propagate ()) {
+    learn_empty_clause ();
     return 20;
   }
 
   START (search);
   START (lucky);
+  LOG ("starting lucky");
   assert (!searching_lucky_phases);
   searching_lucky_phases = true;
   stats.lucky.tried++;
-  const int64_t active_before = stats.active;
-  int res = trivially_false_satisfiable ();
-  if (!res)
-    res = trivially_true_satisfiable ();
-  if (!res)
-    res = forward_false_satisfiable ();
-  if (!res)
-    res = forward_true_satisfiable ();
-  if (!res)
-    res = backward_false_satisfiable ();
-  if (!res)
-    res = backward_true_satisfiable ();
-  if (!res)
-    res = negative_horn_satisfiable ();
-  if (!res)
-    res = positive_horn_satisfiable ();
-  if (res < 0)
-    assert (termination_forced), res = 0;
-  if (res == 10)
-    stats.lucky.succeeded++;
-  report ('l', !res);
-  assert (searching_lucky_phases);
+  int64_t units =0;
+  int res = 0, rounds = 0;
+#ifndef QUIET
+  const int64_t active_initially = stats.active;
+#endif
 
-  const int64_t units = active_before - stats.active;
+  constexpr int schedule_size = 6;
+  std::array<std::function<int ()>, schedule_size > schedule;
+  int schedule_pos = 0;
 
-  if (!res && units)
-    LOG ("lucky %" PRId64 " units", units);
+
+  // The idea of the code is to:
+  //
+  //  1. check for the trival solutions. The trivial solution are
+  // tested only once, because the forward/backward true/false would
+  // solve the same model too (which higher cost).
+  //
+  // 2. a. use the order provided by the user (by default, the decisions are
+  // largest first)
+  //
+  // b. then use first the phases proviveded by the user (by default '1')
+  if (opts.phase) {
+    if (!opts.reverse) {
+      schedule[schedule_pos++] = [this]() {return backward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_false_satisfiable();};
+    } else {
+      schedule[schedule_pos++] = [this]() {return forward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_false_satisfiable();};
+    }
+
+    schedule[schedule_pos++] = [this]() {return positive_horn_satisfiable();};
+    schedule[schedule_pos++] = [this]() {return negative_horn_satisfiable();};
+  } else {
+    if (!opts.reverse) {
+      schedule[schedule_pos++] = [this]() {return backward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_true_satisfiable();};
+    } else {
+      schedule[schedule_pos++] = [this]() {return forward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return forward_true_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_false_satisfiable();};
+      schedule[schedule_pos++] = [this]() {return backward_true_satisfiable();};
+    }
+    schedule[schedule_pos++] = [this]() {return negative_horn_satisfiable();};
+    schedule[schedule_pos++] = [this]() {return positive_horn_satisfiable();};
+  }
+  assert (schedule_pos == schedule_size);
+
+  if (opts.phase) {
+    if (!res)
+      res = trivially_true_satisfiable ();
+    if (!res)
+      res = trivially_false_satisfiable ();
+  } else {
+    if (!res)
+      res = trivially_false_satisfiable ();
+    if (!res)
+      res = trivially_true_satisfiable ();
+  }
+
+  if (!res)
+    do {
+      const int64_t active_before = stats.active;
+
+      for (auto &luck : schedule) {
+        res = luck ();
+        if (res)
+          break;
+      }
+      if (res < 0)
+        assert (termination_forced), res = 0;
+      if (res == 10)
+        stats.lucky.succeeded++;
+      assert (searching_lucky_phases);
+
+      assert (res || !level);
+      assert (res || propagated == trail.size ());
+
+      units = active_before - stats.active;
+      stats.lucky.units += units;
+
+      if (!res && units)
+        VERBOSE (3, "lucky %" PRId64 "in round %d found %" PRId64 " units", stats.lucky.tried, rounds, units);
+    } while (units && !res && ++rounds < opts.luckyrounds);
+
+  report ('l', !res && !units);
   searching_lucky_phases = false;
+  PHASE ("lucky", stats.lucky.tried, "produced %" PRId64 " units after %d rounds", active_initially - stats.active, rounds);
+
   STOP (lucky);
   STOP (search);
 

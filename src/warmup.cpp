@@ -6,10 +6,11 @@ namespace CaDiCaL {
 // propagating, before calling random walk that is not good at
 // propagating long chains. Therefore, we propagate (ignoring all conflicts)
 // discovered along the way.
-// The asignmend is the same as the normal assignment however, it updates the target phases so that local search can pick them up later
+// The asignmend is the same as the normal assignment however, it updates
+// the target phases so that local search can pick them up later
 
 // specific warmup version with saving of the target.
-inline void Internal::warmup_assign (int lit, Clause *reason){
+inline void Internal::warmup_assign (int lit, Clause *reason) {
 
   assert (level); // no need to learn unit clauses here
   require_mode (SEARCH);
@@ -19,18 +20,19 @@ inline void Internal::warmup_assign (int lit, Clause *reason){
   assert (!vals[idx]);
   assert (!flags (idx).eliminated () || reason == decision_reason);
   assert (!searching_lucky_phases);
-  assert (lrat_chain.empty());
+  assert (lrat_chain.empty ());
   Var &v = var (idx);
   int lit_level;
-  assert (!(reason == external_reason &&
-	    ((size_t) level <= assumptions.size () + (!!constraint.size ()))));
+  assert (
+      !(reason == external_reason &&
+        ((size_t) level <= assumptions.size () + (!!constraint.size ()))));
   assert (reason);
   assert (level || reason == decision_reason);
   // we  purely assign in order here
   lit_level = level;
 
   v.level = lit_level;
-  v.trail = trail.size();
+  v.trail = trail.size ();
   v.reason = reason;
   assert ((int) num_assigned < max_var);
   assert (num_assigned == trail.size ());
@@ -56,7 +58,6 @@ inline void Internal::warmup_assign (int lit, Clause *reason){
     __builtin_prefetch (&w, 0, 1);
   }
 }
-
 
 void Internal::warmup_propagate_beyond_conflict () {
 
@@ -151,9 +152,9 @@ void Internal::warmup_propagate_beyond_conflict () {
             while (k != middle && (v = val (r = *k)) < 0)
               k++;
           }
-
+#if 0 // my intuiton: does not make sense to update here
           w.clause->pos = k - lits; // always save position
-
+#endif
           assert (lits + 2 <= k), assert (k <= w.clause->end ());
 
           if (v > 0) {
@@ -189,7 +190,7 @@ void Internal::warmup_propagate_beyond_conflict () {
             assert (u < 0);
             assert (v < 0);
 
-	    // ignoring conflict
+            // ignoring conflict
             ++stats.warmup.conflicts;
           }
         }
@@ -203,12 +204,11 @@ void Internal::warmup_propagate_beyond_conflict () {
 
   assert (propagated == trail.size ());
 
-  stats.warmup.propagated += (trail.size() - before);
+  stats.warmup.propagated += (trail.size () - before);
   STOP (propagate);
 }
 
-
-int Internal::warmup_decide () {
+int Internal::warmup_decide_assumptions () {
   assert (!satisfied ());
   START (decide);
   int res = 0;
@@ -313,14 +313,7 @@ int Internal::warmup_decide () {
 #endif
 
   } else {
-    const bool target = (stable || opts.target == 2);
-    stats.warmup.decision++;
-    int idx = next_decision_variable ();
-    if (flags (idx).eliminated ())
-      ++stats.warmup.dummydecision;
-    int decision = decide_phase (idx, target);
-    new_trail_level (decision);
-    warmup_assign (decision, decision_reason);
+    assert (false);
   }
   if (res)
     marked_failed = false;
@@ -328,12 +321,28 @@ int Internal::warmup_decide () {
   return res;
 }
 
+void Internal::warmup_decide () {
+  assert (!satisfied ());
+  START (decide);
+  assert ((size_t) level >= assumptions.size ());
+  assert (!constraint.size () || (size_t) level > assumptions.size ());
+  const bool target = (stable || opts.target == 2);
+  stats.warmup.decision++;
+  int idx = next_decision_variable ();
+  if (flags (idx).eliminated ())
+    ++stats.warmup.dummydecision;
+  int decision = decide_phase (idx, target);
+  new_trail_level (decision);
+  warmup_assign (decision, decision_reason);
+  STOP (decide);
+}
+
 int Internal::warmup () {
   assert (!unsat);
   assert (!level);
   if (!opts.warmup)
     return 0;
-  require_mode(WALK);
+  require_mode (WALK);
   START (warmup);
   ++stats.warmup.count;
   int res = 0;
@@ -347,35 +356,43 @@ int Internal::warmup () {
   // subtle thing, if we find a conflict in the assumption, then we
   // actually do need the notifications. Otherwise, we there should be
   // no notification at all (not even the `backtrack ()` at the end).
-  const size_t assms_contraint_level = assumptions.size () + !constraint.empty ();
-  while (!res && (size_t) level < assms_contraint_level && num_assigned < (size_t) max_var) {
+  const size_t assms_contraint_level =
+      assumptions.size () + !constraint.empty ();
+  while (!res && !conflict && (size_t) level < assms_contraint_level &&
+         num_assigned < (size_t) max_var) {
     assert (num_assigned < (size_t) max_var);
-    res = warmup_decide ();
-    warmup_propagate_beyond_conflict();
+    res = warmup_decide_assumptions ();
+    if (!res)
+      propagate ();
   }
+  if (conflict && !res)
+    marked_failed = false, res = 20;
+
   const bool no_backtrack_notification = (level == 0);
 
   // now we do not need any notification and can simply propagate
-  assert (propagated == trail.size ());
+  assert (res || propagated == trail.size ());
   assert (!private_steps);
   private_steps = true;
-
 
   LOG ("propagating beyond conflicts to warm-up walk");
   while (!res && num_assigned < (size_t) max_var) {
     assert (propagated == trail.size ());
-    res = warmup_decide ();
-    warmup_propagate_beyond_conflict();
+    warmup_decide ();
+    warmup_propagate_beyond_conflict ();
     LOG (lrat_chain, "during warmup with lrat chain:");
   }
   assert (res || num_assigned == (size_t) max_var);
 #ifndef QUIET
   // constrains with empty levels break this
-  // assert (res || stats.warmup.propagated - warmup_propagated == (int64_t)num_assigned);
-  VERBOSE (3, "warming-up needed %" PRIu64 " propagations including %" PRIu64 " decisions (with %" PRIu64 " dummy ones)",
-	   stats.warmup.propagated - warmup_propagated,
-	   stats.warmup.decision - decision,
-	   stats.warmup.dummydecision - dummydecision);
+  // assert (res || stats.warmup.propagated - warmup_propagated ==
+  // (int64_t)num_assigned);
+  VERBOSE (3,
+           "warming-up needed %" PRIu64 " propagations including %" PRIu64
+           " decisions (with %" PRIu64 " dummy ones)",
+           stats.warmup.propagated - warmup_propagated,
+           stats.warmup.decision - decision,
+           stats.warmup.dummydecision - dummydecision);
 #endif
 
   // now we backtrack, notifying only if there was something to
@@ -385,8 +402,8 @@ int Internal::warmup () {
     backtrack_without_updating_phases ();
   private_steps = false;
   STOP (warmup);
-  require_mode(WALK);
+  require_mode (WALK);
   return res;
 }
 
-}
+} // namespace CaDiCaL

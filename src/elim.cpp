@@ -20,9 +20,8 @@ namespace CaDiCaL {
 
 inline double Internal::compute_elim_score (unsigned lit) {
   assert (1 <= lit), assert (lit <= (unsigned) max_var);
-  const unsigned uidx = 2 * lit;
-  const double pos = internal->ntab[uidx];
-  const double neg = internal->ntab[uidx + 1];
+  const double pos = noccs (lit);
+  const double neg = noccs (-lit);
   if (!pos)
     return -neg;
   if (!neg)
@@ -561,8 +560,8 @@ inline void Internal::elim_add_resolvents (Eliminator &eliminator,
   case DEF:
     stats.eliminated_def++;
     break;
-  default:
-    assert (eliminator.gatetype == NO);
+  case NO:
+    break;
   }
 
   LOG ("adding all resolvents on %d", pivot);
@@ -615,9 +614,6 @@ void Internal::mark_eliminated_clauses_as_garbage (
 
   LOG ("marking irredundant clauses with %d as garbage", pivot);
 
-  const int elit = internal->externalize (pivot);
-  const int eidx = abs (elit);
-  const bool is_extension_var = opts.factornoreconstr && external->ervars[eidx] && !flags(pivot).factored_but_on_reconstruction_stack;
   const int64_t substitute = eliminator.gates.size ();
   if (substitute)
     LOG ("pushing %" PRId64 " gate clauses on extension stack", substitute);
@@ -630,12 +626,11 @@ void Internal::mark_eliminated_clauses_as_garbage (
       continue;
     assert (!c->redundant);
     if (!substitute || c->gate) {
-      if (proof && !is_extension_var)
+      if (proof)
         proof->weaken_minus (c);
       if (c->size == 2)
         deleted_binary_clause = true;
-      if (!is_extension_var)
-	external->push_clause_on_extension_stack (c, pivot);
+      external->push_clause_on_extension_stack (c, pivot);
 #ifndef NDEBUG
       pushed++;
 #endif
@@ -653,12 +648,11 @@ void Internal::mark_eliminated_clauses_as_garbage (
       continue;
     assert (!d->redundant);
     if (!substitute || d->gate) {
-      if (proof && !is_extension_var)
+      if (proof)
         proof->weaken_minus (d);
       if (d->size == 2)
         deleted_binary_clause = true;
-      if (!is_extension_var)
-	external->push_clause_on_extension_stack (d, -pivot);
+      external->push_clause_on_extension_stack (d, -pivot);
 #ifndef NDEBUG
       pushed++;
 #endif

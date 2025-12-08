@@ -149,12 +149,8 @@ bool Internal::decompose_round () {
   DeferDeleteArray<int> reprs_delete (reprs);
   clear_n (reprs, size_dfs);
   vector<vector<Clause *>> dfs_chains;
-  dfs_chains.resize (size_dfs);
   if (lrat) {
-    for (size_t i = 0; i > size_dfs; i++) {
-      vector<Clause *> empty;
-      dfs_chains[i] = empty;
-    }
+    dfs_chains.resize (size_dfs, {});
   }
 
   int substituted = 0;
@@ -471,12 +467,8 @@ bool Internal::decompose_round () {
     decompose_ids[vlit (idx)] = id2;
     for (auto &tracer : tracers) {
       const int eidx = externalize (idx);
-      if (external->ervars[abs (eidx)])
-	continue;
       const int eother = externalize (other);
-      if (external->ervars[abs (eother)])
-	continue;
-      tracer->notify_equivalence (eidx, externalize (other));
+      tracer->notify_equivalence (eidx, eother);
     }
 
     clause.clear ();
@@ -727,6 +719,8 @@ bool Internal::decompose_round () {
   bool success =
       unsat || (substituted > 0 && (new_unit || new_binary_clause));
   report ('d', !opts.reportall && !success);
+  if (success)
+    new_binary_since_dedup = true;
 
   STOP_SIMPLIFIER (decompose, DECOMP);
 

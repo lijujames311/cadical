@@ -16,6 +16,7 @@ Internal::Internal ()
       private_steps (false), rephased (0), vsize (0), max_var (0),
       clause_id (0), original_id (0), reserved_ids (0), conflict_id (0),
       saved_decisions (0), concluded (false), lrat (false), frat (false),
+      new_binary_since_dedup (true),
       level (0), vals (0), score_inc (1.0), scores (this), conflict (0),
       ignore (0), external_reason (&external_reason_clause),
       newest_clause (0), force_no_backtrack (false),
@@ -23,8 +24,9 @@ Internal::Internal ()
       tainted_literal (0), notified (0), probe_reason (0), propagated (0),
       propagated2 (0), propergated (0), best_assigned (0),
       target_assigned (0), no_conflict_until (0), unsat_constraint (false),
-      marked_failed (true), sweep_incomplete (false), citten (0),
-      num_assigned (0), proof (0), opts (this),
+      marked_failed (true), sweep_incomplete (false),
+      randomized_deciding (false), citten (0), num_assigned (0), proof (0),
+      opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
 #endif
@@ -34,8 +36,10 @@ Internal::Internal ()
   control.push_back (Level (0, 0));
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
-  // clause, which then can be used to subsume or strengthen the given
-  // clause in one routine for both binary and non binary clauses.  This
+  // clause (which then can be used to subsume or strengthen the given
+  // clause in one routine for both binary and non binary clauses) and
+  // in walk (which is only used as a placeholder in the watch lists
+  // when logging is off, since the clause is not accessed).  This
   // fake binary clause is always kept non-redundant (and not-moved etc.)
   // due to the following 'memset'.  Only literals will be changed.
 
@@ -48,7 +52,7 @@ Internal::Internal ()
   memset (dummy_binary, 0, bytes);
   dummy_binary->size = 2;
 
-  static_assert (max_used == (1 << USED_SIZE) - 1);
+  /*with C++17: static_*/ assert (max_used == (1 << USED_SIZE) - 1);
 }
 
 Internal::~Internal () {
@@ -148,7 +152,7 @@ void Internal::enlarge (int new_max_var) {
   enlarge_zero (phases.prev, new_vsize);
   enlarge_zero (marks, new_vsize);
   if (lrat || frat) {
-    LOG ("binary_lrat_ids has now size %d", new_vsize);
+    LOG ("binary_lrat_ids has now size %zd", new_vsize);
     enlarge_only (binary_lrat_ids, new_vsize);
   }
 }
@@ -331,7 +335,7 @@ int Internal::cdcl_loop_with_inprocessing () {
       condition (); // globally blocked clauses
     else
       res = decide (); // next decision
-    assert (!lrat || binary_lrat_ids.size () > max_var);
+    assert (!lrat || binary_lrat_ids.size () > (size_t)max_var);
   }
 
   if (stable) {
@@ -487,7 +491,7 @@ void Internal::init_preprocessing_limits () {
   if (incremental)
     mode = "keeping";
   else {
-    double delta = log10 (stats.added.irredundant);
+    double delta = log10 (stats.added.irredundant + 10);
     delta = delta * delta;
     lim.inprobe = stats.conflicts + opts.inprobeint * delta;
     mode = "initial";
@@ -627,9 +631,18 @@ void Internal::init_search_limits () {
     LOG ("no limit on decisions");
   } else {
     lim.decisions = stats.decisions + inc.decisions;
-    LOG ("conflict limit after %" PRId64 " decisions at %" PRId64
+    LOG ("decision limit after %" PRId64 " decisions at %" PRId64
          " decisions",
          inc.decisions, lim.decisions);
+  }
+
+  if (inc.ticks < 0) {
+    lim.ticks = -1;
+    LOG ("no limit on ticks");
+  } else {
+    lim.ticks = stats.ticks.search[0] + stats.ticks.search[1] + inc.ticks;
+    LOG ("ticks limit after %" PRId64 " ticks at %" PRId64 " ticks",
+         inc.ticks, lim.ticks);
   }
 
   /*----------------------------------------------------------------------*/
@@ -668,18 +681,33 @@ void Internal::init_search_limits () {
 
   /*----------------------------------------------------------------------*/
 
+  if (incremental)
+    mode = "keeping";
+  else {
+    lim.random_decision = stats.conflicts + opts.randecinit;
+    mode = "initial";
+  }
+  (void) mode;
+  LOG ("%s randomize decision limit %" PRId64 " after %" PRId64
+       " conflicts",
+       mode, lim.random_decision, lim.random_decision - stats.conflicts);
+
+  /*----------------------------------------------------------------------*/
+
   lim.initialized = true;
 }
 
 /*------------------------------------------------------------------------*/
 
-bool Internal::preprocess_round (int round) {
+bool Internal::preprocess_round (int round, bool &triggered) {
   (void) round;
   if (unsat)
     return false;
   if (!max_var)
     return false;
   START (preprocess);
+  if (!triggered)
+    report ('('), triggered = true;
   struct {
     int64_t vars, clauses;
   } before, after;
@@ -720,7 +748,7 @@ bool Internal::preprocess_round (int round) {
 }
 
 // for now counts as one of the preprocessing rounds TODO: change this?
-void Internal::preprocess_quickly (bool always) {
+void Internal::preprocess_quickly (bool always, bool &triggered) {
   if (unsat)
     return;
   if (!max_var)
@@ -740,10 +768,14 @@ void Internal::preprocess_quickly (bool always) {
   // stats.preprocessings++;
   assert (!preprocessing);
   preprocessing = true;
+  triggered = true;
+  report ('(');
   PHASE ("preprocessing", stats.preprocessings,
          "starting with %" PRId64 " variables and %" PRId64 " clauses",
          before.vars, before.clauses);
 
+  if (opts.deduplicateallinit && stats.deduplicatedinitrounds)
+    deduplicate_all_clauses();
   if (extract_gates (true))
     decompose ();
   binary_clauses_backbone ();
@@ -756,8 +788,8 @@ void Internal::preprocess_quickly (bool always) {
 
   if (opts.fastelim)
     elimfast ();
-  // if (opts.condition)
-  // condition (false);
+    // if (opts.condition)
+    // condition (false);
 #ifndef QUIET
   after.vars = active ();
   after.clauses = stats.current.irredundant;
@@ -773,14 +805,15 @@ void Internal::preprocess_quickly (bool always) {
 
 int Internal::preprocess (bool always) {
   int res = 0;
-  if (!level && !unsat && opts.luckyearly)
-    res = lucky_phases ();
   if (res)
     return res;
-  preprocess_quickly (always);
+  bool preprecessing_triggered = false;
+  preprocess_quickly (always, preprecessing_triggered);
   for (int i = 0; i < lim.preprocessing; i++)
-    if (!preprocess_round (i))
+    if (!preprocess_round (i, preprecessing_triggered))
       break;
+  if (preprecessing_triggered)
+    report (')');
   if (unsat)
     return 20;
   return 0;
@@ -962,6 +995,8 @@ int Internal::solve (bool preprocess_only) {
     if (!res && !level)
       res = local_search ();
   }
+  if (!preprocess_only && !res && !level && opts.luckyearly)
+    res = lucky_phases ();
   if (!res && !level)
     res = preprocess (preprocess_only);
   if (!preprocess_only) {

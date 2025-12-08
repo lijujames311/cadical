@@ -1,49 +1,130 @@
+Version 3.0.0
+-------------
+
+Breaking Changes:
+
+- Renamed `get_entrailed_literals` function to `implied` after it became
+  deprecated in the 2.2.0 release.  Due to removing the former function from
+  the interface it is a breaking change, but the function has the same
+  (slightly extended in release 2.2.0) semantics as before and users can just
+  replace `get_entrailed_literals` by `implied`.
+
+- Renamed the `reserve` function to `resize` after it became deprecated in the
+  2.2.0 release due to its misleading name (cf. semantics of `reserve` and
+  `resize` for `std::vector`).  Users can replace in their code simply replace
+  `reserve` by `resize` though as semantics of the function did not
+  change at all.
+
+- Furthermore, and probably the most severe change, and as announced in
+  the 2.2.0 release, our incremental version of bounded value addition (aka
+  BVA or `factor`) requires changing how variables are treated, particular
+  in the context of incremental SAT solving.  In principle, variables now
+  have to be declared explicitely (through `declare_more_variables ()` or
+  `vars ()`) before adding clauses containing them or asking for their value
+  etc.  This became necessary for proof checking in incremental SAT solving
+  when using techniques, such as BVA (`factor`), that rely on the
+  introduction of extension variables.  These variables necessarily have to
+  occur in proofs and have to be distinguished from user variables.  Our
+  solution is to force the user to ask the solver for unused variable
+  ranges, which avoids overlap with extension variables. Only these
+  variables can then be used freely as before.  For one-shot-solving there
+  is no usage change, nor for the first solving/simplification call to the
+  SAT solver.  The same applies if all techniques relying on extension
+  variables are disabled (currently when `factor` is disabled).  But for
+  incremental usage, keeping `factor` enabled (the default), the user has to
+  follow this new API contract.  Disabling `factor` however would have the
+  consequence to reduce solving efficiency particularly on hard
+  combinatorial benchmarks such as pigeon hole formulas.  We are also
+  working on further uses of extension variables, for which this new API
+  contract will also apply.
+
 Version 2.2.0
 -------------
 
-- Renamed `get_entrailed_literals` by `implied`.
+User Facing Changes:
+
+- ILB interface simplified: instead of having `ilbassumptions` and `ilb`,
+  there is now only `ilb` with values `0`, `1` (= only assumptions), and `2`
+  (= full reuse).
+
+- The tracer now allows to get equivalent literals during solving.
+
+- Support for compilation of shared library via `./configure -shared`.
+
+- Added `get_statistic_value` to be able to extract some information
+  about the current run.
+
+- The `lucky` procedure can now handle assumptions (but not the external
+  propagator). Set `luckyassumptions` to false if you do not want that.
+
+- The `val` function now has a Boolean as second argument that checks that
+  the variables was declared. The default is the old behavior.
+  This new parameter can be useful for debugging applications.
+
+- Fixed `VeriPB` compatibility issues.
+
+- The `get_entrailed_literals` function became **deprecated** and is going to be
+  replaced by the new `implied` function, with the same sematics, except
+  that is now also allowed in the 'SATISFIED' state. The next
+  major release will remove `get_entrailed_literals`.
+
+- The `reserve` function became **deprecated** and is going to be replaced 
+  by the new `resize`  function due to its misleading name (compared to
+  `std::vector`).  Users can in their code simply replace `reserve` by
+  `resize`.  The next major release will remove `reserve`.
+
+- Bounded variable addition aka `factor` (see below) remains disabled by
+  default as it requires a change in incremental usage when enabled.  The
+  next major release will (A) enable `factor` by default and accordingly
+  (B) require the usage of `var` resp. `declare_more_variables` for adding
+  new variables in incremental solving (and keeping `factor` enabled).
+  This **breaking-change** is post-poned until the next major release.
+
+New and Improved Techniques:
 
 - Congruence closure: detect AND-, XOR-, and ITE-gates encoded into
   the formula and merges equivalent outputs.
 
-- Bounded Variable Addition.
+- Bounded Variable Addition (BVA) or also called `factor`.
 
-  + reverse of BVE, searches for clause sets with a certain structure,
-    factors out common variables and uses extended resolution with a
-    new variable to derive equisatisfiable clauses which replace the old ones.
+  + Reverse of BVE, searches for clause sets with a certain structure,
+    and factors out common variables using extended resolution and new
+    variables to derive equisatisfiable clauses which replace the old ones.
 
-  + breaking change to incremental usage. To incrementally add new
-    variables to the solver, either use `vars ()`, `reserve_vars ()`
-    or `reserve_difference ()`, see specification in `cadical.hpp`.
-    As a hot-fix, disable with `set ('factor', 0)`
+  + Warning:  We have `factor` off in the 2.2 release (to avoid breaking API
+    changes) but enabling it will break API usage as extension variables can
+    not occur in input clauses. The user will need to use `var ()` or
+    `declare_more_variables ()` when `factor` is enabled for incremental
+    solving to make sure that this does not happen.  We plan to activate
+    `factor` by default with the next major release (3.0.0).
 
 - Clausal Sweeping.
 
-  + introducing the 'kitten' solver to cadical. Enables semantic search
+  + Introducing the 'kitten' solver to cadical. Enables semantic search
     for equivalences in sub-parts of the formula.
 
-- Ticks.
+- Ticks for improved scheduling
 
-- Improved lucky, by allowing it to do several conflicts.
+  + You can now also use ticks to limit the runtime like the
+    conflict/decision limit before.
 
-- New light preprocessing round on with lucky, congruence, factor, and
+- Improved vivify with a new tier-based scheduling.
+
+- Improved the lucky procedure, by allowing it to do several conflicts and
+  finding new units.
+
+- New light-way preprocessing round with lucky, congruence, factor, and
   a new (very limited) BVE (fast elim). Fast elimination is never run
   again and normal BVE is used instead. Lucky is run before and after
   preprocessing.
 
 - Small extension to gate extraction in BVE, now able to extract
-  semantic definitions using 'kitten'
-  (off by default `set ('elimdef', 1)` to enable).
+  semantic definitions using 'kitten' (use `set ('elimdef', 1)` to enable).
 
-- ILB interface simplified: instead of having ilbassumptions and ilb,
-  there is now only ilb with values 0, 1 (= only assumptions), and 2
-  (= full reuse).
+- Improved locals search walk algorithm. We have also ported the version
+  from Kissat (relying on full-occurrence list), deactivated by default.
 
-- The trace now allows to get equivalent literals during solving
-
-- Support for compilation of shared library via `./configure -shared`.
-
-- Fixed VeriPB compatibility issues.
+- Binary backone similarly to `Kissat`.
 
 Version 2.1.3
 -------------
@@ -281,7 +362,8 @@ Version 1.7.0
 
 - Added native LRAT support.
 
-Version 1.6.0 -------------
+Version 1.6.0
+-------------
 
 - Added IPASIR-UP functions to the API to support external propagation,
   external decisions, and clause addition during search.  For more details

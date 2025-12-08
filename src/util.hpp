@@ -40,7 +40,7 @@ bool parse_int_str (const char *str, int &);
 
 /*------------------------------------------------------------------------*/
 
-inline bool is_power_of_two (unsigned n) { return n && !(n & (n - 1)); }
+inline bool is_power_of_two (size_t n) { return n > 0 && n && !(n & (n - 1)); }
 
 inline bool contained (int64_t c, int64_t l, int64_t u) {
   return l <= c && c <= u;
@@ -114,6 +114,20 @@ template <class T> static void enlarge_only (vector<T> &v, size_t N) {
 
 template <class T> static void enlarge_zero (vector<T> &v, size_t N) {
   enlarge_init (v, N, (const T &) 0);
+}
+
+// double the capacity until it fits. This is different from reserve
+// that will allocate exactly the size requested, meaning that the
+// amortized complexity is lost.
+template <class T> static void reserve_at_least (vector<T> &v, size_t N) {
+  if (N < v.capacity ())
+    return;
+  size_t new_size = v.size ();
+  if (!new_size)
+    new_size = N;
+  while (new_size < N)
+    new_size *= 2;
+  v.reserve (new_size);
 }
 
 // Clean-up class for bad_alloc error safety.

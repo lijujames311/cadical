@@ -113,7 +113,6 @@ extern "C" {
 
 namespace CaDiCaL {
 
-
 using namespace std;
 
 struct Coveror;
@@ -215,6 +214,7 @@ struct Internal {
       probehbr_chains;          // only used if opts.probehbr=false
   bool lrat;                    // generate LRAT internally
   bool frat;                    // finalize non-deleted clauses in proof
+  bool new_binary_since_dedup;// new binary clause has been learned since last decompose round
   int level;                    // decision level ('control.size () - 1')
   Phases phases;                // saved, target and best phases
   signed char *vals;            // assignment [-max_var,max_var]
@@ -273,6 +273,7 @@ struct Internal {
 
   vector<int> sweep_schedule; // remember sweep varibles to reschedule
   bool sweep_incomplete;      // sweep
+  uint64_t randomized_deciding;
 
   kitten *citten;
 
@@ -311,7 +312,8 @@ struct Internal {
   Internal *internal; // proxy to 'this' in macros
   External *external; // proxy to 'external' buddy in 'Solver'
 
-  static constexpr unsigned max_used = 31; // must fit into the header of the clause!
+  static constexpr unsigned max_used =
+      31; // must fit into the header of the clause!
   /*----------------------------------------------------------------------*/
 
   // Asynchronous termination flag written by 'terminate' and read by
@@ -330,7 +332,6 @@ struct Internal {
   ~Internal ();
 
   /*----------------------------------------------------------------------*/
-
 
   // Internal delegates and helpers for corresponding functions in
   // 'External' and 'Solver'.  The 'init_vars' function initializes
@@ -834,7 +835,11 @@ struct Internal {
   void renotify_full_trail ();
 
   // adds the assigned literals to assigned
-  void renotify_full_trail_between_trail_pos (int start_level, int end_level, int propagator_level, std::vector<int> &assigned, bool start_new_level);
+  void renotify_full_trail_between_trail_pos (int start_level,
+                                              int end_level,
+                                              int propagator_level,
+                                              std::vector<int> &assigned,
+                                              bool start_new_level);
   void connect_propagator ();
   void mark_garbage_external_forgettable (int64_t id);
   bool is_external_forgettable (int64_t id);
@@ -861,7 +866,8 @@ struct Internal {
   //
   void clear_phases (vector<signed char> &); // reset argument to zero
   void copy_phases (vector<signed char> &);  // copy 'saved' to argument
-  void save_assigned_phases (vector<signed char> &);  // save assigned literals to argument
+  void save_assigned_phases (
+      vector<signed char> &); // save assigned literals to argument
 
   // Resetting the saved phased in 'rephase.cpp'.
   //
@@ -879,9 +885,14 @@ struct Internal {
   // Lucky feasible case checking.
   //
   int unlucky (int res);
+  int lucky_decide_assumptions ();
+  void lucky_search_assign (int lit, Clause *reason);
   bool lucky_propagate_discrepency (int);
+  void lucky_assume_decision (int);
   int trivially_false_satisfiable ();
   int trivially_true_satisfiable ();
+  template<class Iterator>
+  int lucky_fixed_test (Iterator begin, Iterator end, signed char pol, std::string str);
   int forward_false_satisfiable ();
   int forward_true_satisfiable ();
   int backward_false_satisfiable ();
@@ -995,7 +1006,7 @@ struct Internal {
   void vivify_build_lrat (int, Clause *,
                           std::vector<std::tuple<int, Clause *, bool>> &);
   void vivify_chain_for_units (int lit, Clause *reason);
-  void vivify_strengthen (Clause *candidate);
+  void vivify_strengthen (Clause *candidate, int64_t &);
   void vivify_assign (int lit, Clause *);
   void vivify_assume (int lit);
   bool vivify_propagate (int64_t &);
@@ -1007,6 +1018,10 @@ struct Internal {
   bool vivify_shrinkable (const std::vector<int> &sorted, Clause *c);
   void vivify_round (Vivifier &, int64_t delta);
   bool vivify ();
+
+  // Deduplicating clauses
+  //
+  void deduplicate_all_clauses ();
 
   // Compacting (shrinking internal variable tables) in 'compact.cpp'
   //
@@ -1021,10 +1036,12 @@ struct Internal {
   //
   void backbone_decision (int lit);
   bool backbone_propagate (int64_t &);
-  void backbone_propagate2 (int64_t&);
+  void backbone_propagate2 (int64_t &);
   unsigned compute_backbone ();
-  void backbone_unit_reassign (int lit); // only for reassigning already derived clauses!
-  void backbone_unit_assign (int lit); // only for reassigning already derived clauses!
+  void backbone_unit_reassign (
+      int lit); // only for reassigning already derived clauses!
+  void backbone_unit_assign (
+      int lit); // only for reassigning already derived clauses!
   void backbone_assign_any (int lit, Clause *reason);
   void backbone_assign (int lit, Clause *reason);
   void backbone_lrat_for_units (int lit, Clause *c);
@@ -1034,7 +1051,7 @@ struct Internal {
                                    int64_t &ticks, unsigned inconsistent);
   void schedule_backbone_cands (std::vector<int> &candidates);
   void keep_backbone_candidates (const std::vector<int> &candidates);
-  int backbone_analyze (Clause *, int64_t&);
+  int backbone_analyze (Clause *, int64_t &);
   void binary_clauses_backbone ();
 
   // We monitor the maximum size and glue of clauses during 'reduce' and
@@ -1330,7 +1347,7 @@ struct Internal {
   bool run_factorization (int64_t limit);
   bool factor ();
   int get_new_extension_variable ();
-  Clause *new_factor_clause ();
+  Clause *new_factor_clause (int);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
 
   // instantiate
@@ -1398,13 +1415,14 @@ struct Internal {
   int walk_full_occs_round (int64_t limit, bool prev);
   void walk_full_occs ();
   void walk_full_occs_save_minimum (WalkerFO &);
-  void make_clauses_along_occurrences(WalkerFO &walker, int lit);
-  void make_clauses_along_unsatisfied(WalkerFO &walker, int lit);
+  void make_clauses_along_occurrences (WalkerFO &walker, int lit);
+  void make_clauses_along_unsatisfied (WalkerFO &walker, int lit);
 
   // Warmup
   inline void warmup_assign (int lit, Clause *reason);
   void warmup_propagate_beyond_conflict ();
-  int warmup_decide ();
+  int warmup_decide_assumptions (); // only assumptions and constraints
+  void warmup_decide (); // rest of the decisions
   int warmup ();
 
   // Detect strongly connected components in the binary implication graph
@@ -1480,6 +1498,8 @@ struct Internal {
   // Part on picking the next decision in 'decide.cpp'.
   //
   bool satisfied ();
+  void start_random_sequence ();
+  int next_random_decision ();
   int next_decision_variable_on_queue ();
   int next_decision_variable_with_best_score ();
   int next_decision_variable ();
@@ -1495,6 +1515,7 @@ struct Internal {
   void limit_conflicts (int);     // Force conflict limit.
   void limit_preprocessing (int); // Enable 'n' preprocessing rounds.
   void limit_local_search (int);  // Enable 'n' local search rounds.
+  void limit_ticks (int64_t);     // Force ticks limit.
 
   // External versions can access limits by 'name'.
   //
@@ -1530,8 +1551,8 @@ struct Internal {
   //
   int already_solved ();
   int restore_clauses ();
-  bool preprocess_round (int round);
-  void preprocess_quickly (bool always);
+  bool preprocess_round (int round, bool&);
+  void preprocess_quickly (bool always, bool&);
   int preprocess (bool always);
   int local_search_round (int round);
   int local_search ();
@@ -1909,11 +1930,16 @@ inline bool Internal::search_limits_hit () {
     return true;
   }
 
+  if (lim.ticks >= 0 &&
+      stats.ticks.search[0] + stats.ticks.search[1] >= lim.ticks) {
+    LOG ("ticks limit %" PRId64 " reached", lim.ticks);
+    return true;
+  }
+
   return false;
 }
 
 /*------------------------------------------------------------------------*/
-
 
 } // namespace CaDiCaL
 

@@ -71,6 +71,9 @@ void Internal::remove_falsified_literals (Clause *c) {
 	binary_lrat_ids[abs (lit)] = c->id;
     }
   }
+
+  if (c->size == 2)
+    new_binary_since_dedup = true;
 }
 
 // If there are new units (fixed variables) since the last garbage
