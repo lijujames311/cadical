@@ -1,5 +1,6 @@
 #include "refactor.hpp"
 #include "internal.hpp"
+#include "message.hpp"
 #include "util.hpp"
 
 namespace CaDiCaL {
@@ -364,8 +365,10 @@ void Internal::refactor_shrink_candidate (refactor_candidate cand,
     if (abs (lit) == abs (condition))
       continue;
     if (abs (lit) == abs (cand_branch))
-      clause.push_back (lit);
+      continue;
+    clause.push_back (lit);
   }
+  clause.push_back (definition);
   new_clause_as (cand.candidate);
   clause.clear ();
   lrat_chain.clear ();
@@ -515,7 +518,7 @@ bool Internal::refactor_clause (Refactoring &refactoring,
   // Go over the literals in the candidate clause.
   // TODO: prioritize the gate literals first.
   //
-  for (const auto &lit : clause) {
+  for (const auto &lit : *c) {
 
     // Exit loop as soon a literal is positively implied (case '@5' below)
     // or propagation of the negation of a literal fails ('@6').
@@ -692,7 +695,10 @@ void Internal::refactor_initialize (Refactoring &refactoring,
 
   refactor_propagate (ticks);
 
-  PHASE ("refactor", stats.refactor, "init");
+  PHASE ("refactor", stats.refactor,
+         "initialized %zd clauses for %zd gates using %" PRId64 " ticks",
+         refactoring.candidates.size (), refactoring.gate_clauses.size (),
+         ticks);
 }
 
 void Internal::refactor_round (Refactoring &refactoring,
@@ -718,6 +724,7 @@ void Internal::refactor_round (Refactoring &refactoring,
   int64_t checked = stats.refactorchecks;
   int64_t strengthened = stats.refactorstrs;
   int64_t units = stats.refactorunits;
+  int64_t succs = stats.refactorsuccs;
 
   auto &schedule = refactoring.candidates;
   int64_t scheduled = schedule.size ();
@@ -773,6 +780,7 @@ void Internal::refactor_round (Refactoring &refactoring,
   checked = stats.refactorchecks - checked;
   strengthened = stats.refactorstrs - strengthened;
   units = stats.refactorunits - units;
+  succs = stats.refactorsuccs - succs;
 
   PHASE ("refactor", stats.refactor,
          "checked %" PRId64 " clauses %.02f%% of %" PRId64
@@ -791,7 +799,7 @@ void Internal::refactor_round (Refactoring &refactoring,
 
   stats.ticks.refactor += refactoring.ticks;
 
-  bool unsuccessful = !(strengthened + units);
+  bool unsuccessful = !(strengthened + units + succs);
   report ('y', unsuccessful);
 }
 
@@ -814,32 +822,30 @@ bool Internal::refactor () {
   assert (opts.refactor);
   assert (!level);
 
-  SET_EFFORT_LIMIT (totallimit, refactor, true);
+  SET_EFFORT_LIMIT (limit, refactor, true);
 
   private_steps = true;
 
   START_SIMPLIFIER (refactor, REFACTOR);
   stats.refactor++;
 
-  // the effort is normalized by dividing by sumeffort below, hence no need
-  // to multiply by 1e-3 (also making the precision better)
-  int64_t total = totallimit - stats.ticks.refactor;
-
+  const int64_t limit_before = limit - stats.ticks.refactor;
   PHASE ("refactor", stats.refactor,
-         "refactoring limit of %" PRId64 " ticks", total);
+         "refactoring limit of %" PRId64 " ticks", limit_before);
   Refactoring refactoring;
 
   int64_t init_ticks = 0;
 
   refactor_initialize (refactoring, init_ticks);
-  stats.ticks.refactor += init_ticks;
-  int64_t limit = stats.ticks.refactor;
+  // TODO: initialization takes too many ticks
+  // stats.ticks.refactor += init_ticks;
   if (limit > stats.ticks.refactor) {
-    assert (limit >= 0);
     refactor_round (refactoring, limit);
   } else {
-    LOG ("building the schedule already used our entire ticks budget for "
-         "refactor");
+    PHASE ("refactor", stats.refactor,
+           "refactoring limit of %" PRId64
+           " was used up during initialization (%" PRId64 ")",
+           limit_before, init_ticks);
   }
 
   STOP_SIMPLIFIER (refactor, REFACTOR);
