@@ -229,6 +229,11 @@ bool Internal::propagate () {
     require_mode (SEARCH);
   assert (!unsat);
   LOG ("starting propagate");
+
+  // IPASIR-UP make everything harder.
+  if (!imports.empty())
+    activating_all_new_imported_literals();
+
   START (propagate);
 
   // Updating statistics counter in the propagation loops is costly so we
