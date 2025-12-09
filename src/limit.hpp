@@ -159,7 +159,7 @@ struct Inc {
     const int64_t NEW_LIMIT = OLD_LIMIT + DELTA; \
     LIMIT = NEW_LIMIT; \
     VERBOSE (2, \
-             "new ticks limit %" PRId64 "= %" PRId64 " + %f * %" PRId64, \
+             "new ticks limit %" PRId64 " = %" PRId64 " + %f * %" PRId64, \
              NEW_LIMIT, OLD_LIMIT, EFFORT, REFERENCE); \
   } while (0)
 
