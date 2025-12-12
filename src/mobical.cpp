@@ -4743,7 +4743,7 @@ void Reader::parse () {
       if (state == Call::RESET)
         error ("'%s' after 'reset'", c->keyword ());
 
-      if (adding && c->type != Call::ADD && c->type != Call::RESET)
+      if (adding && c->type != Call::ADD && c->type != Call::RESET && c->type != Call::RESIZE)
         error ("'%s' after 'add %d' without 'add 0'", c->keyword (),
                adding);
 
