@@ -129,6 +129,10 @@ void Internal::factor_mode (bool redundant_only) {
   for (const auto &c : candidates)
     for (const auto &lit : *c)
       occs (lit).push_back (c);
+
+  PHASE ("factor", stats.factor,
+         "initialized %zd clauses using %" PRId64 " ticks",
+         candidates.size (), ticks);
 }
 
 // go back to two watch scheme
@@ -1349,7 +1353,7 @@ bool Internal::run_factorization (int64_t limit) {
 
   while (!unsat && !done && !factoring.schedule.empty ()) {
     const unsigned ufirst = factoring.schedule.pop_front ();
-    LOG ("next factor candidate %d", ufirst);
+    VERBOSE (3, "next factor candidate %d", ufirst);
     const int first = u2i (ufirst);
     const int first_idx = vidx (first);
     if (!active (first_idx))

@@ -628,6 +628,8 @@ void Internal::refactor_initialize (Refactoring &refactoring,
     refactoring.gate_clauses.back ().skip = false;
     for (const auto &c : clauses) {
       ++ticks;
+      if (c->garbage)
+        continue;
       if (!c->redundant && c->size == 3) {
         bool gate = true;
         for (auto &lit : *c) {
