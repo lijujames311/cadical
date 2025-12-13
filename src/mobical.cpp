@@ -1336,7 +1336,7 @@ struct Call {
   int val;     // Option value for 'set'.
 
   Call (Type t, int a = 0, int r = 0, const char *o = 0, int v = 0)
-      : type (t), arg (a), res (r), name (o ? strdup (o) : 0), val (v) {}
+      : type (t), res (r), name (o ? strdup (o) : 0), arg (a), val (v) {}
 
   virtual ~Call () {
     if (name)
