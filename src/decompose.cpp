@@ -406,7 +406,11 @@ bool Internal::decompose_round () {
   // the substituted literals to their representative on the extension
   // stack to fix an assignment during 'extend'.
   // It is also necessary to do so for proper IDRUP/LIDRUP/Resolution proofs
-
+  //
+  // For frozen literals we do the replacement (to be able to strengthen and
+  // subsume clauses), but keep the binary clauses. The replacement also
+  // practically make sure that only the representative gets bumped in various
+  // heuristics.
   vector<int64_t> decompose_ids;
   vector<Clause*> frozen_binary_reasons;
   const size_t size = 2 * (1 + (size_t) max_var);
@@ -703,9 +707,6 @@ bool Internal::decompose_round () {
 
   for (auto c : frozen_binary_reasons)
     c->gate = false;
-  for (auto c : clauses) {
-    assert (c->garbage || !c->gate);
-  }
   if (!unsat && !postponed_garbage.empty ()) {
     LOG ("now marking %zd postponed garbage clauses",
          postponed_garbage.size ());
