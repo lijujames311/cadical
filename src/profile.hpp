@@ -76,6 +76,9 @@ struct Internal;
   PROFILE (ternary, 2) \
   PROFILE (transred, 3) \
   PROFILE (unstable, 2) \
+  PROFILE (userhash, 2) \
+  PROFILE (usernotify, 2) \
+  PROFILE (userprop, 2) \
   PROFILE (vivify, 2) \
   PROFILE (walk, 2)
 
