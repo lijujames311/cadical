@@ -153,6 +153,7 @@ struct Stats {
   int64_t restartlevels = 0; // levels at restart
   int64_t restartstable = 0; // actual number of happened restarts
   int64_t stabphases = 0;    // number of stabilization phases
+  int64_t nowstabphases = 0;     // number of stabilization since last incremental call
   int64_t stabconflicts =
       0;                    // number of search conflicts during stabilizing
   int64_t rescored = 0;     // number of times scores were rescored

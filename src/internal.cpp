@@ -593,7 +593,7 @@ void Internal::init_search_limits () {
   last.stabilize.conflicts = stats.conflicts;
   lim.stabilize = stats.conflicts + opts.stabilizeinit;
   last.stabilize.ticks = stats.ticks.search[0];
-  stats.stabphases = 0;
+  stats.nowstabphases = 0;
   LOG ("new ticks-based stabilize limit %" PRId64 " after %d conflicts",
        lim.stabilize, (int) opts.stabilizeinit);
 
