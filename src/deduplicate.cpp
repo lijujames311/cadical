@@ -269,7 +269,7 @@ void Internal::deduplicate_all_clauses () {
       "flushed %" PRId64 " subsumed clauses out of %zd", subsumed, clauses.end () - start);
   stats.subsumed += subsumed;
   stats.deduplicatedinit += subsumed;
-
+  check_clause_stats();
   init_watches();
   connect_watches();
   report ('d', !opts.reportall && !subsumed);
