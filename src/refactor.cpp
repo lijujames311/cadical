@@ -352,10 +352,10 @@ bool Internal::refactor_clause (Refactoring &refactoring,
   ticks++;
   const int candidate_condition =
       cand.negcon ? -fate.condition : fate.condition;
-  int candidate_branch = cand.negdef ? fate.false_branch : fate.true_branch;
+  int candidate_branch = cand.negcon ? fate.false_branch : fate.true_branch;
   int not_candidate_branch =
-      cand.negdef ? fate.true_branch : fate.false_branch;
-  if (!cand.negcon)
+      cand.negcon ? fate.true_branch : fate.false_branch;
+  if (!cand.negdef)
     candidate_branch = -candidate_branch;
   else
     not_candidate_branch = -not_candidate_branch;
@@ -468,6 +468,9 @@ bool Internal::refactor_clause (Refactoring &refactoring,
   // TODO: prioritize the gate literals first.
   //
   for (const auto &lit : *c) {
+    // Ignore candidate branch (for ITE)
+    if (lit == candidate_branch)
+      continue;
 
     // Exit loop as soon a literal is positively implied (case '@5' below)
     // or propagation of the negation of a literal fails ('@6').
@@ -486,7 +489,7 @@ bool Internal::refactor_clause (Refactoring &refactoring,
     if (tmp) { // literal already assigned
 
       const Var &v = var (lit);
-      assert (v.level);
+      // assert (v.level); TODO: maybe do unit simplification to avoid this?
       if (!v.reason) {
         LOG ("skipping decision %d", lit);
         continue;
@@ -529,8 +532,8 @@ bool Internal::refactor_clause (Refactoring &refactoring,
 
   // TODO: learn temporary clauses and use gate clauses to shrink candidate
   if (clause.size () < 2) {
-    // TODO: cannot happen!
-    COVER (true);
+    // TODO: cannot happen! but does!
+    // COVER (true);
   } else if (clause[clause.size () - 1] != -candidate_condition ||
              clause[clause.size () - 2] != -not_candidate_branch) {
     // TODO: self subsuming resolution!

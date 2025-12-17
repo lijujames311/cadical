@@ -2297,6 +2297,7 @@ public:
 private:
   void notify (char ch = 0) { mobical.notify (*this, ch); }
   void progress () { mobical.progress (*this); }
+  void progress (Trace &tmp) { mobical.progress (tmp); }
 
   struct Segment {
     size_t lo, hi;
@@ -3607,6 +3608,7 @@ bool Trace::shrink_segments (Trace::Segments &segments, int expected) {
       for (size_t i = 0; i < size (); i++)
         if (!ignore[i])
           tmp.push_back (calls[i]->copy ());
+      progress ();
       if (tmp.fork_and_execute () != expected) { // failed
         for (size_t i = l; i < r; i++)
           removed[i] = saved[i];
@@ -3695,7 +3697,7 @@ void Mobical::notify (Trace &trace, signed char ch) {
   if (traces)
     cerr << ' ' << left << setw (12) << traces;
   else
-    cerr << left << setw (13) << "reduce:";
+    cerr << left << setw (13) << trace.executed;
   terminal.yellow ();
 
   if (!notified.empty ()) {
