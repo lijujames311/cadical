@@ -151,6 +151,8 @@ Factoring::Factoring (Internal *i, int64_t l)
   initial = max_var;
   bound = internal->opts.factorbound - 1;
   if (internal->opts.factorboundelim)
+    bound += internal->opts.elimboundmax;
+  else
     bound += internal->lim.elimbound;
   enlarge_zero (count, max_lit);
   quotients.first = quotients.last = quotients.xorites = 0;

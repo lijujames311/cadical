@@ -116,8 +116,8 @@ OPTION( exteagerreasons,   1,  0,  1,0,0,1, "eagerly ask for all reasons (0: onl
 OPTION( exteagerrecalc,    1,  0,  1,0,0,1, "after eagerly asking for reasons recalculate all levels (0: trust the external tool)") \
 OPTION( externallrat,      0,  0,  1,0,0,1, "external lrat") \
 OPTION( factor,            1,  0,  1,0,1,1, "bounded variable addition") \
-OPTION( factorbound,       1, -1, 10,0,0,1, "required reduction of clauses (negative means increase of clauses)") \
-OPTION( factorboundelim,   1,  0,  1,0,0,1, "add current elimbound to factorbound") \
+OPTION( factorbound,       1,  1, 10,0,0,1, "required reduction of clauses") \
+OPTION( factorboundelim,   0,  0,  1,0,0,1, "add maximal elimbound to factorbound (instead of current)") \
 OPTION( factorbumpheap,    1,  0,  2,0,0,1, "score extension variables in heap [0: low as in kissat (do nothing), 1: based on definition, 2: high]") \
 OPTION( factorbumpqueue,   1,  0,  2,0,0,1, "score extension variables in queue [0: low as in kissat, 1: based on definition, 2: high (do nothing)]") \
 OPTION( factorcandrounds,  2,  0,2e9,0,0,1, "candidates reduction rounds (is skipped with factorxor)") \
