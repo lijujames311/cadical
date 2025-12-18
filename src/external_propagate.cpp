@@ -438,7 +438,7 @@ void Internal::move_literals_to_watch () {
 
   for (int i = 0; i < 2; i++) {
     int highest_position = i;
-    int highest_literal = clause[i];
+    const int highest_literal = clause[i];
 
     int highest_level = var (highest_literal).level;
     int highest_value = val (highest_literal);
@@ -462,7 +462,6 @@ void Internal::move_literals_to_watch () {
       }
 
       highest_position = j;
-      highest_literal = other;
       highest_level = other_level;
       highest_value = other_value;
     }

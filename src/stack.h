@@ -10,7 +10,7 @@
     TYPE *allocated; \
   }
 
-#define FULL_STACK(S) ((S).end == (S).allocated)
+#define FULL_STACK(S) ((S).end == (S).allocated || (S).end == 0)
 #define EMPTY_STACK(S) ((S).begin == (S).end)
 #define SIZE_STACK(S) ((size_t) ((S).end - (S).begin))
 #define CAPACITY_STACK(S) ((size_t) ((S).allocated - (S).begin))

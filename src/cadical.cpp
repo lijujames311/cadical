@@ -268,7 +268,7 @@ void App::print_usage (bool all) {
 // Pretty print competition format witness with 'v' lines.
 
 void App::print_witness (FILE *file) {
-  int c = 0, i = 0, tmp;
+  int c = 0, i = 0, tmp = 0;
   do {
     if (!c)
       fputc ('v', file), c = 1;
@@ -899,6 +899,7 @@ int App::main (int argc, char **argv) {
     solver->message ("writing result to '%s'", write_result_path);
   }
 
+  assert (write_result_file);
   if (res == 10) {
     if (status)
       fputs ("s SATISFIABLE\n", write_result_file);

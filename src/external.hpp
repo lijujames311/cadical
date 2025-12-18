@@ -4,7 +4,9 @@
 /*------------------------------------------------------------------------*/
 
 #include "range.hpp"
+#include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <unordered_map>
 #include <vector>
 
@@ -44,8 +46,14 @@ using namespace std;
 /*------------------------------------------------------------------------*/
 
 struct Clause;
-struct Internal;
+struct ClauseIterator;
 struct CubesWithStatus;
+struct ExternalPropagator;
+struct FixedAssignmentListener;
+struct Internal;
+struct Learner;
+struct Terminator;
+struct WitnessIterator;
 
 /*------------------------------------------------------------------------*/
 
