@@ -177,8 +177,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
 
 /*------------------------------------------------------------------------*/
 
-// See the comment for vivifyflush, but we use a more complicated order: prefix
-// first and irredundant first.
+// See the comment for vivifyflush.
 //
 struct deduplicate_flush_smaller {
 
@@ -214,8 +213,8 @@ void Internal::deduplicate_all_clauses () {
   assert (!level);
   clear_watches ();
 
-  internal->check_clause_stats();
   mark_satisfied_clauses_as_garbage ();
+  garbage_collection ();
 
   // in order to do the inprocessing inplace, we remove the deleted clauses, put
   // the binary deleted clauses first. Then we work on the non-deleted clauses
@@ -224,7 +223,7 @@ void Internal::deduplicate_all_clauses () {
   auto mid = std::partition (clauses.begin (), clauses.end (), [](Clause *c) {return !c->garbage;});
   std::for_each (start, mid, [](Clause *c) {return sort (c->begin(), c->end ());});
   assert (std::all_of (start, mid, [](Clause *c) {return !c->garbage;}));
-  assert (std::all_of (mid, clauses.end (), [](Clause *c) {return c->garbage;}));
+  assert (std::all_of (mid, end (clauses), [](Clause *c) {return c->garbage;}));
 
   stable_sort (start, mid, deduplicate_flush_smaller ());
   auto j = start, i = j;

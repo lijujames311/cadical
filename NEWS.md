@@ -38,6 +38,29 @@ Breaking Changes:
   working on further uses of extension variables, for which this new API
   contract will also apply.
 
+
+Version 2.2.1
+-------------
+
+- New option `deduplicateallinit` to remove duplicated clauses in the first
+  solve call. CaDiCaL 2.1.3 used to do do this in vivification, but does not
+  anymore due to stricter limits (reported in issue #147).
+
+- New optional stricter API contract checking:
+
+    * When activating factor only (off by default), you need to use
+      `declare_more_variables` or `declare_one_more_variable` in order to use
+      new variables (otherwise you get a fatal error message).
+      
+    * If you want to prepare your code to follow this new semantics without
+      activating factor, you can already set `factorcheck` to 2.
+
+- Various minor fixes including a memory leak in congruence, incorrect update of
+  minor statistics, some underflows (including issue #150).
+
+- Deactivated factor for `inccnf` files.
+
+
 Version 2.2.0
 -------------
 

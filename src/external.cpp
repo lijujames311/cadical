@@ -171,10 +171,12 @@ int External::internalize (int elit, bool extension) {
 
 void External::add (int elit) {
   assert (elit != INT_MIN);
-  if (!internal->factorcheckdone && internal->opts.factor && internal->opts.factorcheck && !internal->max_var) {
-    internal->factorcheckdone = true;
-    internalize (1, true);
-  }
+
+  if (elit)
+    REQUIRE (is_valid_input ((int) elit), \
+           "extension variable %d defined by the solver "
+           "(try using `vars ()` or `set (factor, 0)` or call `declare_one_more_variable ()` to get the next variable)", \
+           (int) (elit));
   reset_extended ();
 
   bool forgettable = false;
