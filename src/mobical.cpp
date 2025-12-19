@@ -4484,7 +4484,7 @@ void Reader::parse () {
     } else if (!strcmp (keyword, "disconnect")) {
       c = new DisconnectCall ();
     } else if (!strcmp (keyword, "declare_one_more_variable")) {
-      c = new DeclareMoreVariableCall ();
+      c = new DeclareOneMoreVariableCall ();
     } else if (!strcmp (keyword, "observe")) {
       if (!first)
         error ("argument to 'observe' missing");
