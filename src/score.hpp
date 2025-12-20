@@ -10,7 +10,7 @@ struct score_smaller {
   bool operator() (unsigned a, unsigned b);
 };
 
-template <class> struct heap;
+template <class> class heap;
 typedef heap<score_smaller> ScoreSchedule;
 
 } // namespace CaDiCaL

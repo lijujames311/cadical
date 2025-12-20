@@ -46,14 +46,14 @@ using namespace std;
 /*------------------------------------------------------------------------*/
 
 struct Clause;
-struct ClauseIterator;
+class ClauseIterator;
 struct CubesWithStatus;
-struct ExternalPropagator;
-struct FixedAssignmentListener;
+class ExternalPropagator;
+class FixedAssignmentListener;
 struct Internal;
-struct Learner;
-struct Terminator;
-struct WitnessIterator;
+class Learner;
+class Terminator;
+class WitnessIterator;
 
 /*------------------------------------------------------------------------*/
 
