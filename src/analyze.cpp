@@ -795,6 +795,7 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
   LOG (new_conflict, "removing all units in");
 
   assert (lits[0] == uip || lits[1] == uip);
+  assert (new_size >= 2);
   const int other = lits[0] ^ lits[1] ^ uip;
   lits[0] = other;
   lits[1] = lits[--new_size];

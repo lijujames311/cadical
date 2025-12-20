@@ -2368,7 +2368,7 @@ class Reader {
 
   int next () { return getc (file); }
 
-  void error (const char *fmt, ...);
+  [[noreturn]] void error (const char *fmt, ...);
 
 public:
   Reader (Mobical &m, Trace &t, const char *p)
@@ -4333,7 +4333,7 @@ void Reader::parse () {
     assert (n < sizeof line);
     line[n] = 0;
     char *p = line;
-    if (isdigit (ch = *p)) {
+    if (isdigit (*p)) {
       while (isdigit (ch = *++p))
         ;
       if (!ch)
