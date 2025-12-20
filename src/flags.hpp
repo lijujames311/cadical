@@ -22,7 +22,6 @@ struct Flags { // Variable flags.
   bool subsume : 1; // added since last 'subsume' round (*)
   bool ternary : 1; // added in ternary clause since last 'ternary' (*)
   bool sweep : 1;
-  bool blockable : 1;
 
   unsigned char
       marked_signed : 2; // generate correct LRAT chains in decompose
@@ -39,7 +38,6 @@ struct Flags { // Variable flags.
   unsigned char failed : 2; // 0 if not part of failure
                             // 1 if positive lit is in failure
   // 2 if negated lit is in failure
-  bool factored_but_on_reconstruction_stack : 1;
 
   enum {
     UNUSED = 0,
