@@ -529,7 +529,7 @@ int App::main (int argc, char **argv) {
     else if (!strcmp (argv[i], "-f") || !strcmp (argv[i], "--force") ||
              !strcmp (argv[i], "--force=1") ||
              !strcmp (argv[i], "--force=true"))
-      force_strict_parsing = 0, force_writing = true;
+      force_strict_parsing = 0, force_writing = true, solver->set ("factorcheck", 0);
     else if (!strcmp (argv[i], "--strict") ||
              !strcmp (argv[i], "--strict=1") ||
              !strcmp (argv[i], "--strict=true"))
