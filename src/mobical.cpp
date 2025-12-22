@@ -2976,12 +2976,12 @@ void Trace::generate_melt (Random &random) {
     Call *c = calls[i];
     if (c->type == Call::MELT) {
       int idx = abs (c->arg);
-      assert (idx), assert (idx <= m);
+      assert (idx > 0), assert (idx <= m);
       assert (frozen[idx] > 0);
       frozen[idx]--;
     } else if (c->type == Call::FREEZE) {
       int idx = abs (c->arg);
-      assert (idx), assert (idx <= m);
+      assert (idx > 0), assert (idx <= m);
       frozen[idx]++;
     }
   }

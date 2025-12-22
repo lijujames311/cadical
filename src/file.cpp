@@ -161,7 +161,7 @@ char *File::find_program (const char *prg) {
     return 0;
   size_t len = strlen (c);
   char *e = new char[len + 1];
-  strcpy (e, c);
+  strlcpy (e, c, len);
   char *res = 0;
   for (char *p = e, *q; !res && p < e + len; p = q) {
     for (q = p; *q && *q != ':'; q++)

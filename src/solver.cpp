@@ -626,7 +626,7 @@ bool Solver::configure (const char *name) {
 void Solver::add (int lit) {
   TRACE ("add", lit);
   REQUIRE_VALID_STATE ();
-  if (lit && ((internal->opts.factor && internal->opts.factorcheck == 1) ||  internal->opts.factorcheck == 2))
+  if (lit && ((internal->opts.factor && internal->opts.factorcheck == 1) || internal->opts.factorcheck == 2))
     REQUIRE (abs(lit) <= external->max_var,
            "undeclared variable %d usage. "
            "Use `declare_one_more_variable ()` to get the next variable (s) "

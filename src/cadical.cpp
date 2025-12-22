@@ -963,7 +963,7 @@ void App::init () {
 
 /*------------------------------------------------------------------------*/
 
-App::App () : solver (0) {} // Only partially initialize the app.
+App::App () : solver (0), time_limit(-1), force_strict_parsing (false), force_writing(false), max_var (0), timesup (false) {} // Only partially initialize the app.
 
 App::~App () {
   if (!solver)

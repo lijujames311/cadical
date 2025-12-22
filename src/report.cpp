@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <cstring>
 
 namespace CaDiCaL {
 
@@ -94,8 +95,9 @@ Report::Report (const char *h, int precision, int min, double value)
     snprintf (fmt, sizeof fmt, "%%.%df", precision);
   snprintf (buffer, sizeof buffer, fmt, value);
   const int width = strlen (buffer);
+  assert (width < 32);
   if (precision < 0)
-    strcat (buffer, "%");
+    strlcat (buffer, "%", sizeof (buffer));
   if (width >= min)
     return;
   if (precision < 0)
