@@ -88,7 +88,7 @@ inline static double fitcbval (double size) {
 
 Walker::Walker (Internal *i, int64_t l)
     : internal (i), random (internal->opts.seed), // global random seed
-      ticks (0), limit (l), best_trail_pos (-1) {
+      ticks (0), limit (l), epsilon(-1), best_trail_pos (-1) {
   random += internal->stats.walk.count; // different seed every time
   flips.reserve (i->max_var / 4);
   best_values.resize (i->max_var + 1, 0);
