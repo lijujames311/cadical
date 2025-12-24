@@ -1,3 +1,4 @@
+#include "cadical.hpp"
 #include "internal.hpp"
 
 namespace CaDiCaL {
@@ -352,18 +353,23 @@ int Internal::warmup () {
   const int64_t decision = stats.warmup.decision;
   const int64_t dummydecision = stats.warmup.dummydecision;
 #endif
-  // first propagate assumptions in case we find a conflict.  One
-  // subtle thing, if we find a conflict in the assumption, then we
-  // actually do need the notifications. Otherwise, we there should be
-  // no notification at all (not even the `backtrack ()` at the end).
+  // first propagate assumptions in case we find a conflict. One subtle
+  // thing, if we find a conflict in the assumption, then we actually do
+  // need the notifications. Otherwise, we there should be no notification
+  // at all (not even the `backtrack ()` at the end). Also, we cannot not
+  // ignore conflicts at all, meaning that we cannot use our special
+  // propagation function, even if it could counts ticks.
   const size_t assms_contraint_level =
       assumptions.size () + !constraint.empty ();
   while (!res && !conflict && (size_t) level < assms_contraint_level &&
          num_assigned < (size_t) max_var) {
     assert (num_assigned < (size_t) max_var);
     res = warmup_decide_assumptions ();
-    if (!res)
-      propagate ();
+    if (!res && !propagate ()) {
+      res = 20;
+      marked_failed = false;
+      break;
+    }
   }
   if (conflict && !res)
     marked_failed = false, res = 20;

@@ -15,32 +15,43 @@ Breaking Changes:
   `reserve` by `resize` though as semantics of the function did not
   change at all.
 
-- Furthermore, and probably the most severe change, and as announced in
+- Furthermore, and probably the most severe change, as announced in
   the 2.2.0 release, our incremental version of bounded value addition (aka
-  BVA or `factor`) requires changing how variables are treated, particular
-  in the context of incremental SAT solving.  In principle, variables now
-  have to be declared explicitely (through `declare_more_variables ()` or
-  `vars ()`) before adding clauses containing them or asking for their value
-  etc.  This became necessary for proof checking in incremental SAT solving
-  when using techniques, such as BVA (`factor`), that rely on the
-  introduction of extension variables.  These variables necessarily have to
-  occur in proofs and have to be distinguished from user variables.  Our
-  solution is to force the user to ask the solver for unused variable
-  ranges, which avoids overlap with extension variables. Only these
-  variables can then be used freely as before.  For one-shot-solving there
-  is no usage change, nor for the first solving/simplification call to the
-  SAT solver.  The same applies if all techniques relying on extension
-  variables are disabled (currently when `factor` is disabled).  But for
-  incremental usage, keeping `factor` enabled (the default), the user has to
-  follow this new API contract.  Disabling `factor` however would have the
-  consequence to reduce solving efficiency particularly on hard
-  combinatorial benchmarks such as pigeon hole formulas.  We are also
-  working on further uses of extension variables, for which this new API
-  contract will also apply.
+  BVA or `factor`) requires changing how variables are treated, particularly
+  in the context of incremental SAT solving.
 
+  In principle, variables now have to be declared explicitly (with the
+  `declare_more_variables` or `declare_one_more_variable` function) before
+  clauses can be added containing them, or a value is asked for them etc.
+
+  This became necessary for proof checking in incremental SAT solving when
+  using techniques, such as BVA (`factor`), that rely on the introduction of
+  extension variables.  These effectively internal variables necessarily
+  have to occur in proofs and have to be distinguished from actual external
+  user variables.  Our solution is to force the user to ask the solver for
+  unused variable ranges, which avoids overlap with extension variables.
+
+  Only these declared variables can then be used as freely as before.
+  However, at this moment, for one-shot-solving there is no usage change,
+  nor for the first solving/simplification call to the SAT solver.  The same
+  applies if all techniques relying on extension variables are disabled
+  (currently when `factor` is disabled).
+
+  But for incremental usage, while keeping `factor` enabled (the default
+  since release 3.0.0), the user has to follow this new API contract.
+  Disabling `factor` is an alternative, but that can have the consequence to
+  reduce solving efficiency, particularly for hard combinatorial benchmarks,
+  such as pigeon hole formulas.  We are also already working on further use
+  case s of extension variables, for which this new API contract will also
+  apply (and then probably already during adding clauses or constraints).
 
 Version 2.2.1
 -------------
+
+- Fixed shared compilation build for C part ('kitten.o') to support both
+  the static and shared binaries as well as libraries with '--shared'.
+
+- Improved script to build and test all configurations.
 
 - New option `deduplicateallinit` to remove duplicated clauses in the first
   solve call. CaDiCaL 2.1.3 used to do do this in vivification, but does not
@@ -51,7 +62,7 @@ Version 2.2.1
     * When activating factor only (off by default), you need to use
       `declare_more_variables` or `declare_one_more_variable` in order to use
       new variables (otherwise you get a fatal error message).
-      
+
     * If you want to prepare your code to follow this new semantics without
       activating factor, you can already set `factorcheck` to 2.
 
@@ -60,6 +71,32 @@ Version 2.2.1
 
 - Deactivated factor for `inccnf` files.
 
+IPASIR-UP Related Changes:
+
+- Many of the requirements of each IPASIR-UP-related solver function have been
+  made explicit, and additional input checks have been added for the arguments
+  of the related callback functions. Consequently, the solver will terminate
+  immediately if incorrect input is provided, in contrast to the previous
+  approach where the solver attempted to recover silently from such errors.
+
+- Some examples of implementing external propagators have been added as a
+  file `test/api/example_propagators.cpp`. The code comments demonstrate the
+  newly introduced error messages that can be triggered by misusing the
+  IPASIR-UP interface.
+
+- Users can force backtracking (see the `force_backtrack` function) during the
+  `cb_check_found_model` function. Furthermore, the type of the `new_level`
+  argument has been changed from `size_t` to `int`, and calling it with an
+  incorrect value or in the wrong place triggers an explicit runtime error
+  message.
+
+- The functions `remove_observed_var` and `reset_observed_vars` are now
+  permitted during solving, but they potentially trigger additional
+  backtracking steps, so in certain cases it remains unsupported. However,
+  calling them in improper states triggers an explicit runtime error message.
+
+- Some of the explanations and comments around the IPASIR-UP related functions
+  have been updated and fixed.
 
 Version 2.2.0
 -------------
@@ -81,17 +118,17 @@ User Facing Changes:
   propagator). Set `luckyassumptions` to false if you do not want that.
 
 - The `val` function now has a Boolean as second argument that checks that
-  the variables was declared. The default is the old behavior.
-  This new parameter can be useful for debugging applications.
+  the variables was declared. The default is the old behavior.  The new
+  behavior can be useful for debugging applications.
 
 - Fixed `VeriPB` compatibility issues.
 
 - The `get_entrailed_literals` function became **deprecated** and is going to be
-  replaced by the new `implied` function, with the same sematics, except
-  that is now also allowed in the 'SATISFIED' state. The next
+  replaced by the new `implied` function, with the same semantics, except
+  that it is now also allowed in the 'SATISFIED' state. The next
   major release will remove `get_entrailed_literals`.
 
-- The `reserve` function became **deprecated** and is going to be replaced 
+- The `reserve` function became **deprecated** and is going to be replaced
   by the new `resize`  function due to its misleading name (compared to
   `std::vector`).  Users can in their code simply replace `reserve` by
   `resize`.  The next major release will remove `reserve`.
@@ -101,7 +138,7 @@ User Facing Changes:
   next major release will (A) enable `factor` by default and accordingly
   (B) require the usage of `var` resp. `declare_more_variables` for adding
   new variables in incremental solving (and keeping `factor` enabled).
-  This **breaking-change** is post-poned until the next major release.
+  This **breaking-change** is postponed until the next major release.
 
 New and Improved Techniques:
 
@@ -147,7 +184,7 @@ New and Improved Techniques:
 - Improved locals search walk algorithm. We have also ported the version
   from Kissat (relying on full-occurrence list), deactivated by default.
 
-- Binary backone similarly to `Kissat`.
+- Binary backbone similarly to `Kissat`.
 
 Version 2.1.3
 -------------
@@ -162,7 +199,7 @@ Version 2.1.3
     returned `0` (UNKNOWN), this function returns (the subset of) those
     literals that were assigned based on the assumptions and propagation.
     Those assigned literals that are tainted on the reconstruction stack
-    (due to some preprocessing) are not returned, thus it is safe to 
+    (due to some preprocessing) are not returned, thus it is safe to
     combine it with the formula simplifications.
 
 - LIDRUP proofs now include information about queries that returned with
@@ -206,22 +243,22 @@ Version 2.1.0
 
 - Major IPASIR-UP increment. Please be aware that some of these
   changes affect the syntax of the API, and thus updating to this
-  version of CaDiCaL requires to modify the consuming code to 
+  version of CaDiCaL requires to modify the consuming code to
   accommodate to the new syntax:
 
   - Notification of assignments is batched into arrays and no more fixed
     flags are passed during notification (`breaking change`)
-  
+
   - Allow clauses learned from the propagator to be deleted (see
     `is_forgettable` parameter and `are_reasons_forgettable` Boolean flag)
     (`breaking change`)
-  
-  - Added support to generate incremental proofs (LIDRUP) while 
+
+  - Added support to generate incremental proofs (LIDRUP) while
     using IPASIR-UP
 
   - Users can force to backtrack during `cb_decide` (see function
     `force_backtrack`)
-  
+
   - Removed unnecessary notifications of backtrack during
     inprocessing (supposed to solve issue #92).
 
@@ -302,7 +339,7 @@ Version 1.9.0
 - Making progress to formal 1.9 release with minor fixes for
   different platforms and compilers.
 
-- Refine IPASIR-UP based on feedback from users. 
+- Refine IPASIR-UP based on feedback from users.
 
 Version 1.8.0
 -------------
@@ -351,16 +388,16 @@ Version 1.7.3
   solving (e.g., by a user propagation) or simply by ILB.  Reimplication
   improves quality of learned clauses and potentially shortens search in
   such cases.
- 
+
 - A new proof tracer interface allows to add a proof `Tracer` through the
   API (via `connect_proof_tracer`). This feature allows to use custom
   proof tracers to process clausal proofs on-the-fly while solving.  Both
   proofs steps with proof antecedents (needed for instance for
   interpolation) as well as without (working directly on DRAT level) are
   supported.
- 
+
 - Reworked options for proof tracing to be less confusing.  Support for
-  DRAT, LRAT, FRAT and VeriPB (with or without antecedents).
+  `DRAT`, `LRAT`, `FRAT` and `VeriPB` (with or without antecedents).
 
 Version 1.7.2
 -------------
@@ -371,7 +408,7 @@ Version 1.7.2
 Version 1.7.1
 -------------
 
-- Added support for VeriPB proofs (--lrat --lratveripb).
+- Added support for `VeriPB` proofs (option `--lrat --lratveripb`).
 
 - Various fixes: LRAT proofs for constrain (which previously were not traced
   correctly); internal-external mapping issues for LRAT (worked for user
