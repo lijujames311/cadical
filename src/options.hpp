@@ -280,6 +280,7 @@ OPTION( walkeffort,       80,  1,1e5,1,0,1, "relative efficiency per mille") \
 OPTION( walkfullocc,      0,   0,  1,1,0,1, "use Kissat's full occurrences instead of the single watched") \
 OPTION( walkmaxeff,      1e7,  0,2e9,1,0,1, "maximum efficiency (in 1e3 ticks)") \
 OPTION( walkmineff,        0,  0,1e7,1,0,1, "minimum efficiency") \
+OPTION( walkmineffinit,  1e3,  0,1e7,1,0,1, "minimum efficiency of initial local search") \
 OPTION( walknonstable,     1,  0,  1,0,0,1, "walk in non-stabilizing phase") \
 OPTION( walkredundant,     0,  0,  2,0,0,1, "walk redundant clauses too [0 = none, 1 = binary nonyhyper, 2=all]") \
 OPTION( warmup,            1,  0,  1,0,0,1, "warmup before walk using propagation") \

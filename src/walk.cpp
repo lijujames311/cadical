@@ -1069,10 +1069,7 @@ void Internal::walk () {
   }
   const int64_t ticks = stats.ticks.search[0] + stats.ticks.search[1];
   int64_t limit = ticks - last.walk.ticks;
-  VERBOSE (2,
-           "walk scheduling: last %" PRId64 " current %" PRId64
-           " delta %" PRId64,
-           last.walk.ticks, ticks, limit);
+
   last.walk.ticks = ticks;
   limit *= 1e-3 * opts.walkeffort;
   if (limit < opts.walkmineff)
@@ -1083,6 +1080,10 @@ void Internal::walk () {
     MSG ("reached maximum efficiency %" PRId64, limit);
     limit = 1e3 * opts.walkmaxeff;
   }
+  VERBOSE (2,
+           "walk scheduling: last %" PRId64 " current %" PRId64
+           " delta %" PRId64,
+           last.walk.ticks, ticks, limit);
   (void) walk_round (limit, false);
   STOP_INNER_WALK ();
   assert (!unsat);

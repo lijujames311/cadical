@@ -894,7 +894,7 @@ int Internal::local_search_round (int round) {
 
   // Determine propagation limit quadratically scaled with rounds.
   //
-  int64_t limit = opts.walkmineff;
+  int64_t limit = opts.walkmineffinit;
   limit *= round;
   if (LONG_MAX / round > limit)
     limit *= round;
