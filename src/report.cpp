@@ -97,7 +97,7 @@ Report::Report (const char *h, int precision, int min, double value)
   const int width = strlen (buffer);
   assert (width < 32);
   if (precision < 0)
-    strlcat (buffer, "%", sizeof (buffer));
+    strcat (buffer, "%");
   if (width >= min)
     return;
   if (precision < 0)
