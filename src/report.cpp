@@ -57,8 +57,8 @@ s  subsumed clause removal round
 t  transition reduction of binary implication graph
 u  vivified tier1 clauses
 v  vivified tier2 clauses
-x  vivified tier3 clauses
-w  vivified irredundant clauses
+w  vivified tier3 clauses
+x  vivified irredundant clauses
 =  sweeping to find equivalences using Kitten
 f  factor (BVA)
 

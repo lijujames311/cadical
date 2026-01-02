@@ -1,15 +1,23 @@
 #include "vivify.hpp"
+#include "clause.hpp"
 #include "internal.hpp"
 #include "limit.hpp"
 #include "logging.hpp"
 #include "profile.hpp"
 #include "radix.hpp"
 #include "util.hpp"
+#include "watch.hpp"
+#include "message.hpp"
 
 #include <algorithm>
-#include <limits>
-#include <vector>
+#include <array>
 #include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <vector>
 
 namespace CaDiCaL {
 
@@ -151,7 +159,7 @@ inline void Internal::vivify_assign (int lit, Clause *reason) {
   v.trail = (int) trail.size (); // used in 'vivify_better_watch'
   assert ((int) num_assigned < max_var);
   num_assigned++;
-  v.reason = level ? reason : 0; // for conflict analysis
+  v.reason = level ? reason : nullptr; // for conflict analysis
   if (!level)
     learn_unit_clause (lit);
   const signed char tmp = sign (lit);
@@ -173,7 +181,7 @@ void Internal::vivify_assume (int lit) {
   LOG ("vivify decide %d", lit);
   assert (level > 0);
   assert (propagated == trail.size ());
-  vivify_assign (lit, 0);
+  vivify_assign (lit, nullptr);
 }
 
 // Dedicated routine similar to 'propagate' in 'propagate.cpp' and
@@ -189,7 +197,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
     if (propagated2 != trail.size ()) {
       const int lit = -trail[propagated2++];
       LOG ("vivify propagating %d over binary clauses", -lit);
-      Watches &ws = watches (lit);
+      const Watches &ws = watches (lit);
       ticks +=
           1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
       for (const auto &w : ws) {
@@ -202,7 +210,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
           conflict = w.clause; // but continue
         else {
           ticks++;
-          build_chain_for_units (w.blit, w.clause, 0);
+          build_chain_for_units (w.blit, w.clause, false);
           vivify_assign (w.blit, w.clause);
           lrat_chain.clear ();
         }
@@ -211,10 +219,10 @@ bool Internal::vivify_propagate (int64_t &ticks) {
       const int lit = -trail[propagated++];
       LOG ("vivify propagating %d over large clauses", -lit);
       Watches &ws = watches (lit);
-      const const_watch_iterator eow = ws.end ();
-      const_watch_iterator i = ws.begin ();
+      const auto eow = ws.end ();
+      auto i = ws.begin ();
       ticks += 1 + cache_lines (ws.size (), sizeof (*i));
-      watch_iterator j = ws.begin ();
+      auto j = ws.begin ();
       while (i != eow) {
         const Watch w = *j++ = *i++;
         if (w.binary ())
@@ -234,8 +242,8 @@ bool Internal::vivify_propagate (int64_t &ticks) {
         else {
           const int size = w.clause->size;
           const const_literal_iterator end = lits + size;
-          const literal_iterator middle = lits + w.clause->pos;
-          literal_iterator k = middle;
+          literal_iterator k = lits + w.clause->pos;
+          const const_literal_iterator middle = k;
           signed char v = -1;
           int r = 0;
           while (k != end && (v = val (r = *k)) < 0)
@@ -288,7 +296,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
     } else
       break;
   }
-  size_t delta = propagated2 - before;
+  const size_t delta = propagated2 - before;
   stats.propagations.vivify += static_cast<int64_t>(delta);
   if (conflict)
     LOG (conflict, "conflict");
@@ -309,8 +317,8 @@ struct vivify_more_noccs {
   vivify_more_noccs (Internal *i) : internal (i) {}
 
   bool operator() (int a, int b) {
-    int64_t n = internal->noccs (a);
-    int64_t m = internal->noccs (b);
+    const int64_t n = internal->noccs (a);
+    const int64_t m = internal->noccs (b);
     if (n > m)
       return true; // larger occurrences / score first
     if (n < m)
@@ -330,9 +338,10 @@ struct vivify_more_noccs_kissat {
   bool operator() (int a, int b) {
     const unsigned s = internal->noccs (a);
     const unsigned t = internal->noccs (b);
+    const int signed_part_int = 31;
     return (((t - s) |
              ((internal->vlit (a) - internal->vlit (b)) & ~(s - t))) >>
-            31);
+            signed_part_int);
   }
 };
 
@@ -370,7 +379,7 @@ void Internal::flush_vivification_schedule (std::vector<Clause *> &schedule,
   const auto end = schedule.end ();
   auto j = schedule.begin (), i = j;
 
-  Clause *prev = 0;
+  Clause *prev = nullptr;
   int64_t subsumed = 0;
   for (; i != end; i++) {
     ticks++;
@@ -1222,7 +1231,7 @@ void Internal::vivify_build_lrat (
     for (const auto &other : *reason) {
       if (other == lit)
         continue;
-      Var &v = var (other);
+      const Var &v = var (other);
       Flags &f = flags (other);
       if (f.seen)
         continue;
@@ -1261,6 +1270,7 @@ inline void Internal::vivify_chain_for_units (int lit, Clause *reason) {
   lrat_chain.push_back (reason->id);
 }
 
+namespace {
 vivify_ref create_ref (Internal *internal, Clause *c) {
   LOG (c, "creating vivify_refs of clause");
   vivify_ref ref;
@@ -1302,6 +1312,7 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
     lits[i] = best;
   }
   return ref;
+}
 }
 /*------------------------------------------------------------------------*/
 inline void
@@ -1429,6 +1440,7 @@ void Internal::vivify_initialize (Vivifier &vivifier, int64_t &ticks) {
          vivifier.schedule_tier1 ().size ());
 }
 
+namespace {
 inline std::vector<vivify_ref> &current_refs_schedule (Vivifier &vivifier) {
   return vivifier.refs_schedule;
 }
@@ -1486,6 +1498,8 @@ struct vivify_inversesize_smaller {
     return s < t;
   }
 };
+
+}
 
 /*------------------------------------------------------------------------*/
 // There are two modes of vivification, one using all clauses and one
