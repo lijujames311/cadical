@@ -461,6 +461,12 @@ struct Internal {
 
   bool occurring () const { return !otab.empty (); }
   bool watching () const { return !wtab.empty (); }
+  // Size of the trail as an int
+  //
+  // The trail containts at most every variable at most once from 1 to
+  // INT32_MAX. Therefore the size is at most INT32_MAX. This is already used
+  // implicitely in the code (like var (lit).trail). With the assertion we
+  // document the invariant.
   int get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
 
   Bins &bins (int lit) { return big[vlit (lit)]; }
