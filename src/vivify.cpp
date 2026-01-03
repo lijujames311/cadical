@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cinttypes>
 #include <limits>
 #include <tuple>
 #include <vector>
@@ -576,7 +577,7 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
                                const Clause *const candidate, int implied,
                                bool &redundant) {
   const auto &t = &trail; // normal trail, so next_trail is wrong
-  int i = t->size ();     // Start at end-of-trail.
+  size_t i = t->size ();     // Start at end-of-trail.
   Clause *reason = start;
   assert (reason);
   assert (!trail.empty ());

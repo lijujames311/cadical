@@ -30,7 +30,7 @@ int Internal::unlucky (int res) {
     backtrack_without_updating_phases ();
   assert (propagated == trail.size ());
   if (conflict)
-    conflict = 0;
+    conflict = nullptr;
   return res;
 }
 
@@ -61,11 +61,11 @@ inline void Internal::lucky_search_assign (int lit, Clause *reason) {
   if (!reason)
     lit_level = 0; // unit
   else if (reason == decision_reason)
-    lit_level = level, reason = 0;
+    lit_level = level, reason = nullptr;
   else
     lit_level = level;
   if (!lit_level)
-    reason = 0;
+    reason = nullptr;
 
   v.level = lit_level;
   v.trail = trail.size ();
