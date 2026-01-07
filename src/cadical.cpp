@@ -268,7 +268,7 @@ void App::print_usage (bool all) {
 // Pretty print competition format witness with 'v' lines.
 
 void App::print_witness (FILE *file) {
-  int c = 0, i = 0, tmp;
+  int c = 0, i = 0, tmp = 0;
   do {
     if (!c)
       fputc ('v', file), c = 1;
@@ -529,7 +529,7 @@ int App::main (int argc, char **argv) {
     else if (!strcmp (argv[i], "-f") || !strcmp (argv[i], "--force") ||
              !strcmp (argv[i], "--force=1") ||
              !strcmp (argv[i], "--force=true"))
-      force_strict_parsing = 0, force_writing = true;
+      force_strict_parsing = 0, force_writing = true, solver->set ("factorcheck", 0);
     else if (!strcmp (argv[i], "--strict") ||
              !strcmp (argv[i], "--strict=1") ||
              !strcmp (argv[i], "--strict=true"))
@@ -899,6 +899,7 @@ int App::main (int argc, char **argv) {
     solver->message ("writing result to '%s'", write_result_path);
   }
 
+  assert (write_result_file);
   if (res == 10) {
     if (status)
       fputs ("s SATISFIABLE\n", write_result_file);
@@ -962,7 +963,7 @@ void App::init () {
 
 /*------------------------------------------------------------------------*/
 
-App::App () : solver (0) {} // Only partially initialize the app.
+App::App () : solver (0), time_limit(-1), force_strict_parsing (false), force_writing(false), max_var (0), timesup (false) {} // Only partially initialize the app.
 
 App::~App () {
   if (!solver)

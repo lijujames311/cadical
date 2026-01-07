@@ -21,12 +21,12 @@ Internal::Internal ()
       level (0), vals (0), score_inc (1.0), scores (this), conflict (0),
       ignore (0), external_reason (&external_reason_clause),
       newest_clause (0), force_no_backtrack (false),
-      from_propagator (false), ext_clause_forgettable (false),
-      tainted_literal (0), notified (0), probe_reason (0), propagated (0),
-      propagated2 (0), propergated (0), best_assigned (0),
-      target_assigned (0), no_conflict_until (0), unsat_constraint (false),
+      from_propagator (false), ext_clause_forgettable (false), unsat_constraint (false),
       marked_failed (true), sweep_incomplete (false),
-      randomized_deciding (false), citten (0), num_assigned (0), proof (0),
+      changed_val (0), notified (0), probe_reason (0), propagated (0),
+      propagated2 (0), propergated (0), best_assigned (0),
+      target_assigned (0), no_conflict_until (0),
+      randomized_deciding (false), citten (nullptr), num_assigned (0), proof (0),
       opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
@@ -34,7 +34,7 @@ Internal::Internal ()
       arena (this), prefix ("c "), internal (this), external (0),
       termination_forced (false), vars (this->max_var),
       lits (this->max_var) {
-  control.push_back (Level (0, 0));
+  control.emplace_back (0, 0);
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
   // clause (which then can be used to subsume or strengthen the given
@@ -96,18 +96,13 @@ Internal::~Internal () {
 // debugging is harder since literals occur only encoded in clauses.
 // The main draw-back of our solution is that we have to shift the memory
 // and access it through negative indices, which looks less clean (but still
-// as far I can tell is properly defined C / C++).   You might get a warning
-// by static analyzers though.  Clang with '--analyze' thought that this
-// idiom would generate a memory leak thus we use the following dummy.
-
-static signed char *ignore_clang_analyze_memory_leak_warning;
+// as far I can tell is properly defined C / C++).
 
 void Internal::enlarge_vals (size_t new_vsize) {
   signed char *new_vals;
   const size_t bytes = 2u * new_vsize;
   new_vals = new signed char[bytes]; // g++-4.8 does not like ... { 0 };
   memset (new_vals, 0, bytes);
-  ignore_clang_analyze_memory_leak_warning = new_vals;
   new_vals += new_vsize;
 
   if (vals) {
@@ -545,6 +540,9 @@ void Internal::init_preprocessing_limits () {
     lim.preprocessing = inc.preprocessing;
     LOG ("limiting to %" PRId64 " preprocessing rounds", lim.preprocessing);
   }
+#ifndef LOGGING
+  (void) mode;
+#endif
 }
 
 void Internal::init_search_limits () {
@@ -624,7 +622,7 @@ void Internal::init_search_limits () {
   last.stabilize.conflicts = stats.conflicts;
   lim.stabilize = stats.conflicts + opts.stabilizeinit;
   last.stabilize.ticks = stats.ticks.search[0];
-  stats.stabphases = 0;
+  stats.nowstabphases = 0;
   LOG ("new ticks-based stabilize limit %" PRId64 " after %d conflicts",
        lim.stabilize, (int) opts.stabilizeinit);
 
@@ -797,8 +795,6 @@ void Internal::preprocess_quickly (bool always, bool &triggered) {
          "starting with %" PRId64 " variables and %" PRId64 " clauses",
          before.vars, before.clauses);
 
-  if (opts.deduplicateallinit && stats.deduplicatedinitrounds)
-    deduplicate_all_clauses();
   if (extract_gates (true))
     decompose ();
   binary_clauses_backbone ();
@@ -831,6 +827,9 @@ int Internal::preprocess (bool always) {
   if (res)
     return res;
   bool preprecessing_triggered = false;
+
+  if (opts.deduplicateallinit && !stats.deduplicatedinitrounds)
+    deduplicate_all_clauses();
   preprocess_quickly (always, preprecessing_triggered);
   for (int i = 0; i < lim.preprocessing; i++)
     if (!preprocess_round (i, preprecessing_triggered))
@@ -924,7 +923,7 @@ int Internal::local_search_round (int round) {
 
   // Determine propagation limit quadratically scaled with rounds.
   //
-  int64_t limit = opts.walkmineff;
+  int64_t limit = opts.walkmineffinit;
   limit *= round;
   if (LONG_MAX / round > limit)
     limit *= round;

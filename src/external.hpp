@@ -4,7 +4,9 @@
 /*------------------------------------------------------------------------*/
 
 #include "range.hpp"
+#include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <unordered_map>
 #include <vector>
 
@@ -44,8 +46,14 @@ using namespace std;
 /*------------------------------------------------------------------------*/
 
 struct Clause;
-struct Internal;
+class ClauseIterator;
 struct CubesWithStatus;
+class ExternalPropagator;
+class FixedAssignmentListener;
+struct Internal;
+class Learner;
+class Terminator;
+class WitnessIterator;
 
 /*------------------------------------------------------------------------*/
 
@@ -125,7 +133,7 @@ struct External {
   bool is_witness (int elit);
   bool is_decision (int elit);
 
-  void force_backtrack (size_t new_level);
+  void force_backtrack (int new_level);
 
   //----------------------------------------------------------------------//
 

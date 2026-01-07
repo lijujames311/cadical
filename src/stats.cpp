@@ -52,7 +52,7 @@ void Stats::print (Internal *internal) {
   propagations += stats.propagations.transred;
   propagations += stats.propagations.vivify;
 
-  int64_t vivified = stats.vivifysubs + stats.vivifystrs;
+  int64_t vivified = stats.vivifysubs + stats.vivifystrs + stats.vivifyimplied;
   int64_t searchticks = stats.ticks.search[0] + stats.ticks.search[1];
   int64_t inprobeticks = stats.ticks.vivify + stats.ticks.probe +
                          stats.ticks.factor + stats.ticks.ternary +
@@ -111,10 +111,10 @@ void Stats::print (Internal *internal) {
          percent (stats.backbone.units, stats.backbone.phases));
   }
   if (all || stats.deduplicatedinit) {
-    PRT ("dedup-init-rnds:  %15" PRId64 "   %10.2f %%  of interval",
+    PRT ("dedup-init-rnds: %15" PRId64 "   %10.2f %%  of interval",
          stats.deduplicatedinitrounds,
          percent (stats.deduplicatedinitrounds, stats.conflicts));
-    PRT ("dedup-init:       %15" PRId64 "   %10.2f %%  of subsumed",
+    PRT ("dedup-init:      %15" PRId64 "   %10.2f %%  of subsumed",
          stats.deduplicatedinit,
          percent (stats.deduplicatedinit, stats.deduplicatedinit));
   }

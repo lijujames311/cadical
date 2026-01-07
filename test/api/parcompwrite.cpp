@@ -115,7 +115,11 @@ public:
     internal->opts.quiet = 1;
 #endif
   }
-  ~cadical_file_tester () {delete file; delete internal; }
+  ~cadical_file_tester () {
+    delete internal;
+    if (file)
+      delete file;
+  }
   const char *name () override { return "cadical-file"; }
   void writing () override {
     if (file)
@@ -170,6 +174,8 @@ public:
   void close () override {
     assert (file);
     file->close ();
+    delete file;
+    file = 0;
   }
 };
 

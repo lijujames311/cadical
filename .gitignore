@@ -3,5 +3,12 @@ makefile
 .aider*
 *~
 /*.trace
-traces
-debug.json
+/debug.json
+/*.cnf
+/*.lrat
+/*.drat
+.zed
+/traces
+*.plist
+*.pch
+.cache

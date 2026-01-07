@@ -329,10 +329,6 @@ bool Internal::decompose_round () {
                 other = scc.back ();
                 scc.pop_back ();
                 dfs[vlit (other)].min = TRAVERSED;
-                if (frozen (other)) {
-                  reprs[vlit (other)] = other;
-                  continue;
-                }
                 reprs[vlit (other)] = repr;
                 if (other == repr)
                   continue;
@@ -410,8 +406,13 @@ bool Internal::decompose_round () {
   // the substituted literals to their representative on the extension
   // stack to fix an assignment during 'extend'.
   // It is also necessary to do so for proper IDRUP/LIDRUP/Resolution proofs
-
+  //
+  // For frozen literals we do the replacement (to be able to strengthen and
+  // subsume clauses), but keep the binary clauses. The replacement also
+  // practically make sure that only the representative gets bumped in various
+  // heuristics.
   vector<int64_t> decompose_ids;
+  vector<Clause*> frozen_binary_reasons;
   const size_t size = 2 * (1 + (size_t) max_var);
   decompose_ids.resize (size);
 
@@ -427,7 +428,7 @@ bool Internal::decompose_round () {
       continue;
     assert (!flags (other).eliminated ());
     assert (!flags (other).substituted ());
-
+    const bool idx_frozen = frozen (idx);
     LOG ("marking equivalence of %d and %d", idx, other);
     assert (clause.empty ());
     assert (lrat_chain.empty ());
@@ -438,12 +439,27 @@ bool Internal::decompose_round () {
       assert (!lrat_chain.empty ());
     }
 
-    const int64_t id1 = ++clause_id;
-    if (proof) {
-      proof->add_derived_clause (id1, false, clause, lrat_chain);
-      proof->weaken_minus (id1, clause);
+
+    int64_t id1 = 0;
+    if (idx_frozen) {
+      Clause *c = new_clause (false, 1);
+      watch_clause(c);
+      if (proof)
+        proof->add_derived_clause (c, lrat_chain);
+      LOG (c, "new clause for frozen literal %s", LOGLIT (idx));
+      c->gate = true;
+      id1 = c->id;
+      frozen_binary_reasons.push_back(c);
+    } else {
+      id1 = ++clause_id;
+      if (proof) {
+        proof->add_derived_clause (id1, false, clause, lrat_chain);
+        proof->weaken_minus (id1, clause);
+      }
+      external->push_binary_clause_on_extension_stack (id1, -idx, other);
     }
-    external->push_binary_clause_on_extension_stack (id1, -idx, other);
+    assert (id1);
+
 
     decompose_ids[vlit (-idx)] = id1;
 
@@ -458,12 +474,26 @@ bool Internal::decompose_round () {
       build_lrat_for_clause (dfs_chains);
       assert (!lrat_chain.empty ());
     }
-    const int64_t id2 = ++clause_id;
-    if (proof) {
-      proof->add_derived_clause (id2, false, clause, lrat_chain);
-      proof->weaken_minus (id2, clause);
+
+    int64_t id2 = 0;
+    if (idx_frozen) {
+      Clause *c = new_clause (false, 1);
+      watch_clause(c);
+      if (proof)
+        proof->add_derived_clause (c, lrat_chain);
+      LOG (c, "new clause for frozen literal %s", LOGLIT (idx));
+      id2 = c->id;
+      c->gate = true;
+      frozen_binary_reasons.push_back(c);
+    } else {
+      id2 = ++clause_id;
+      if (proof) {
+        proof->add_derived_clause (id2, false, clause, lrat_chain);
+        proof->weaken_minus (id2, clause);
+      }
+      external->push_binary_clause_on_extension_stack (id2, idx, -other);
     }
-    external->push_binary_clause_on_extension_stack (id2, idx, -other);
+    assert (id2);
     decompose_ids[vlit (idx)] = id2;
     for (auto &tracer : tracers) {
       const int eidx = externalize (idx);
@@ -512,6 +542,8 @@ bool Internal::decompose_round () {
     assert (lrat_chain.empty ());
     assert (analyzed.empty ());
     bool satisfied = false;
+    if (c->gate)
+      continue;
 
     for (int k = 0; !satisfied && k < size; k++) {
       const int lit = c->literals[k];
@@ -650,6 +682,8 @@ bool Internal::decompose_round () {
         break;
       if (!active (idx))
         continue;
+      if (frozen (idx))
+        continue;
       const int64_t id1 = decompose_ids[vlit (-idx)];
       if (!id1)
         continue;
@@ -671,6 +705,8 @@ bool Internal::decompose_round () {
     }
   }
 
+  for (auto c : frozen_binary_reasons)
+    c->gate = false;
   if (!unsat && !postponed_garbage.empty ()) {
     LOG ("now marking %zd postponed garbage clauses",
          postponed_garbage.size ());
@@ -705,7 +741,7 @@ bool Internal::decompose_round () {
       continue;
     assert (!flags (other).eliminated ());
     assert (!flags (other).substituted ());
-    if (!flags (other).fixed ())
+    if (!flags (other).fixed () && !frozen (idx))
       mark_substituted (idx);
   }
 

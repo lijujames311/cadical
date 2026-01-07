@@ -1,6 +1,10 @@
 #ifndef _options_hpp_INCLUDED
 #define _options_hpp_INCLUDED
 
+#include <cassert>
+#include <cstddef>
+#include <string>
+
 /*------------------------------------------------------------------------*/
 
 // In order to add a new option, simply add a new line below. Make sure that
@@ -78,7 +82,7 @@ OPTION( covermineff,       0,  0,2e9,1,0,1, "minimum cover efficiency") \
 OPTION( decompose,         1,  0,  1,0,1,1, "decompose BIG in SCCs and ELS") \
 OPTION( decomposerounds,   2,  1, 16,1,0,1, "number of decompose rounds") \
 OPTION( deduplicate,       1,  0,  1,0,1,1, "remove duplicated binaries") \
-OPTION( deduplicateallinit,0,  0,  1,0,1,1, "remove duplicated clauses before solving") \
+OPTION( deduplicateallinit,0,  0,  1,0,1,1, "remove duplicated clauses once before solving") \
 OPTION( eagersubsume,      1,  0,  1,0,1,1, "subsume recently learned") \
 OPTION( eagersubsumelim,  20,  1,1e3,0,0,1, "limit on subsumed candidates") \
 OPTION( elim,              1,  0,  1,0,1,1, "bounded variable elimination") \
@@ -117,6 +121,7 @@ OPTION( exteagerrecalc,    1,  0,  1,0,0,1, "after eagerly asking for reasons re
 OPTION( externallrat,      0,  0,  1,0,0,1, "external lrat") \
 OPTION( factor,            1,  0,  1,0,1,1, "bounded variable addition") \
 OPTION( factorcandrounds,  2,  0,2e9,0,0,1, "candidates reduction rounds") \
+OPTION( factorcheck,       1,  0,  2,0,0,1, "API checks that variables have been declared (1 = only with factor on, 2 = always)") \
 OPTION( factordelay,       4,  0, 12,0,0,1, "delay bounded variable addition between eliminations") \
 OPTION( factoreffort,     50,  0,1e6,0,0,1, "relative effort per mille") \
 OPTION( factoriniticks,  300,  1,1e6,0,0,1, "initial effort in millions") \
@@ -276,6 +281,7 @@ OPTION( walkeffort,       80,  1,1e5,1,0,1, "relative efficiency per mille") \
 OPTION( walkfullocc,      0,   0,  1,1,0,1, "use Kissat's full occurrences instead of the single watched") \
 OPTION( walkmaxeff,      1e7,  0,2e9,1,0,1, "maximum efficiency (in 1e3 ticks)") \
 OPTION( walkmineff,        0,  0,1e7,1,0,1, "minimum efficiency") \
+OPTION( walkmineffinit,  1e3,  0,1e7,1,0,1, "minimum efficiency of initial local search") \
 OPTION( walknonstable,     1,  0,  1,0,0,1, "walk in non-stabilizing phase") \
 OPTION( walkredundant,     0,  0,  2,0,0,1, "walk redundant clauses too [0 = none, 1 = binary nonyhyper, 2=all]") \
 OPTION( warmup,            1,  0,  1,0,0,1, "warmup before walk using propagation") \
@@ -347,7 +353,7 @@ class Options {
   static void initialize_from_environment (int &val, const char *name,
                                            const int L, const int H);
 
-  friend Config;
+  friend class Config;
 
   void reset_default_values ();
   void disable_preprocessing ();
@@ -419,7 +425,7 @@ public:
   // 'true' is returned and the string will be set to the name of the
   // option.  Additionally the parsed value is set (last argument).
   //
-  static bool parse_long_option (const char *, string &, int &);
+  static bool parse_long_option (const char *, std::string &, int &);
 
   // Iterating options.
 

@@ -242,6 +242,24 @@ size_t Internal::shrink_clause (Clause *c, int new_size) {
   return res;
 }
 
+// Makes a redundant clause irredundant and update the statistics
+void Internal::make_irredundant (Clause *subsuming) {
+  assert (subsuming->redundant);
+  assert (!subsuming->garbage);
+  LOG ("turning redundant subsuming clause into irredundant clause");
+  subsuming->redundant = false;
+  if (proof)
+    proof->strengthen (subsuming->id);
+  stats.current.irredundant++;
+  stats.added.irredundant++;
+  stats.irrlits += subsuming->size;
+  assert (stats.current.redundant > 0);
+  stats.current.redundant--;
+  assert (stats.added.redundant > 0);
+  stats.added.redundant--;
+  // ... and keep 'stats.added.total'.
+}
+
 // This is the 'raw' deallocation of a clause.  If the clause is in the
 // arena nothing happens.  If the clause is not in the arena its memory is
 // reclaimed immediately.
@@ -351,7 +369,7 @@ void Internal::assign_original_unit (int64_t id, int lit) {
   assert (!flags (idx).eliminated ());
   Var &v = var (idx);
   v.level = 0;
-  v.trail = (int) trail.size ();
+  v.trail = get_trail_size ();
   v.reason = 0;
   const signed char tmp = sign (lit);
   set_val (idx, tmp);
@@ -373,20 +391,18 @@ void Internal::assign_original_unit (int64_t id, int lit) {
 // from_propagator and force_no_backtrack change the behaviour.
 // sometimes the pointer to the new clause is needed, therefore it is
 // made sure that newest_clause points to the new clause upon return.
-//
-// TODO: Find another name for 'tainted' in the context of ilb, tainted
-// is reconstruction related already and they should not mix.
+
 void Internal::add_new_original_clause (int64_t id) {
 
   if (!from_propagator && level && !opts.ilb) {
     backtrack_without_updating_phases ();
-  } else if (tainted_literal) {
-    assert (val (tainted_literal));
-    int new_level = var (tainted_literal).level - 1;
+  } else if (changed_val) {
+    assert (val (changed_val));
+    int new_level = var (changed_val).level - 1;
     assert (new_level >= 0);
     backtrack_without_updating_phases (new_level);
   }
-  assert (!tainted_literal);
+  assert (!changed_val);
   LOG (original, "original clause");
   assert (clause.empty ());
   bool skip = false;
@@ -495,6 +511,7 @@ void Internal::add_new_original_clause (int64_t id) {
         assert (val (clause[0]));
         v.level = 0;
         v.reason = 0;
+        did_external_prop = true;
         const unsigned uidx = vlit (clause[0]);
         if (lrat || frat)
           unit_clauses (uidx) = new_id;

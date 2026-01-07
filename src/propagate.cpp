@@ -136,7 +136,7 @@ inline void Internal::search_assign (int lit, Clause *reason) {
     reason = 0;
 
   v.level = lit_level;
-  v.trail = trail.size ();
+  v.trail = get_trail_size ();
   v.reason = reason;
   assert ((int) num_assigned < max_var);
   assert (num_assigned == trail.size ());
@@ -523,7 +523,7 @@ void Internal::propergate () {
     while (i != eow) {
 
       const Watch w = *j++ = *i++;
-
+      LOG (w.clause, "propergate");
       if (w.binary ()) {
         assert (val (w.blit) > 0);
         continue;

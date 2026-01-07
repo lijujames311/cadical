@@ -676,7 +676,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
     int best_idx = 0, best_pos = 0;
 
     if (use_scores ()) {
-      for (int i = control[jump + 1].trail; i < (int)trail.size (); i++) {
+      for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
         const int idx = abs (trail[i]);
         if (best_idx && !score_smaller (this) (best_idx, idx))
           continue;
@@ -685,7 +685,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       }
       LOG ("best variable score %g", score (best_idx));
     } else {
-      for (int i = control[jump + 1].trail; i < (int)trail.size (); i++) {
+      for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
         const int idx = abs (trail[i]);
         if (best_idx && bumped (best_idx) >= bumped (idx))
           continue;
@@ -795,6 +795,7 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
   LOG (new_conflict, "removing all units in");
 
   assert (lits[0] == uip || lits[1] == uip);
+  assert (new_size >= 2);
   const int other = lits[0] ^ lits[1] ^ uip;
   lits[0] = other;
   lits[1] = lits[--new_size];
@@ -878,19 +879,7 @@ inline void Internal::otfs_subsume_clause (Clause *subsuming,
     mark_garbage (subsumed);
     return;
   }
-  LOG ("turning redundant subsuming clause into irredundant clause");
-  subsuming->redundant = false;
-  if (proof)
-    proof->strengthen (subsuming->id);
-  mark_garbage (subsumed);
-  stats.current.irredundant++;
-  stats.added.irredundant++;
-  stats.irrlits += subsuming->size;
-  assert (stats.current.redundant > 0);
-  stats.current.redundant--;
-  assert (stats.added.redundant > 0);
-  stats.added.redundant--;
-  // ... and keep 'stats.added.total'.
+  make_irredundant (subsuming);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1001,6 +990,8 @@ void Internal::analyze () {
       search_assign_driving (forced, conflict);
 
       conflict = 0;
+      if (!opts.chrono)
+        did_external_prop = true;
       STOP (analyze);
       return;
     }

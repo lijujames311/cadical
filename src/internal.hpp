@@ -246,7 +246,10 @@ struct Internal {
   bool force_no_backtrack;      // for new clauses with external propagator
   bool from_propagator;         // differentiate new clauses...
   bool ext_clause_forgettable;  // Is new clause from propagator forgettable
-  int tainted_literal;          // used for ILB
+  bool unsat_constraint;     // constraint used for unsatisfiability?
+  bool marked_failed;        // are the failed assumptions marked?
+  bool sweep_incomplete;      // sweep
+  int changed_val;              // used for ILB
   size_t notified;           // next trail position to notify external prop
   Clause *probe_reason;      // set during probing
   size_t propagated;         // next trail position to propagate
@@ -259,8 +262,6 @@ struct Internal {
   vector<int> clause;        // simplified in parsing & learning
   vector<int> assumptions;   // assumed literals
   vector<int> constraint;    // literals of the constraint
-  bool unsat_constraint;     // constraint used for unsatisfiability?
-  bool marked_failed;        // are the failed assumptions marked?
   vector<int> original;      // original added literals
   vector<int> levels;        // decision levels in learned clause
   vector<int> analyzed;      // analyzed literals in 'analyze'
@@ -271,7 +272,6 @@ struct Internal {
   Reap reap;                 // radix heap for shrink
 
   vector<int> sweep_schedule; // remember sweep varibles to reschedule
-  bool sweep_incomplete;      // sweep
   uint64_t randomized_deciding;
   vector <int> imports;      // impported literals (ordered by order of appearance)
 
@@ -421,7 +421,8 @@ struct Internal {
 
   int u2i (unsigned u) {
     assert (u > 1);
-    int res = u / 2;
+    assert (u <= INT32_MAX);
+    int res = (int)u / 2;
     assert (res <= max_var);
     if (u & 1)
       res = -res;
@@ -429,7 +430,8 @@ struct Internal {
   }
 
   int citten2lit (unsigned ulit) {
-    int res = (ulit / 2) + 1;
+    assert (ulit <= INT32_MAX);
+    int res = (int)(ulit / 2) + 1;
     assert (res <= max_var);
     if (ulit & 1)
       res = -res;
@@ -470,6 +472,13 @@ struct Internal {
 
   bool occurring () const { return !otab.empty (); }
   bool watching () const { return !wtab.empty (); }
+  // Size of the trail as an int
+  //
+  // The trail containts at most every variable at most once from 1 to
+  // INT32_MAX. Therefore the size is at most INT32_MAX. This is already used
+  // implicitely in the code (like var (lit).trail). With the assertion we
+  // document the invariant.
+  int get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
 
   Bins &bins (int lit) { return big[vlit (lit)]; }
   Occs &occs (int lit) { return otab[vlit (lit)]; }
@@ -696,6 +705,7 @@ struct Internal {
   Clause *new_clause (bool red, int glue = 0);
   void promote_clause (Clause *, int new_glue);
   void promote_clause_glue_only (Clause *, int new_glue);
+  void make_irredundant (Clause *);
   size_t shrink_clause (Clause *, int new_size);
   void minimize_sort_clause ();
   void shrink_and_minimize_clause ();
@@ -830,7 +840,7 @@ struct Internal {
   void notify_assignments ();
   void notify_decision ();
   void notify_backtrack (size_t new_level);
-  void force_backtrack (size_t new_level);
+  void force_backtrack (int new_level);
   int ask_decision ();
   bool ask_external_clause ();
   void add_observed_var (int ilit);
@@ -838,7 +848,7 @@ struct Internal {
   bool observed (int ilit) const;
   bool is_decision (int ilit);
   void check_watched_literal_invariants ();
-  void set_tainted_literal ();
+  void set_changed_val ();
   void renotify_trail_after_ilb ();
   void renotify_trail_after_local_search ();
   void renotify_full_trail ();
@@ -906,8 +916,6 @@ struct Internal {
   int forward_true_satisfiable ();
   int backward_false_satisfiable ();
   int backward_true_satisfiable ();
-  int positive_horn_satisfiable ();
-  int negative_horn_satisfiable ();
 
   // Asynchronous terminating check.
   //
