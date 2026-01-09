@@ -5413,6 +5413,16 @@ bool Closure::rewrite_ite_gate_to_and (
   assert (internal->lrat_chain.empty ());
   assert (!g->garbage);
   LOG (g, "rewriting to proper AND gate, namely");
+  // after rewriting the gate is trivially garbage. Unit propagation
+  // and simplification will lead to the same merges as we might try
+  // to do if we keep the gate (with very complicated LRAT production,
+  // as we need to simulate unit propagation on those clauses,
+  // ignoring the LHS if it already set).
+  if (internal->val (g->lhs) < 0 &&
+      (internal->val (g->rhs[0]) < 0 || internal->val (g->rhs[1]) < 0)) {
+    LOG ("generated AND gate is trivial, marking it garbage");
+    return true;
+  }
   if (internal->val (g->lhs) > 0) {
     {
       const int lit = g->rhs[0];
