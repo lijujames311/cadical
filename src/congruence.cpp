@@ -1293,7 +1293,6 @@ void Closure::push_id_and_rewriting_lrat_full (Clause *c, Rewrite rewrite1,
 void Closure::push_id_on_chain (std::vector<LRAT_ID> &chain, Clause *c) {
   assert (c);
   chain.push_back (c->id);
-  LOG (lrat_chain, "chain");
 }
 
 void Closure::push_id_on_chain (std::vector<LRAT_ID> &chain,
@@ -2592,14 +2591,15 @@ void Closure::update_and_gate_build_lrat_chain (
     produce_rewritten_clause_lrat_and_clean (other->pos_lhs_ids(),
                                              other->lhs);
     for (auto &litId : other->pos_lhs_ids()) {
-      LOG (litId.clause, "pushing clause from other");
+      LOG (litId.clause, "pushing clause for literal %s from other gate", LOGLIT (litId.current_lit));
       push_id_on_chain (extra_reasons_tauto, litId.clause);
     }
-    // one direction: the binary clause already exists
-    produce_rewritten_clause_lrat_and_clean (tauto->pos_lhs_ids(),
-                                             other->lhs);
-    produce_rewritten_clause_lrat_and_clean (tauto->neg_lhs_ids(),
-                                             other->lhs);
+    // one direction: the binary clause already exists As it is a tautology, we
+    // have to rewrite the lhs too, we should not ignore it, unlike the previous
+    // case (you only see the issue if the lhs is also the source of the
+    // rewriting: if it is the destination, then the rewriting works!)
+    produce_rewritten_clause_lrat_and_clean (tauto->pos_lhs_ids ());
+    produce_rewritten_clause_lrat_and_clean (tauto->neg_lhs_ids ());
     for (auto &litId : {tauto->neg_lhs_ids().content}) {
       LOG (litId.clause, "pushing clause from tauto");
       push_id_on_chain (extra_reasons_tauto, litId.clause);
@@ -5413,17 +5413,19 @@ bool Closure::rewrite_ite_gate_to_and (
   assert (internal->lrat_chain.empty ());
   assert (!g->garbage);
   LOG (g, "rewriting to proper AND gate, namely");
+  const signed char val_lhs = internal->val (g->lhs);
   // after rewriting the gate is trivially garbage. Unit propagation
   // and simplification will lead to the same merges as we might try
   // to do if we keep the gate (with very complicated LRAT production,
   // as we need to simulate unit propagation on those clauses,
   // ignoring the LHS if it already set).
-  if (internal->val (g->lhs) < 0 &&
-      (internal->val (g->rhs[0]) < 0 || internal->val (g->rhs[1]) < 0)) {
-    LOG ("generated AND gate is trivial, marking it garbage");
-    return true;
+  if (val_lhs < 0) {
+    if (internal->val (g->rhs[0]) < 0 || internal->val (g->rhs[1]) < 0) {
+      LOG ("generated AND gate is trivial, marking it garbage");
+      return true;
+    }
   }
-  if (internal->val (g->lhs) > 0) {
+  if (val_lhs > 0) {
     {
       const int lit = g->rhs[0];
       const char v = internal->val (lit);
@@ -5590,8 +5592,9 @@ bool Closure::rewrite_ite_gate_to_and (
     }
     g->garbage = true;
   }
-  if (internal->val (g->lhs) < 0)
+  if (val_lhs < 0)
     g->degenerated_gate = Special_Gate::DEGENERATED_AND_LHS_FALSE;
+  
 #ifndef NDEBUG
   for (auto litId : g->pos_lhs_ids()) {
     bool found = false;
