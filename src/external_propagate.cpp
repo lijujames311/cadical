@@ -95,13 +95,13 @@ void Internal::set_changed_val () {
       continue;
     if (var (idx).reason != external_reason)
       continue;
-    if (!changed_val) {
-      changed_val = idx;
+    if (!earliest_changed_val) {
+      earliest_changed_val = idx;
       continue;
     }
-    assert (val (changed_val));
-    if (var (idx).level < var (changed_val).level) {
-      changed_val = idx;
+    assert (val (earliest_changed_val));
+    if (var (idx).level < var (earliest_changed_val).level) {
+      earliest_changed_val = idx;
     }
   }
 }

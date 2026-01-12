@@ -246,10 +246,10 @@ struct Internal {
   bool force_no_backtrack;      // for new clauses with external propagator
   bool from_propagator;         // differentiate new clauses...
   bool ext_clause_forgettable;  // Is new clause from propagator forgettable
-  bool unsat_constraint;     // constraint used for unsatisfiability?
-  bool marked_failed;        // are the failed assumptions marked?
-  bool sweep_incomplete;      // sweep
-  int changed_val;              // used for ILB
+  bool unsat_constraint;        // constraint used for unsatisfiability?
+  bool marked_failed;           // are the failed assumptions marked?
+  bool sweep_incomplete;        // sweep
+  int earliest_changed_val;     // earliest literal whose value was changed but was not notified yet. Only relevant for ILB (otherwise, we backtrack, so no renotification is needed).
   size_t notified;           // next trail position to notify external prop
   Clause *probe_reason;      // set during probing
   size_t propagated;         // next trail position to propagate

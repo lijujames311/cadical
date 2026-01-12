@@ -180,10 +180,10 @@ void Internal::backtrack_without_updating_phases (int new_level) {
 
   control.resize (new_level + 1);
   level = new_level;
-  if (changed_val) {
+  if (earliest_changed_val) {
     assert (opts.ilb);
-    if (!val (changed_val)) {
-      changed_val = 0;
+    if (!val (earliest_changed_val)) {
+      earliest_changed_val = 0;
     }
   }
   assert (num_assigned == trail.size ());

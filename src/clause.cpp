@@ -396,13 +396,13 @@ void Internal::add_new_original_clause (int64_t id) {
 
   if (!from_propagator && level && !opts.ilb) {
     backtrack_without_updating_phases ();
-  } else if (changed_val) {
-    assert (val (changed_val));
-    int new_level = var (changed_val).level - 1;
+  } else if (earliest_changed_val) {
+    assert (val (earliest_changed_val));
+    int new_level = var (earliest_changed_val).level - 1;
     assert (new_level >= 0);
     backtrack_without_updating_phases (new_level);
   }
-  assert (!changed_val);
+  assert (!earliest_changed_val);
   LOG (original, "original clause");
   assert (clause.empty ());
   bool skip = false;
