@@ -1,8 +1,11 @@
 Version 3.0.X
 -------------
 
-- Fixed accidental deactivation of local search initially (off by default, activation with `-L`), due to a ticks limit of 0.
+- Fixed accidental deactivation of local search initially (off by
+  default, activation with `-L`), due to a ticks limit of 0.
 
+- Stronger congruence algorithm by taking more binary clauses into
+  account, to produce a few more units.
 
 Version 3.0.0
 -------------

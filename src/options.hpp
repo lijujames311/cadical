@@ -68,6 +68,7 @@ OPTION( conditionmineff,   0,  0,2e9,1,0,1, "minimum condition efficiency") \
 OPTION( congruence,        1,  0,  1,0,1,1, "congruence closure") \
 OPTION( congruenceand,     1,  0,  1,0,0,1, "extract AND gates") \
 OPTION( congruenceandarity,1e6,2,5e7,0,0,1, "AND gate arity limit") \
+OPTION( congruenceanddummy,1,  0,  1,0,1,1, "check for dummy AND out of binary clauses") \
 OPTION( congruencebinaries,1,  0,  1,0,0,1, "extract binary and strengthen ternary clauses") \
 OPTION( congruenceite,     1,  0,  1,0,0,1, "extract ITE gates") \
 OPTION( congruencexor,     1,  0,  1,0,0,1, "extract XOR gates") \

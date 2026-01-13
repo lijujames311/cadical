@@ -646,7 +646,7 @@ struct Closure {
 
   Gate *find_and_lits (vector<int> &rhs, Gate *except = nullptr);
 
-    Gate *find_and_lits (literal_iterator begin, literal_iterator end, Gate *except = nullptr);
+  Gate *find_and_lits (literal_iterator begin, literal_iterator end, Gate *except = nullptr);
   Gate *
   find_gate_lits (const_literal_iterator begin, const_literal_iterator end,
                   Gate_Type typ,
@@ -774,9 +774,15 @@ struct Closure {
   Clause *maybe_promote_tmp_binary_clause (Clause *);
   void check_not_tmp_binary_clause (Clause *c);
   Clause *new_clause ();
+
+  bool propagate_binary_clauses_in_and_gates ();
+  // Various sorting functions to sort literals in the proper order
   //
+  // sort a vector of literals
   void sort_literals_by_var (vector<int> &rhs);
+  // sort the rhs of a gate
   void sort_literals_by_var (Gate *rhs);
+  // sort the literals in a gate except for two literals that should be put first
   void sort_literals_by_var_except (vector<int> &rhs, int, int except2 = 0);
 
   // schedule

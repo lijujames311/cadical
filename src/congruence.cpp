@@ -4994,22 +4994,64 @@ bool Closure::propagate_equivalence (int lit) {
          rewrite_gates (-repr, -lit, id2, id1);
 }
 
+// a binary clause a v b can be seen as the gate false = -a & -b. We
+// do not want to produce put all those gates in the map, but we
+// still want to propagate them.
+bool Closure::propagate_binary_clauses_in_and_gates () {
+  assert (internal->opts.congruenceanddummy);
+  bool found_new_unit = false;
+  rhs.resize (2);
+
+  for (auto c : internal->clauses) {
+    if (internal->unsat)
+      break;
+    if (c->garbage)
+      continue;
+    if (c->size != 2)
+      continue;
+    rhs[0] = -c->literals[0];
+    rhs[1] = -c->literals[1];
+    std::sort (begin (rhs), end (rhs),
+               sort_literals_by_var_smaller (internal));
+    Gate *h = find_and_lits (rhs);
+    if (!h)
+      continue;
+    if (internal->val (h->lhs) < 0)
+      continue;
+    LOG (c, "the clause seen as gate false = %s & %s", LOGLIT (rhs[0]),
+         LOGLIT (rhs[1]));
+    LOG (h, "can be merged with");
+    learn_congruence_unit (-h->lhs);
+    found_new_unit = true;
+  }
+  rhs.clear ();
+  return found_new_unit;
+}
+
 size_t Closure::propagate_units_and_equivalences () {
   START (congruencemerge);
   size_t propagated = 0;
   LOG ("propagating at least %zd units", schedule.size ());
   assert (lrat_chain.empty ());
-  while (propagate_units () && !schedule.empty ()) {
-    assert (!internal->unsat);
-    assert (lrat_chain.empty ());
-    ++propagated;
-    int lit = schedule.front ();
-    schedule.pop ();
-    scheduled[abs (lit)] = false;
-    if (!propagate_equivalence (lit))
-      break;
-  }
+  bool found_new_unit = false;
 
+  do {
+    found_new_unit = false;
+    while (propagate_units () && !schedule.empty ()) {
+      assert (!internal->unsat);
+      assert (lrat_chain.empty ());
+      ++propagated;
+      int lit = schedule.front ();
+      schedule.pop ();
+      scheduled[abs (lit)] = false;
+      if (!propagate_equivalence (lit))
+        break;
+    }
+
+    if (!internal->opts.congruenceanddummy)
+      break;
+    found_new_unit = propagate_binary_clauses_in_and_gates ();
+  } while (found_new_unit && !internal->unsat);
   assert (internal->unsat || schedule.empty ());
   assert (internal->unsat || lrat_chain.empty ());
 
