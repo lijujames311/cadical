@@ -5021,6 +5021,12 @@ bool Closure::propagate_binary_clauses_in_and_gates () {
     LOG (c, "the clause seen as gate false = %s & %s", LOGLIT (rhs[0]),
          LOGLIT (rhs[1]));
     LOG (h, "can be merged with");
+    if (internal->lrat) {
+      produce_rewritten_clause_lrat_and_clean (h->pos_lhs_ids (), h->lhs);
+      for (auto reason : h->pos_lhs_ids ())
+        lrat_chain.push_back (reason.clause->id);
+      lrat_chain.push_back(c->id);
+    }
     learn_congruence_unit (-h->lhs);
     found_new_unit = true;
   }
