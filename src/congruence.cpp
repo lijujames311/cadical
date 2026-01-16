@@ -1319,7 +1319,7 @@ void Closure::learn_congruence_unit_when_lhs_set (Gate *g, int src,
   if (!internal->lrat)
     return;
   LOG ("calculating LRAT chain learn_congruence_unit_when_lhs_set");
-  assert (!g->pos_lhs_ids().empty ());
+  assert (g->neg_lhs_ids () () || !g->pos_lhs_ids().empty ());
   assert (internal->analyzed.empty ());
   assert (internal->val (g->lhs) < 0);
   assert (g->tag == Gate_Type::And_Gate);
