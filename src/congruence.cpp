@@ -2249,6 +2249,8 @@ void Closure::check_and_gate_implied (Gate *g) {
   if (internal->lrat) {
     assert (g->degenerated_gate != Special_Gate::NORMAL ||
             g->neg_lhs_ids () ());
+    assert (g->degenerated_gate != Special_Gate::DEGENERATED_AND_LHS_FALSE ||
+            (g->neg_lhs_ids () ()));
 #ifndef NDEBUG
     for (auto c : g->pos_lhs_ids()) {
       assert (std::find_if (
@@ -2600,7 +2602,8 @@ void Closure::update_and_gate_build_lrat_chain (
     // rewriting: if it is the destination, then the rewriting works!)
     produce_rewritten_clause_lrat_and_clean (tauto->pos_lhs_ids ());
     produce_rewritten_clause_lrat_and_clean (tauto->neg_lhs_ids ());
-    for (auto &litId : {tauto->neg_lhs_ids().content}) {
+    assert (tauto->neg_lhs_ids () ());
+    for (auto &litId : {tauto->neg_lhs_ids ().content}) {
       LOG (litId.clause, "pushing clause from tauto");
       push_id_on_chain (extra_reasons_tauto, litId.clause);
     }
@@ -6568,7 +6571,10 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
     g->degenerated_gate = Special_Gate::NORMAL;
 
   if (g->lhs == -removed_lit && internal->val (-removed_lit)) {
+    LOG ("special case of lhs=-1");
     // 3 = 5 ? 1 : 3 where 3@0 = -1
+    //
+    // we move the only clause to the neg_lhs_ids
     g->degenerated_gate = Special_Gate::DEGENERATED_AND_LHS_FALSE;
     size_t new_idx1 = idx1;
     size_t new_idx2 = idx2;
@@ -6576,8 +6582,11 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
                                              new_idx2, true);
     assert (g->pos_lhs_ids ().size () == 1);
     // the literal is not necessarily the same, so updating it
-    g->pos_lhs_ids()[0].current_lit = g->pos_lhs_ids()[0].clause->literals[0];
+    g->pos_lhs_ids ()[0].current_lit =
+        g->pos_lhs_ids ()[0].clause->literals[0];
     assert (g->pos_lhs_ids()[0].clause->size == 2);
+    g->neg_lhs_ids ().content = {g->pos_lhs_ids ()[0]};
+    g->pos_lhs_ids().clear ();
     return false;
   }
   assert (g->pos_lhs_ids().size () == 4);
