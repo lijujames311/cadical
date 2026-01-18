@@ -182,7 +182,9 @@ void Internal::init_and_declare_vars (int new_max_var) {
 void Internal::reserve_vars (int new_min_vsize) {
   if ((size_t)new_min_vsize < vsize)
     return;
+#ifdef LOGGING
   int new_vars = new_min_vsize - max_var;
+#endif
   size_t new_vsize = vsize ? 2*vsize : 1 + (size_t) max_var;
   while (new_vsize <= (size_t) new_min_vsize)
     new_vsize *= 2;
