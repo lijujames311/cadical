@@ -6948,10 +6948,10 @@ void Closure::simplify_ite_gate (Gate *g) {
             connect_goccs (g, lit);
           }
 
-        if (rhs[0] == -g->lhs || rhs[1] == -g->lhs)
-          simplify_and_gate (
-              g); // TODO Kissat does not do that, but it has also no
-                  // checks to verify that it cannot happen...
+        // TODO Kissat does not do that and it happens
+        if (rhs[0] == -g->lhs || rhs[1] == -g->lhs){
+          simplify_and_gate (g);
+        }
       }
     }
   }
