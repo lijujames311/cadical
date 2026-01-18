@@ -5014,6 +5014,17 @@ bool Closure::propagate_binary_clauses_in_and_gates () {
       continue;
     rhs[0] = find_eager_representative (-c->literals[0]);
     rhs[1] = find_eager_representative (-c->literals[1]);
+    // clause is true, propagation should do its job
+    if (internal->val (-rhs[0]) > 0)
+      continue;
+    if (internal->val (-rhs[1]) > 0)
+      continue;
+    // clause is actually a tautology
+    if (rhs[0] == -rhs[1])
+      continue;
+    // make sure that we did not miss any propagation
+    assert (!(internal->val (-rhs[0]) < 0 && internal->val (-rhs[1]) == 0));
+    assert (!(internal->val (-rhs[1]) < 0 && internal->val (-rhs[0]) == 0));
     std::sort (begin (rhs), end (rhs),
                sort_literals_by_var_smaller (internal));
     Gate *h = find_and_lits (rhs);
