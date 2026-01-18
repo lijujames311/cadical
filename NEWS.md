@@ -12,6 +12,9 @@ Version 3.0.X
 - For models, CaDiCaL now outputs only the literals that are present
   in the problem. Use `modelalllits` to get all literals.
 
+- decompose now also works on frozen literals
+
+
 Version 3.0.0
 -------------
 
