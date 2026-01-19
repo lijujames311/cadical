@@ -6243,29 +6243,48 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       g->resize (2);
       assert (rhs[0] != -rhs[1]);
       if (new_tag == Gate_Type::XOr_Gate) {
-        if (rhs[0] == -g->lhs || rhs[1] == -g->lhs) {
+        const int repr = find_eager_representative (g->lhs);
+        if (rhs[0] == -repr || rhs[1] == -repr) {
           LOG (g, "special XOR:");
-          const int unit = rhs[0] ^ -g->lhs ^ rhs[1];
+          const int unit = rhs[0] ^ -repr ^ rhs[1];
           if (internal->lrat) {
-            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(), not_lhs,
+            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(), repr,
                                                      false);
             assert (g->pos_lhs_ids().size () == 2);
             lrat_chain.push_back (g->pos_lhs_ids()[0].clause->id);
             lrat_chain.push_back (g->pos_lhs_ids()[1].clause->id);
+          } else if (internal->proof) {
+            unsimplified.push_back (unit);
+            unsimplified.push_back (repr);
+            simplify_and_add_to_proof_chain (unsimplified);
+            unsimplified.pop_back ();
+            unsimplified.push_back (-repr);
+            simplify_and_add_to_proof_chain (unsimplified);
+            unsimplified.clear ();
           }
           learn_congruence_unit (unit);
+          delete_proof_chain ();
           garbage = true;
-        } else if (rhs[0] == g->lhs || rhs[1] == g->lhs) {
+        } else if (rhs[0] == repr || rhs[1] == repr) {
           LOG (g, "special XOR:");
-          const int unit = rhs[0] ^ g->lhs ^ rhs[1];
+          const int unit = -(rhs[0] ^ repr ^ rhs[1]);
           if (internal->lrat) {
-            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(), not_lhs,
-                                                   false);
+            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (),
+                                                     repr, false);
             assert (g->pos_lhs_ids().size () == 2);
             lrat_chain.push_back (g->pos_lhs_ids()[0].clause->id);
             lrat_chain.push_back (g->pos_lhs_ids()[1].clause->id);
+          } else if (internal->proof) {
+            unsimplified.push_back (unit);
+            unsimplified.push_back (repr);
+            simplify_and_add_to_proof_chain (unsimplified);
+            unsimplified.pop_back ();
+            unsimplified.push_back (-repr);
+            simplify_and_add_to_proof_chain (unsimplified);
+            unsimplified.clear ();
           }
-          learn_congruence_unit (-unit);
+          learn_congruence_unit (unit);
+          delete_proof_chain ();
           garbage = true;
         } else {
           int i = 0;
