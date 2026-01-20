@@ -6316,7 +6316,7 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       std::vector<LRAT_ID> reasons_implication, reasons_back;
       produce_ite_merge_then_else_reasons (g, src, dst, reasons_implication,
                                            reasons_back);
-      if (merge_literals (lhs, else_lit, reasons_implication,
+      if (merge_literals (g->lhs, else_lit, reasons_implication,
                           reasons_back)) {
         ++internal->stats.congruence.unaries;
         ++internal->stats.congruence.unary_ites;
@@ -6410,7 +6410,7 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       std::vector<LRAT_ID> reasons_implication, reasons_back;
       produce_ite_merge_then_else_reasons (g, src, dst, reasons_implication,
                                            reasons_back);
-      if (merge_literals (lhs, then_lit, reasons_implication,
+      if (merge_literals (g->lhs, then_lit, reasons_implication,
                           reasons_back)) {
         ++internal->stats.congruence.unaries;
         ++internal->stats.congruence.unary_ites;
