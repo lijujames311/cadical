@@ -813,9 +813,25 @@ struct Closure {
   void gate_sort_lrat_reasons (LitClausePair &, int, int except2 = 0,
                                bool flip = 0);
 
+  // rewrite ITE gate g, g->lhs = cond ? then_lit : else_lit to the new type
+  // tag, which is either an XOR gate or an AND gate. Then checks if the gate
+  // already exists and merges them.
+  //
+  // The update to an XOR gate is done here, as it is rather regular, but nor
+  // for AND gates.
+  bool rewrite_ite_gate_to_xor_or_and (Gate *g, Gate_Type tag, int src,
+                                       int dst, GatesTable::iterator git,
+                                       int cond, int then_lit,
+                                       int else_lit);
+
+
+  // Transforms an ITE gate to an AND gate, taking care of the special cases
+  // where some values are already set.
   bool rewrite_ite_gate_to_and (Gate *g, int dst, int src, size_t c,
                                 size_t d,
                                 int cond_lit_to_learn_if_degenerated);
+  // Transforms the former ITE gate to an XOR, taking care of the special case
+  // with the LHS already in the RHS and updating the clauses in the gate.
   bool rewrite_ite_gate_to_xor (Gate *g);
 
   void produce_ite_merge_then_else_reasons (
