@@ -482,7 +482,8 @@ void Solver::resize (int min_max_var) {
   transition_to_steady_state ();
   if (min_max_var) {
     external->reset_extended ();
-    external->init (min_max_var);
+    if (external->max_var < min_max_var)
+      external->resize (min_max_var);
   }
   LOG_API_CALL_END ("resize", min_max_var);
 }

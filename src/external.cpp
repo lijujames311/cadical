@@ -32,7 +32,7 @@ void External::enlarge (int new_max_var) {
 }
 
 int External::declare_var (int new_var, bool extension) {
-  int ilit = internal_lit(new_var);
+  int ilit = internal_lit (new_var);
   if (!ilit) {
     if (!internal->opts.vartumble)
       ilit = internal->max_var+1;
@@ -57,18 +57,10 @@ int External::declare_var (int new_var, bool extension) {
   (void)extension;
   return e2i[new_var];
 }
-void External::init (int new_max_var, bool extension) {
-  assert (!extended);
-  LOG ("%d external variables from %d", new_max_var, max_var);
-  assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
-  if (new_max_var <= max_var) {
-    declare_var (new_max_var, extension);
-    return;
-  }
-  int new_vars = new_max_var - max_var;
-  internal->reserve_vars (new_max_var);
 
-  LOG ("initialized %d external variables", new_vars);
+void External::resize (int new_max_var) {
+  assert (max_var < new_max_var);
+  internal->reserve_vars (new_max_var);
   reserve_at_least (ext_units, 2 * new_max_var + 2);
   reserve_at_least (ervars, new_max_var + 1);
   reserve_at_least (ext_flags, new_max_var + 1);
@@ -81,7 +73,6 @@ void External::init (int new_max_var, bool extension) {
     ervars.push_back (0);
     assert (internal->i2e.empty ());
     internal->i2e.push_back (0);
-  } else {
   }
   unsigned eidx;
   for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var;
@@ -92,6 +83,21 @@ void External::init (int new_max_var, bool extension) {
     ervars.push_back (0);
   }
   assert (internal->i2e.size () == (size_t)internal->max_var + 1);
+  assert (eidx == (size_t) new_max_var + 1);
+  max_var = new_max_var;
+}
+
+void External::init (int new_max_var, bool extension) {
+  assert (!extended);
+  LOG ("%d external variables from %d", new_max_var, max_var);
+  assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
+  if (new_max_var <= max_var) {
+    declare_var (new_max_var, extension);
+    return;
+  }
+  int new_vars = new_max_var - max_var;
+  LOG ("initialized %d external variables", new_vars);
+  resize (new_max_var);
 
   declare_var (new_max_var, extension);
   if (extension)
@@ -101,9 +107,7 @@ void External::init (int new_max_var, bool extension) {
   if (internal->opts.checkfrozen)
     if (new_max_var >= (int64_t) moltentab.size ())
       moltentab.resize (1 + (size_t) new_max_var, false);
-  assert (eidx == (size_t) new_max_var + 1);
   assert (ext_units.size () == (size_t) new_max_var * 2 + 2);
-  max_var = new_max_var;
 }
 
 /*------------------------------------------------------------------------*/
