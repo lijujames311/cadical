@@ -3977,7 +3977,7 @@ void Closure::add_xor_matching_proof_chain (
   vector<LitClausePair> second;
   if (internal->lrat) {
     simplify_and_sort_xor_lrat_clauses (g->pos_lhs_ids(), first, lhs1);
-    simplify_and_sort_xor_lrat_clauses (clauses2, second, lhs2, 0, 1);
+    simplify_and_sort_xor_lrat_clauses (clauses2, second, lhs2, 0, true);
     g->pos_lhs_ids() = first;
   }
   LOG ("starting XOR matching proof");
@@ -4150,8 +4150,6 @@ uint32_t Closure::number_from_xor_reason (const std::vector<int> &rhs,
   return n;
 }
 
-// this is how I planned to sort it and produce the number
-// Look at this first
 void Closure::gate_sort_lrat_reasons (LitClausePair &litId, int lhs,
                                       int except2, bool flip) {
   assert (clause.empty ());
@@ -5461,6 +5459,123 @@ void Closure::rewrite_ite_gate_update_lrat_reasons (Gate *g, int src,
   check_ite_lrat_reasons (g);
 }
 
+bool Closure::rewrite_ite_gate_to_xor (Gate *g) {
+  bool garbage = false;
+  const int repr = find_eager_representative (g->lhs);
+  int *rhs = g->rhs;
+  if (rhs[0] == -repr || rhs[1] == -repr) {
+    LOG (g, "special XOR:");
+    const int unit = rhs[0] ^ -repr ^ rhs[1];
+    if (internal->lrat) {
+      produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (), repr,
+                                               false);
+      assert (g->pos_lhs_ids ().size () == 2);
+      lrat_chain.push_back (g->pos_lhs_ids ()[0].clause->id);
+      lrat_chain.push_back (g->pos_lhs_ids ()[1].clause->id);
+    } else if (internal->proof) {
+      unsimplified.push_back (unit);
+      unsimplified.push_back (repr);
+      simplify_and_add_to_proof_chain (unsimplified);
+      unsimplified.pop_back ();
+      unsimplified.push_back (-repr);
+      simplify_and_add_to_proof_chain (unsimplified);
+      unsimplified.clear ();
+    }
+    learn_congruence_unit (unit);
+    delete_proof_chain ();
+    garbage = true;
+  } else if (rhs[0] == repr || rhs[1] == repr) {
+    LOG (g, "special XOR:");
+    const int unit = -(rhs[0] ^ repr ^ rhs[1]);
+    if (internal->lrat) {
+      produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (), repr,
+                                               false);
+      assert (g->pos_lhs_ids ().size () == 2);
+      lrat_chain.push_back (g->pos_lhs_ids ()[0].clause->id);
+      lrat_chain.push_back (g->pos_lhs_ids ()[1].clause->id);
+    } else if (internal->proof) {
+      unsimplified.push_back (unit);
+      unsimplified.push_back (repr);
+      simplify_and_add_to_proof_chain (unsimplified);
+      unsimplified.pop_back ();
+      unsimplified.push_back (-repr);
+      simplify_and_add_to_proof_chain (unsimplified);
+      unsimplified.clear ();
+    }
+    learn_congruence_unit (unit);
+    delete_proof_chain ();
+    garbage = true;
+  } else {
+    int i = 0;
+    bool negated = false;
+    for (int j = 0; j < 2; ++i, ++j) {
+      assert (i <= j);
+      const int lit = rhs[i] = rhs[j];
+      const signed char v = internal->val (lit);
+      if (v > 0) {
+        --i;
+        negated = !negated;
+      } else if (v < 0) {
+        --i;
+      }
+    }
+    assert (i <= 2);
+    g->resize (i);
+    if (negated) {
+      g->lhs = -g->lhs;
+    }
+    if (i != 2) {
+      LOG (g, "removed units");
+    }
+    if (!i)
+      garbage = true;
+    else if (i == 1) {
+#ifdef LOGGING
+      if (internal->lrat)
+        for (auto litId : g->pos_lhs_ids ())
+          LOG (litId.clause, "%d ->", litId.current_lit);
+#endif
+      if (internal->lrat) {
+        produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (), g->lhs);
+      }
+      assert (!internal->lrat || g->pos_lhs_ids ().size () == 2 ||
+              (g->arity () == 1 && find_representative (g->lhs) ==
+                                       find_representative (g->rhs[0])));
+      if (g->arity () == 1) // can happen when there are units in the
+                            // gate that are not simplified yet
+      {
+        garbage = true;
+      } else {
+        Clause *c1 = nullptr, *c2 = nullptr;
+        if (internal->lrat) {
+          assert (g->pos_lhs_ids ()[0].clause);
+          bool rhs_as_src_first =
+              g->pos_lhs_ids ()[0].clause->literals[0] == g->lhs ||
+              g->pos_lhs_ids ()[0].clause->literals[1] == g->lhs;
+          c1 = (rhs_as_src_first ? g->pos_lhs_ids ()[0].clause
+                                 : g->pos_lhs_ids ()[1].clause);
+          c2 = (rhs_as_src_first ? g->pos_lhs_ids ()[1].clause
+                                 : g->pos_lhs_ids ()[0].clause);
+          c1 = maybe_promote_tmp_binary_clause (c1);
+          c2 = maybe_promote_tmp_binary_clause (c2);
+        } else {
+          maybe_add_binary_clause (-g->lhs, g->rhs[0]);
+          maybe_add_binary_clause (g->lhs, -g->rhs[0]);
+        }
+        merge_literals_equivalence (g->lhs, g->rhs[0], c1, c2);
+        garbage = true;
+      }
+    }
+  }
+  if (!garbage) {
+    assert (rhs[0] != g->lhs);
+    assert (rhs[1] != g->lhs);
+    assert (rhs[0] != -g->lhs);
+    assert (rhs[1] != -g->lhs);
+  }
+  return garbage;
+}
+
 // Transforms an ITE gate to an AND gate
 //
 // In essence the transformation is simple for LRAT: two long clause need to
@@ -6236,128 +6351,17 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       g->tag = new_tag;
       g->resize (2);
       assert (rhs[0] != -rhs[1]);
-      if (new_tag == Gate_Type::XOr_Gate) {
-        const int repr = find_eager_representative (g->lhs);
-        if (rhs[0] == -repr || rhs[1] == -repr) {
-          LOG (g, "special XOR:");
-          const int unit = rhs[0] ^ -repr ^ rhs[1];
-          if (internal->lrat) {
-            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(), repr,
-                                                     false);
-            assert (g->pos_lhs_ids().size () == 2);
-            lrat_chain.push_back (g->pos_lhs_ids()[0].clause->id);
-            lrat_chain.push_back (g->pos_lhs_ids()[1].clause->id);
-          } else if (internal->proof) {
-            unsimplified.push_back (unit);
-            unsimplified.push_back (repr);
-            simplify_and_add_to_proof_chain (unsimplified);
-            unsimplified.pop_back ();
-            unsimplified.push_back (-repr);
-            simplify_and_add_to_proof_chain (unsimplified);
-            unsimplified.clear ();
-          }
-          learn_congruence_unit (unit);
-          delete_proof_chain ();
-          garbage = true;
-        } else if (rhs[0] == repr || rhs[1] == repr) {
-          LOG (g, "special XOR:");
-          const int unit = -(rhs[0] ^ repr ^ rhs[1]);
-          if (internal->lrat) {
-            produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (),
-                                                     repr, false);
-            assert (g->pos_lhs_ids().size () == 2);
-            lrat_chain.push_back (g->pos_lhs_ids()[0].clause->id);
-            lrat_chain.push_back (g->pos_lhs_ids()[1].clause->id);
-          } else if (internal->proof) {
-            unsimplified.push_back (unit);
-            unsimplified.push_back (repr);
-            simplify_and_add_to_proof_chain (unsimplified);
-            unsimplified.pop_back ();
-            unsimplified.push_back (-repr);
-            simplify_and_add_to_proof_chain (unsimplified);
-            unsimplified.clear ();
-          }
-          learn_congruence_unit (unit);
-          delete_proof_chain ();
-          garbage = true;
-        } else {
-          int i = 0;
-          bool negated = false;
-          for (int j = 0; j < 2; ++i, ++j) {
-            assert (i <= j);
-            const int lit = rhs[i] = rhs[j];
-            const signed char v = internal->val (lit);
-            if (v > 0) {
-              --i;
-              negated = !negated;
-            } else if (v < 0) {
-              --i;
-            }
-          }
-          assert (i <= 2);
-          g->resize (i);
-          if (negated) {
-            g->lhs = -g->lhs;
-          }
-          if (i != 2) {
-            LOG (g, "removed units");
-          }
-          if (!i)
-            garbage = true;
-          else if (i == 1) {
-#ifdef LOGGING
-            if (internal->lrat)
-              for (auto litId : g->pos_lhs_ids())
-                LOG (litId.clause, "%d ->", litId.current_lit);
-#endif
-            if (internal->lrat)
-              produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(),
-                                                     g->lhs);
-            assert (
-                !internal->lrat || g->pos_lhs_ids().size () == 2 ||
-                (g->arity () == 1 && find_representative (g->lhs) ==
-                                         find_representative (g->rhs[0])));
-            if (g->arity () == 1) // can happen when there are units in the
-                                  // gate that are not simplified yet
-              garbage = true;
-            else {
-              Clause *c1 = nullptr, *c2 = nullptr;
-              if (internal->lrat) {
-                assert (g->pos_lhs_ids()[0].clause);
-                bool rhs_as_src_first =
-                    g->pos_lhs_ids()[0].clause->literals[0] == g->lhs ||
-                    g->pos_lhs_ids()[0].clause->literals[1] == g->lhs;
-                c1 = (rhs_as_src_first ? g->pos_lhs_ids()[0].clause
-                                       : g->pos_lhs_ids()[1].clause);
-                c2 = (rhs_as_src_first ? g->pos_lhs_ids()[1].clause
-                                       : g->pos_lhs_ids()[0].clause);
-                c1 = maybe_promote_tmp_binary_clause (c1);
-                c2 = maybe_promote_tmp_binary_clause (c2);
-              } else {
-                maybe_add_binary_clause (-g->lhs, g->rhs[0]);
-                maybe_add_binary_clause (g->lhs, -g->rhs[0]);
-              }
-              merge_literals_equivalence (g->lhs, g->rhs[0], c1, c2);
-              garbage = true;
-            }
-          }
-        }
-        if (!garbage) {
-          assert (rhs[0] != g->lhs);
-          assert (rhs[1] != g->lhs);
-          assert (rhs[0] != -g->lhs);
-          assert (rhs[1] != -g->lhs);
-        }
-      }
+      if (new_tag == Gate_Type::XOr_Gate)
+        garbage = rewrite_ite_gate_to_xor (g);
 
       if (!garbage) {
-        LOG (g, "rewritten");
+        LOG (g, "rewritten with repr lhs = %s", LOGLIT (find_eager_representative(lhs)));
 
         if (internal->lrat) {
           if (new_tag == Gate_Type::XOr_Gate) {
 #ifndef NDEBUG
-            std::for_each (begin (g->pos_lhs_ids()), end (g->pos_lhs_ids()),
-                           [g] (LitClausePair l) {
+            std::for_each (begin (g->pos_lhs_ids ()),
+                           end (g->pos_lhs_ids ()), [g] (LitClausePair l) {
                              assert (l.clause->size == 1 + g->arity ());
                            });
 #endif
@@ -6386,10 +6390,13 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
           }
         }
 
+	// We need to "propagate" by hand in order. Otherwise, the
+	// LRAT proofs do not work in the usual way (only one clause
+	// is needed).
         if (new_tag == Gate_Type::And_Gate && internal->val (g->lhs) == 0 &&
             (internal->val (g->rhs[0]) < 0 ||
              internal->val (g->rhs[1]) < 0)) {
-          LOG ("ite conversion leads to degenerated and-gate");
+          LOG ("ite conversion leads to propagating and gate, propagating");
           if (internal->lrat) {
             assert (lrat_chain.empty ());
             for (auto litId : g->pos_lhs_ids ()) {

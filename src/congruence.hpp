@@ -816,6 +816,8 @@ struct Closure {
   bool rewrite_ite_gate_to_and (Gate *g, int dst, int src, size_t c,
                                 size_t d,
                                 int cond_lit_to_learn_if_degenerated);
+  bool rewrite_ite_gate_to_xor (Gate *g);
+
   void produce_ite_merge_then_else_reasons (
       Gate *g, int dst, int src, std::vector<LRAT_ID> &reasons_implication,
       std::vector<LRAT_ID> &reasons_back);
