@@ -5414,6 +5414,10 @@ void Closure::produce_ite_merge_then_else_reasons (
       (grhs[1] == -src && g->lhs == -dst && grhs[2] == g->lhs) ||
       (grhs[2] == -src && g->lhs == -dst && grhs[1] == g->lhs))
     return;
+  // LHS can change for degenerated gates
+  if (g->degenerated_gate != Special_Gate::NORMAL)
+    g->lhs = find_eager_representative (g->lhs);
+
   check_ite_lrat_reasons (g);
   assert (g->arity () == 3);
   assert (src == grhs[1] || src == grhs[2]);
