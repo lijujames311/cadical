@@ -5574,6 +5574,9 @@ bool Closure::rewrite_ite_gate_to_xor (Gate *g) {
         merge_literals_equivalence (g->lhs, g->rhs[0], c1, c2);
         garbage = true;
       }
+    } else if (internal->lrat){
+      produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids (), g->lhs,
+                                               false, true);
     }
   }
   if (!garbage) {
