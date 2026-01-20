@@ -6314,6 +6314,8 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
         assert (rhs[1] == then_lit);
         assert (rhs[0] != g->lhs);
         assert (rhs[1] != g->lhs);
+        // if the gate is degenerated, then we then/else clauses might already
+        // have been been deleted, requiring to allow for tautologies.
         if (internal->lrat)
           produce_rewritten_clause_lrat_and_clean (g->pos_lhs_ids(), not_lhs,
                                                  false);
