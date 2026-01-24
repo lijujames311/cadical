@@ -1232,8 +1232,10 @@ void Closure::push_id_and_rewriting_lrat_unit (Clause *c, Rewrite rewrite1,
 
   if (!insert_id_after)
     chain.push_back (c->id);
+  // TODO: replace this by flags (idx).mark_signed
   for (auto id : rewriting)
-    chain.push_back (id);
+    if (std::find (begin (chain), end (chain), id) == end (chain))
+      chain.push_back (id);
 
   if (insert_id_after)
     chain.push_back (c->id);
