@@ -4,11 +4,21 @@ namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
 
-// Code for conflict analysis, i.e., to generate the first UIP clause.  The
-// main function is 'analyze' below.  It further uses 'minimize' to minimize
-// the first UIP clause, which is in 'minimize.cpp'.  An important side
-// effect of conflict analysis is to update the decision queue by bumping
-// variables.  Similarly analyzed clauses are bumped to mark them as active.
+// Code for conflict analysis, i.e., to generate the first UIP clause.
+// The main function is 'analyze' below.  It further uses 'minimize'
+// to minimize the first UIP clause, which is in 'minimize.cpp' or
+// uses 'shrink' to shrink it, which is in 'shrink.cpp' (see [Fleury
+// and Biere, SAT'21]).  An important side effect of conflict analysis
+// is to update the decision queue by bumping variables.  Similarly
+// analyzed clauses are bumped to mark them as active.
+
+// We also implement on-the-fly self-subsumption [Han and Somenzi,
+// SAT'09] and [Hamadi, Jabour, and Sais, ICTAI'09]: a technique to
+// strengthen clauses during the conflict analysis (sometimes the
+// conflict clause can be used to strengthen-resolve the clause to be
+// resolved with during the conflict analysis). It breaks similar
+// invariants to chronological backtracking. It is not very useful,
+// but a nice-to-have technique.
 
 /*------------------------------------------------------------------------*/
 
