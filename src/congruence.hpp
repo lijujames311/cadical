@@ -640,13 +640,10 @@ struct Closure {
   // unless:
   //   - the rewriting is not necessary (resolvent_marked == 1)
   //   - it is overwritten by one of the arguments
-  void push_id_and_rewriting_lrat_unit (Clause *c, Rewrite rewrite1,
-                                        std::vector<LRAT_ID> &chain,
-                                        bool = true,
-                                        Rewrite rewrite2 = Rewrite (),
-                                        int execept_lhs = 0,
-                                        int except_lhs2 = 0);
-  void push_id_and_rewriting_lrat_full (Clause *c, Rewrite rewrite1,
+  //
+  // This does not produce a new clause and only extends the chain. It also
+  // checks that no reason for rewriting is added twice.g
+  void produce_lrat_chain_for_rewriting (Clause *c, Rewrite rewrite1,
                                         std::vector<LRAT_ID> &chain,
                                         bool = true,
                                         Rewrite rewrite2 = Rewrite (),
@@ -824,33 +821,39 @@ struct Closure {
   void find_equivalences ();
   void subsume_clause (Clause *subsuming, Clause *subsumed);
   bool find_subsuming_clause (Clause *c);
-  void produce_rewritten_clause_lrat_and_clean (vector<LitClausePair> &,
-                                                int execept_lhs = 0,
-                                                bool = true, bool = false);
-  void produce_rewritten_clause_lrat_and_clean (my_dummy_optional &,
-                                                int execept_lhs = 0,
-                                                bool = true);
+
+
 
   // rewrite the clause using eager rewriting and rew1 and rew2, except for
   // 2 literals Usage:
   //   - the except are used to ignore LHS of gates that have not and should
   //   not be rewritten.
-  //   - TODO: except_lhs2 should never be used actually
-  //   - the Rewrite are for additional rewrite to allow for lazy rewrites
-  //   to be taken into account without being added to the eager rewriting
-  //   (yet)
-  Clause *produce_rewritten_clause_lrat (Clause *c, int execept_lhs = 0,
+  Clause *rewrite_clause (Clause *c, int execept_lhs = 0,
                                          bool remove_units = true,
                                          bool = false);
-  void produce_rewritten_clause_lrat (vector<LitClausePair> &,
+  // Rewrites the clauses in a vector of LitClausePair without removing
+  // tautologies from the clause.
+  void rewrite_clauses (vector<LitClausePair> &,
                                       int execept_lhs = 0, bool = true);
-  void compute_rewritten_clause_lrat_simple (Clause *c, int except);
-  // variant where we update the indices after removing the tautologies and
+  // Produce the rewritten clause into clause without creating a new clause
+  void rewrite_clause_to_clause_vector (Clause *c, int except);
+
+  // rewrite clauses and removes tautology
+  void rewrite_clauses_and_clean (vector<LitClausePair> &,
+                                                  int execept_lhs = 0,
+                                                  bool = true, bool = false);
+  // rewrite clauses in an optional clause, cleaning up if the result is a
+  // tautology.
+  void rewrite_clauses_and_clean (my_dummy_optional &,
+                                                  int execept_lhs = 0,
+                                                  bool = true);
+  // rewrites clauses and updates the indices after removing the tautologies and
   // remove the tautological clauses
-  void produce_rewritten_clause_lrat_and_clean (
+  void rewrite_clauses_and_clean (
       std::vector<LitClausePair> &litIds, int except_lhs,
       size_t &old_position1, size_t &old_position2,
       bool remove_units = true);
+
   // binary extraction and ternary strengthening
   void extract_binaries ();
   bool find_binary (int, int) const;
@@ -889,12 +892,14 @@ struct Closure {
   LitClausePair marked_mu2 (int lit);
   LitClausePair marked_mu4 (int lit);
 
-  // XOR
+  // XOR handling
   uint32_t number_from_xor_reason_reversed (const std::vector<int> &rhs);
   uint32_t number_from_xor_reason (const std::vector<int> &rhs, int,
                                    int except2 = 0, bool flip = 0);
+  // Sort the literals within the reasons of an XOR gate.
   void gate_sort_lrat_reasons (std::vector<LitClausePair> &, int,
                                int except2 = 0, bool flip = 0);
+  // Sort the literals within the reasons of an XOR gate.
   void gate_sort_lrat_reasons (LitClausePair &, int, int except2 = 0,
                                bool flip = 0);
 
@@ -947,6 +952,8 @@ struct Closure {
   // -cond and the merge -dst == else. For degenerated cases, we failed to
   // produce the lrat reason for the merge and first derive the unit.
   bool produce_ite_merge_lhs_then_else_reasons (Gate *g, bool, int);
+
+  // Produce unit c out of ITE gate c := c ? !e : e.
   void produce_ite_merge_rhs_cond (Gate *g, int, int);
   void rewrite_ite_gate_update_lrat_reasons (Gate *g, int src, int dst);
   void simplify_ite_gate_produce_unit_lrat (Gate *g, int lit, size_t idx1,
