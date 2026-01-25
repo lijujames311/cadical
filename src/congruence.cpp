@@ -6058,7 +6058,6 @@ bool Closure::produce_ite_merge_lhs_then_else_reasons (
     }
 
     if (other_lit == repr_lhs) {
-      COVER (506);
       learn_units = true;
       if (internal->lrat) {
         // in the other direction we are merging a literal with itself
@@ -6074,8 +6073,18 @@ bool Closure::produce_ite_merge_lhs_then_else_reasons (
     }
 
     if (learn_units) {
-      lrat_chain = reasons_unit;
-      if (learn_congruence_unit (unit, false))
+      if (internal->lrat)
+        lrat_chain = reasons_unit;
+      else if (internal->proof) {
+        unsimplified.push_back(unit);
+        unsimplified.push_back(g->lhs);
+        simplify_and_add_to_proof_chain (unsimplified);
+        unsimplified[1] = -g->lhs;
+        simplify_and_add_to_proof_chain (unsimplified);
+        unsimplified.clear ();
+      }
+      learn_congruence_unit (unit, false);
+      if (internal->unsat)
         return true;
 
       if (internal->lrat) {
@@ -6089,8 +6098,10 @@ bool Closure::produce_ite_merge_lhs_then_else_reasons (
         ++internal->stats.congruence.unaries;
         ++internal->stats.congruence.unary_ites;
       }
+      delete_proof_chain();
       return true;
     }
+  }
 
   LOG ("normal path");
   if (internal->lrat) {
@@ -6124,11 +6135,11 @@ bool Closure::produce_ite_merge_lhs_then_else_reasons (
   learn_congruence_unit (unit);
 
   // already merged: only unit is important
-   if (repr_lhs == repr_lit_to_merge) {
-    COVER (508);
+   if (internal->unsat || repr_lhs == repr_lit_to_merge) {
     lrat_chain.clear ();
     return true;
   }
+
 
   if (internal->lrat) {
     reasons_implication.push_back (
@@ -6623,7 +6634,6 @@ void Closure::simplify_ite_gate_produce_unit_lrat (Gate *g, int lit,
   if (c) {
     lrat_chain.push_back (c->id);
     d = produce_rewritten_clause_lrat (d, g->lhs, true);
-    COVER (!d);
     if (d)
       lrat_chain.push_back (d->id);
   } else if (!c) {
