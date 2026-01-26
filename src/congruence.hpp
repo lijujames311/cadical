@@ -339,6 +339,17 @@ struct my_dummy_optional {
 // usage is extremely high we tried to get rid of it and we observed a memory
 // reduction of 2GB on `hash_table_find_safety_size_29.cnf.xz` by using a
 // pointer to something that is not initialized.
+//
+// Now also the merging in LRAT preoduces many many useless (because transitive)
+// binary clauses. We don't really want to add theses clauses to keep the
+// behavior similar between LRAT and non-LRAT. Therefore, we add those clauses
+// as temporary and do not add them to the glocal set of clauses (unless those
+// are needed).
+//
+// However, even if most of the binary clauses are subsumed, we need to keep
+// enough of them. Therefore, we actually promote some from redundant to
+// irredundant in the binary clause handling. Kissat does not need this code,
+// because all binary irredundant.
 struct Gate {
 #ifdef LOGGING
   uint64_t id;
