@@ -1390,37 +1390,23 @@ void Closure::learn_congruence_unit_falsifies_lrat_chain (
       // The chain cannot start by 9
       if (g->degenerated_gate == Special_Gate::DEGENERATED_AND ||
           g->degenerated_gate == Special_Gate::DEGENERATED_AND_LHS_FALSE) {
-        LOG ("%d %d %d", src, dst, g->lhs);
-        if (src == g->lhs || dst == g->lhs) {
-          LOG ("degenerated AND gate with dst=lhs");
-          for (const auto &litId : g->pos_lhs_ids()) {
-            LOG (litId.clause, "definition clause %d ->",
-                 litId.current_lit);
-            if (litId.current_lit == clashing) {
-              COVER (src == g->lhs);
-              COVER (dst == g->lhs);
-              push_id_and_rewriting_lrat_unit (litId.clause, Rewrite (),
-                                               proof_chain, true,
-                                               Rewrite (), 0);
-              LOG (proof_chain, "produced lrat chain so far");
-            }
-          }
-          assert (!proof_chain.empty ());
-        } else {
+          LOG ("%d %d %d", src, dst, g->lhs);
+          // both cases are covered by clashing == -g->lhs above!
+          assert (src != g->lhs);
+          assert (dst != g->lhs);
           LOG ("degenerated AND gate with conflict without LHS for %s",
-               LOGLIT (unit));
+            LOGLIT (unit));
           for (const auto &litId : g->pos_lhs_ids()) {
             LOG (litId.clause, "definition clause %d ->",
-                 litId.current_lit);
+              litId.current_lit);
             const bool insert_after =
-                std::find (begin (*litId.clause), end (*litId.clause),
-                           unit) == end (*litId.clause);
+            std::find (begin (*litId.clause), end (*litId.clause),
+              unit) == end (*litId.clause);
             push_id_and_rewriting_lrat_unit (litId.clause, Rewrite (),
-                                             proof_chain, insert_after,
-                                             Rewrite (), g->lhs);
+              proof_chain, insert_after,
+              Rewrite (), g->lhs);
             LOG (proof_chain, "produced lrat chain so far");
           }
-        }
       } else {
         LOG ("normal AND gate");
         for (const auto &litId : g->pos_lhs_ids()) {
