@@ -6628,11 +6628,10 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
   if (!internal->lrat)
     return false;
 
-  COVER (g->rhs[1] == -g->lhs);
-  COVER (g->rhs[0] == -g->lhs);
-  if (g->rhs[1] == -g->lhs || g->rhs[0] == -g->lhs)
-    g->degenerated_gate = Special_Gate::DEGENERATED_AND;
-  else if (g->rhs[0] == g->lhs || g->rhs[1] == g->lhs)
+  // captured above
+  assert (g->rhs[1] != -g->lhs);
+  assert (g->rhs[0] != -g->lhs);
+  if (g->rhs[0] == g->lhs || g->rhs[1] == g->lhs)
     g->degenerated_gate = Special_Gate::DEGENERATED_AND;
   else
     g->degenerated_gate = Special_Gate::NORMAL;
