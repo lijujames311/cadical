@@ -5718,29 +5718,17 @@ bool Closure::rewrite_ite_gate_to_and (
     assert (g->rhs[1] == -g->lhs || g->rhs[0] == -g->lhs);
     if (g->rhs[1] == -g->lhs) {
       if (internal->lrat) {
-        if (g->rhs[0] == -g->lhs) {
-          COVER (7);
-          // -2 := ITE 1 2 2: we need
-          // we need 2 3
-          LitClausePair &p1 = g->pos_lhs_ids()[2];
-          LitClausePair &p2 = g->pos_lhs_ids()[3];
-          p1.clause = rewrite_clause (p1.clause);
-          p2.clause = rewrite_clause (p2.clause);
-          assert (p1.clause);
-          assert (p2.clause);
-          lrat_chain.push_back (p1.clause->id);
-          lrat_chain.push_back (p2.clause->id);
-          // push_id_and_rewriting_lrat_unit (g->pos_lhs_ids()[0].clause,
-          //                                  Rewrite (), lrat_chain);
-        } else {
-          // -1 := ITE -4 1 -1 we need 3
-          // -2 := ITE 1 2 2 we need 2
-          LOG ("g->rhs[0] != -g->lhs");
-          int *grhs = g->rhs;
-          const int idx = (g->lhs == grhs[2]) ? 3 : 2;
-          produce_lrat_chain_for_rewriting (g->pos_lhs_ids()[idx].clause,
-                                          Rewrite (), lrat_chain);
-        }
+        // Initially we had the reconstruction for the assert below. However,
+        // this case is only possible if we have missed an ITE to AND gate
+        // conversion.
+        assert (g->rhs[0] != -g->lhs);
+        // -1 := ITE -4 1 -1 we need 3
+        // -2 := ITE 1 2 2 we need 2
+        LOG ("g->rhs[0] != -g->lhs");
+        int *grhs = g->rhs;
+        const int idx = (g->lhs == grhs[2]) ? 3 : 2;
+        produce_lrat_chain_for_rewriting (g->pos_lhs_ids()[idx].clause,
+                                        Rewrite (), lrat_chain);
       }
       learn_congruence_unit (-g->lhs);
       return true;
