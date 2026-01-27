@@ -1305,6 +1305,9 @@ void Closure::learn_congruence_unit_falsifies_lrat_chain (
     Gate *g, int src, int dst, int clashing, int falsified, int unit) {
   if (!internal->lrat)
     return;
+#ifndef LOGGING
+  (void) src;
+#endif
   assert (unit);
   assert (!g->pos_lhs_ids().empty () || g->degenerated_gate == Special_Gate::DEGENERATED_AND_LHS_FALSE);
   assert (internal->analyzed.empty ());
@@ -5481,6 +5484,7 @@ bool Closure::rewrite_ite_gate_to_xor (Gate *g) {
   bool garbage = false;
   const int repr = find_eager_representative (g->lhs);
   int *rhs = g->rhs;
+  COVER (internal->val (g->lhs));
   if (rhs[0] == -repr || rhs[1] == -repr) {
     LOG (g, "special XOR:");
     const int unit = rhs[0] ^ -repr ^ rhs[1];
