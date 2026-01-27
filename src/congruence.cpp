@@ -1905,7 +1905,6 @@ bool Closure::merge_literals_equivalence (int lit, int other, Clause *c1,
        repr_other);
 
   if (repr_lit == repr_other) {
-    COVER (true);
     LOG ("already merged %d and %d", lit, other);
     return false;
   }
@@ -5554,41 +5553,34 @@ bool Closure::rewrite_ite_gate_to_xor (Gate *g) {
     if (!i)
       garbage = true;
     else if (i == 1) {
+      // can happen when there are units in the
+      // gate that are not simplified yet
 #ifdef LOGGING
       if (internal->lrat)
         for (auto litId : g->pos_lhs_ids ())
           LOG (litId.clause, "%d ->", litId.current_lit);
 #endif
+      assert (g->arity() == 1);
+      Clause *c1 = nullptr, *c2 = nullptr;
       if (internal->lrat) {
         rewrite_clauses_and_clean (g->pos_lhs_ids (), g->lhs);
-      }
-      assert (!internal->lrat || g->pos_lhs_ids ().size () == 2 ||
-              (g->arity () == 1 && find_representative (g->lhs) ==
-                                       find_representative (g->rhs[0])));
-      if (g->arity () == 1) // can happen when there are units in the
-                            // gate that are not simplified yet
-      {
-        garbage = true;
+        assert (g->pos_lhs_ids ().size () == 2);
+        assert (g->pos_lhs_ids ()[0].clause);
+        bool rhs_as_src_first =
+        g->pos_lhs_ids ()[0].clause->literals[0] == g->lhs ||
+        g->pos_lhs_ids ()[0].clause->literals[1] == g->lhs;
+        c1 = (rhs_as_src_first ? g->pos_lhs_ids ()[0].clause
+          : g->pos_lhs_ids ()[1].clause);
+        c2 = (rhs_as_src_first ? g->pos_lhs_ids ()[1].clause
+          : g->pos_lhs_ids ()[0].clause);
+        c1 = maybe_promote_tmp_binary_clause (c1);
+        c2 = maybe_promote_tmp_binary_clause (c2);
       } else {
-        Clause *c1 = nullptr, *c2 = nullptr;
-        if (internal->lrat) {
-          assert (g->pos_lhs_ids ()[0].clause);
-          bool rhs_as_src_first =
-              g->pos_lhs_ids ()[0].clause->literals[0] == g->lhs ||
-              g->pos_lhs_ids ()[0].clause->literals[1] == g->lhs;
-          c1 = (rhs_as_src_first ? g->pos_lhs_ids ()[0].clause
-                                 : g->pos_lhs_ids ()[1].clause);
-          c2 = (rhs_as_src_first ? g->pos_lhs_ids ()[1].clause
-                                 : g->pos_lhs_ids ()[0].clause);
-          c1 = maybe_promote_tmp_binary_clause (c1);
-          c2 = maybe_promote_tmp_binary_clause (c2);
-        } else {
-          maybe_add_binary_clause (-g->lhs, g->rhs[0]);
-          maybe_add_binary_clause (g->lhs, -g->rhs[0]);
-        }
-        merge_literals_equivalence (g->lhs, g->rhs[0], c1, c2);
-        garbage = true;
+        maybe_add_binary_clause (-g->lhs, g->rhs[0]);
+        maybe_add_binary_clause (g->lhs, -g->rhs[0]);
       }
+      merge_literals_equivalence (g->lhs, g->rhs[0], c1, c2);
+      garbage = true;
     } else if (internal->lrat){
       rewrite_clauses_and_clean (g->pos_lhs_ids (), g->lhs,
                                                false, true);
