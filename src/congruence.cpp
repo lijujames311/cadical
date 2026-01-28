@@ -6238,7 +6238,7 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       // cond ? else_lit : else_lit
       // else_lit
       std::vector<LRAT_ID> reasons_implication, reasons_back;
-      if (!internal->lrat)
+      if (internal->lrat)
         produce_ite_merge_then_else_reasons (g, src, dst, reasons_implication,
                                            reasons_back);
       if (merge_literals (g->lhs, else_lit, reasons_implication,
@@ -6306,7 +6306,8 @@ void Closure::rewrite_ite_gate (Gate *g, int dst, int src) {
       // cond ? then_lit : then_lit
       // then_lit
       std::vector<LRAT_ID> reasons_implication, reasons_back;
-      produce_ite_merge_then_else_reasons (g, src, dst, reasons_implication,
+      if (internal->lrat)
+        produce_ite_merge_then_else_reasons (g, src, dst, reasons_implication,
                                            reasons_back);
       if (merge_literals (g->lhs, then_lit, reasons_implication,
                           reasons_back)) {
@@ -6620,7 +6621,7 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
       litId.current_lit = replacement_lit;
     } else if (litId.current_lit == -removed_lit)
       litId.current_lit = g->rhs[0];
-    else assert (litId.current_lit == removed_lit);
+    else assert (litId.current_lit != removed_lit);
     LOG (litId.clause, "%d ->", litId.current_lit);
     assert (std::find (begin (*g), end (*g), litId.current_lit) !=
             end (*g));
@@ -6812,7 +6813,7 @@ void Closure::simplify_ite_gate (Gate *g) {
         assert (garbage);
         std::vector<LRAT_ID> reasons_lrat, reasons_lrat_back;
         if (internal->lrat) {
-          merge_and_gate_lrat_produce_lrat (g, h, reasons_lrat,
+          produce_lrat_for_and_merge (g, h, reasons_lrat,
                                             reasons_lrat_back, true);}
         if (merge_literals (g, h, g->lhs, h->lhs, reasons_lrat,
                             reasons_lrat_back)) {
