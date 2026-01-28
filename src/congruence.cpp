@@ -1831,15 +1831,11 @@ bool Closure::really_merge_literals (
 }
 
 // Variant when there are no gates
-// TODO: this is exactly the same as the other function without the gates.
-// Kill the arguments!
 bool Closure::merge_literals (
     int lit, int other, const std::vector<LRAT_ID> &extra_reasons_lit,
     const std::vector<LRAT_ID> &extra_reasons_ulit) {
   assert (!internal->unsat);
   LOG ("merging literals %s and %s", LOGLIT (lit), LOGLIT (other));
-  // TODO: this should not update_eager but still calculate the LRAT chain
-  // below!
   const int repr_lit = find_representative_and_compress (lit, false);
   const int repr_other = find_representative_and_compress (other, false);
   find_representative_and_compress (-lit, false);
