@@ -1769,7 +1769,7 @@ bool Closure::really_merge_literals (
       produce_lrat_chain_for_rewriting (eq1_tmp, rew1, lrat_chain, true,
                                        rew2);
     }
-    eq1_repr = learn_binary_tmp_or_full_clause (-larger_repr, smaller_repr);
+    eq1_repr = add_binary_clause (-larger_repr, smaller_repr);
   } else {
     if (internal->lrat) {
       eq1_repr = maybe_promote_tmp_binary_clause (eq1_tmp);
@@ -1801,7 +1801,7 @@ bool Closure::really_merge_literals (
                                        rew2);
     }
 
-    eq2_repr = learn_binary_tmp_or_full_clause (larger_repr, -smaller_repr);
+    eq2_repr = add_binary_clause (larger_repr, -smaller_repr);
 
   } else {
     if (internal->lrat) {
@@ -1976,7 +1976,7 @@ bool Closure::merge_literals_from_clauses (int lit, int other, Clause *c1,
       }
       lrat_chain.push_back (id1);
     }
-    Clause *eq1 = learn_binary_tmp_or_full_clause (repr_lit, -repr_other);
+    Clause *eq1 = add_binary_clause (repr_lit, -repr_other);
 
     if (internal->lrat) {
       lrat_chain.clear ();
@@ -1986,7 +1986,7 @@ bool Closure::merge_literals_from_clauses (int lit, int other, Clause *c1,
         lrat_chain.push_back (find_representative_lrat (other));
       lrat_chain.push_back (id2);
     }
-    Clause *eq2 = learn_binary_tmp_or_full_clause (-repr_lit, repr_other);
+    Clause *eq2 = add_binary_clause (-repr_lit, repr_other);
     if (internal->lrat) {
       lrat_chain.clear ();
       if (smaller_repr == repr_lit) {
@@ -3061,16 +3061,6 @@ Gate *Closure::find_first_and_gate (Clause *base_clause, int lhs) {
   return g;
 }
 
-Clause *Closure::learn_binary_tmp_or_full_clause (int a, int b) {
-  Clause *eq1;
-  if (internal->lrat) {
-    eq1 = add_tmp_binary_clause (a, b);
-    eq1 = maybe_promote_tmp_binary_clause (eq1);
-  } else
-    eq1 = maybe_add_binary_clause (a, b);
-  return eq1;
-}
-
 Clause *Closure::maybe_add_binary_clause (int a, int b) {
   assert (internal->clause.empty ());
   assert (internal->lrat_chain.empty ());
@@ -3642,7 +3632,7 @@ void Closure::check_xor_gate_implied (Gate const *const g) {
   clause.clear ();
 }
 
-Gate *Closure::find_xor_lits (vector<int> &rhs) {
+Gate *Closure::find_xor_lits (const vector<int> &rhs) {
   assert (is_sorted (begin (rhs), end (rhs),
                      sort_literals_by_var_smaller (internal)));
   return find_gate_lits (rhs, Gate_Type::XOr_Gate);
@@ -5687,7 +5677,7 @@ bool Closure::rewrite_ite_gate_to_and (
   assert (lit != other);
   lrat_chain.push_back (c->id);
   lrat_chain.push_back (d->id);
-  Clause *e = learn_binary_tmp_or_full_clause (lit, -other);
+  Clause *e = add_binary_clause (lit, -other);
   assert (e);
 
   auto long_clause =
@@ -7288,32 +7278,6 @@ void Closure::check_ite_implied (int lhs, int cond, int then_lit,
   check_ternary (-cond, then_lit, -lhs);
 }
 
-void Closure::check_contained_module_rewriting (Clause *c, int lit,
-                                                bool normalized,
-                                                int except) {
-#ifndef NDEBUG
-  if (lit == except) // happens for degenerated cases
-    except = 0;
-  const int normalize_lit =
-      (lit == except ? except : find_eager_representative (lit));
-  assert (!normalized || lit == -except || normalize_lit == lit);
-  bool found = false;
-  LOG (c, "looking for (normalized) %d in ", lit);
-  for (auto other : *c) {
-    const int normalize_other =
-        (other == except ? except : find_eager_representative (other));
-    LOG ("%d -> %d ", other, normalize_other);
-    assert (!normalized || other == -except || normalize_other == other);
-    if (normalize_other == normalize_lit) {
-      found = true;
-      break;
-    }
-  }
-  assert (found);
-#else
-  (void) c, (void) lit, (void) normalized, (void) except;
-#endif
-}
 
 void Closure::check_ite_lrat_reasons (Gate *g) {
 #ifndef NDEBUG
