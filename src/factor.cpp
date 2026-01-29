@@ -398,6 +398,14 @@ Quotient *Internal::xorite_quotient (Factoring &factoring, int first_factor,
         matches = noccs (other);
         best_second = other;
         best_third = third;
+      } else if (opts.factorxorrand && noccs (other) == matches) {
+        Random random (internal->opts.seed);
+        random += stats.factor + other;
+        if (random.generate_bool ()) {
+          matches = noccs (other);
+          best_second = other;
+          best_third = third;
+        }
       }
       noccs (other) = 0;
     }
@@ -1471,7 +1479,7 @@ bool Internal::factor () {
   size_t eliminations = stats.elimrounds;
   size_t delay = opts.factordelay;
   size_t delay_limit = eliminations + delay;
-  if (log_active > delay_limit) {
+  if (delay && log_active > delay_limit) {
     VERBOSE (3,
              "factorization delayed as %zu = log10 (%u)"
              "> eliminations + delay = %zu + %zu = %zu",

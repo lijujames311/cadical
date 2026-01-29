@@ -117,7 +117,7 @@ OPTION( exteagerreasons,   1,  0,  1,0,0,1, "eagerly ask for all reasons (0: onl
 OPTION( exteagerrecalc,    1,  0,  1,0,0,1, "after eagerly asking for reasons recalculate all levels (0: trust the external tool)") \
 OPTION( externallrat,      0,  0,  1,0,0,1, "external lrat") \
 OPTION( factor,            1,  0,  1,0,1,1, "bounded variable addition") \
-OPTION( factorbound,       1,  1, 10,0,0,1, "required reduction of clauses") \
+OPTION( factorbound,       1,  0, 10,0,0,1, "required reduction of clauses") \
 OPTION( factorboundelim,   0,  0,  1,0,0,1, "add maximal elimbound to factorbound (instead of current)") \
 OPTION( factorbumpheap,    1,  0,  2,0,0,1, "score extension variables in heap [0: low as in kissat (do nothing), 1: based on definition, 2: high]") \
 OPTION( factorbumpqueue,   1,  0,  2,0,0,1, "score extension variables in queue [0: low as in kissat, 1: based on definition, 2: high (do nothing)]") \
@@ -132,6 +132,7 @@ OPTION( factorschedule,    0,  0,  3,0,0,1, "schedule (0=occs, 1=queue, 2=heap, 
 OPTION( factorsize,       20,  2,2e9,0,0,1, "clause size limit") \
 OPTION( factorthresh,      7,  0,100,1,0,1, "delay if ticks smaller thresh*clauses") \
 OPTION( factorxor,         1,  0,  1,0,0,1, "factor eliminated xor (and ite) gates (needs factorsize > 2)") \
+OPTION( factorxorrand,     1,  0,  1,0,0,1, "random tiebreak for factor xorx") \
 OPTION( fastelim,          1,  0,  1,0,1,1, "fast BVE during preprocessing") \
 OPTION( fastelimbound,     8,  1,1e3,1,0,1, "fast BVE bound during preprocessing") \
 OPTION( fastelimclslim,  1e2,  2,2e9,2,0,1, "fast BVE resolvent size limit") \
