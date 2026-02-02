@@ -2421,8 +2421,7 @@ void Closure::produce_lrat_for_and_merge (
       if (litId.current_lit != tauto->lhs) {
         LOG (litId.clause, "binary clause to push into the reason");
         assert (litId.clause);
-        litId.clause = rewrite_clause (
-            litId.clause, tauto->lhs, remove_units);
+        litId.clause = rewrite_clause (litId.clause, tauto->lhs, remove_units);
         if (!litId.clause) // degenerated but does not know yet
           continue;
         assert (litId.clause);
