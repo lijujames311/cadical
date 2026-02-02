@@ -6080,7 +6080,7 @@ bool Closure::rewrite_ite_gate_to_xor_or_and (Gate *g, Gate_Type new_tag,
           std::vector<LRAT_ID> reasons_implication, reasons_back;
           if (internal->lrat)
             produce_lrat_for_and_merge (g, h, reasons_implication,
-                                              reasons_back, false);
+                                              reasons_back);
           if (merge_literals (g, h, g->lhs, h->lhs, reasons_implication,
                               reasons_back))
             ++internal->stats.congruence.ands;
