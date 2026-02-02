@@ -1021,6 +1021,7 @@ void External::copy_flags (External &other) const {
     Flags &other_flags = other_ftab[abs (other_ilit)];
     this_flags.copy (other_flags);
   }
+  internal->external->ervars = other.ervars;
 }
 
 /*------------------------------------------------------------------------*/

@@ -424,7 +424,8 @@ struct External {
 
   /*----------------------------------------------------------------------*/
 
-  // Copy flags for determining preprocessing state.
+  // Copy flags for determining preprocessing state, including if a variable is
+  // an extension.
 
   void copy_flags (External &other) const;
 
