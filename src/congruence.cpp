@@ -1405,6 +1405,7 @@ void Closure::learn_congruence_unit_falsifies_lrat_chain (
 bool Closure::fully_propagate () {
   if (internal->unsat)
     return false;
+
   LOG ("fully propagating");
   assert (internal->watching ());
   assert (full_watching);
@@ -2350,7 +2351,7 @@ void Closure::produce_lrat_for_and_merge (
         extra_reasons_lit.push_back (litId.clause->id);
     }
     LOG (tauto, "now creating lrat with other gate");
-    // if tauto can also be a tautology: neg_lhs_ids
+    // if tauto can also be a tautology: neg_lhs_id
     // otherwise the clause is in pos_lhs_ids
     if (!other->neg_lhs_id () ()) {
       // happens also if the tauto also has a negative lhs
@@ -2972,8 +2973,8 @@ Gate *Closure::new_and_gate (Clause *base_clause, int lhs) {
                [] (const LitClausePair &x) { return x.clause->id; });
     LOG (result, "lrat chain positive (%d):", lhs);
     result.clear ();
-    if (g->neg_lhs_ids () ()) {
-      auto c = g->neg_lhs_ids ().content;
+    if (g->neg_lhs_id () ()) {
+      auto c = g->neg_lhs_id ().content;
       result.push_back (c.clause->id);
     }
     LOG (result, "lrat chain negative (%d):", lhs);
@@ -4538,6 +4539,7 @@ void Closure::rewrite_and_gate (Gate *g, int dst, int src, LRAT_ID id1,
     g->lhs = find_eager_representative (g->lhs);
     LOG (g, "updating LHS to");
   }
+  bool force_rewrite = false;
   for (int &lit : *g) {
     if (lit == -g->lhs || (lit == src && dst == -g->lhs)) {
       LOG ("found negated LHS literal %d", lit);
@@ -4553,6 +4555,9 @@ void Closure::rewrite_and_gate (Gate *g, int dst, int src, LRAT_ID id1,
       g->degenerated_gate = Special_Gate::DEGENERATED_AND;
     const signed char val = internal->val (lit);
     if (val > 0) {
+      // see remark (*) in congruence.hpp
+      assert (!internal->lrat || !lazy_propagated (lit));
+      force_rewrite = true;
       continue;
     }
     if (val < 0) {
@@ -4649,6 +4654,11 @@ void Closure::rewrite_and_gate (Gate *g, int dst, int src, LRAT_ID id1,
     LOG ("resizing to %zd", i);
     assert (i || (g->arity () == 1 && g->rhs[0] == g->lhs) || g->pos_lhs_ids().empty ());
     g->pos_lhs_ids().resize (i);
+
+    if (force_rewrite) {
+      rewrite_clauses_and_clean(g->pos_lhs_ids(), g->lhs);
+      rewrite_clauses_and_clean(g->neg_lhs_id (), g->lhs);
+    }
   }
 
   assert (dst_count <= 2);
@@ -6078,9 +6088,11 @@ bool Closure::rewrite_ite_gate_to_xor_or_and (Gate *g, Gate_Type new_tag,
           assert (internal->val (g->rhs[0]) >= 0);
           assert (internal->val (g->rhs[0]) >= 0);
           std::vector<LRAT_ID> reasons_implication, reasons_back;
+          // you do not want to remove units, because there might be
+          // unsimplified units
           if (internal->lrat)
             produce_lrat_for_and_merge (g, h, reasons_implication,
-                                              reasons_back);
+                                              reasons_back, false);
           if (merge_literals (g, h, g->lhs, h->lhs, reasons_implication,
                               reasons_back))
             ++internal->stats.congruence.ands;
@@ -6476,7 +6488,7 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
     LOG ("special case of lhs=-1");
     // 3 = 5 ? 1 : 3 where 3@0 = -1
     //
-    // we move the only clause to the neg_lhs_ids
+    // we move the only clause to the neg_lhs_id
     g->degenerated_gate = Special_Gate::DEGENERATED_AND_LHS_FALSE;
     size_t new_idx1 = idx1;
     size_t new_idx2 = idx2;

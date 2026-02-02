@@ -106,6 +106,16 @@ typedef int64_t LRAT_ID;
 // does not happen very often, but actually it happens on some problems several
 // times. If we set any literal, we actually restart the loop and try to merge
 // more variables.
+//
+// Remark (*)
+//
+// One more vexing thing: we cannot eagerly remove units anymore when producing
+// LRAT. It very very rarely breaks, but down the road we would to distinguish
+// between literals that have been removed from the gate and literals that
+// appear in the gate and have not been simplified yet. After much thinking, we
+// dediced (in the case a unit is found) to rewrite the gate clause. It is
+// annoying, but rewriting the units seems more important to find units and
+// merge literals early.
 struct Internal;
 // Here come some implementation remarks.
 //
@@ -458,7 +468,7 @@ struct Gate {
     assert (lrat_reasons);
     return lrat_reasons->pos_lhs_ids;
   }
-  const my_dummy_optional& neg_lhs_ids () const {
+  const my_dummy_optional& neg_lhs_id () const {
     assert (lrat_reasons);
     return lrat_reasons->neg_lhs_id;
   }
