@@ -575,6 +575,8 @@ public:
   // original formula such that both solvers have the same models.
   // Assumptions are not copied.  Options however are copied as well as
   // flags which remember the current state of variables in preprocessing.
+  // No user propagator information is copied (so neither the user
+  // propagator nor any observed status).
   //
   //   require (READY)          // for 'this'
   //   ensure (READY)           // for 'this'
