@@ -520,7 +520,7 @@ void Internal::add_new_original_clause (int64_t id) {
         const int lit = clause[0];
         assert (!val (lit) || var (lit).level);
         if (val (lit) < 0)
-          backtrack (var (lit).level - 1);
+          backtrack_without_updating_phases (var (lit).level - 1);
         assert (val (lit) >= 0);
         handle_external_clause (0);
         assign_original_unit (new_id, lit);
