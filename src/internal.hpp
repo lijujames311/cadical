@@ -117,6 +117,7 @@ using namespace std;
 
 struct Coveror;
 struct External;
+struct Walker_DDFW;
 struct WalkerFO;
 struct Walker;
 class Tracer;
@@ -1435,6 +1436,12 @@ struct Internal {
   void walk_full_occs_save_minimum (WalkerFO &);
   void make_clauses_along_occurrences (WalkerFO &walker, int lit);
   void make_clauses_along_unsatisfied (WalkerFO &walker, int lit);
+
+  int walk_ddfw_round (int64_t limit, bool prev);
+  void walk_ddfw ();
+  void walk_ddfw_save_minimum (Walker_DDFW &);
+  void make_clauses_along_occurrences (Walker_DDFW &walker, int lit);
+  void make_clauses_along_unsatisfied (Walker_DDFW &walker, int lit);
 
   // Warmup
   inline void warmup_assign (int lit, Clause *reason);
