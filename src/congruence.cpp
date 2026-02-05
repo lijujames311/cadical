@@ -2223,7 +2223,7 @@ void Closure::update_and_gate_unit_build_lrat_chain (
     // do not try to produce LRAT chains, we will not
     // need them anyway
     return;
-
+  }
   if (!g->neg_lhs_id () ()) {
 
     if (g->degenerated_gate == Special_Gate::DEGENERATED_AND ||
@@ -2267,6 +2267,7 @@ void Closure::update_and_gate_unit_build_lrat_chain (
         Rewrite (), -g->lhs, dst);
   LOG (extra_reasons_lit, "lrat chain for positive side");
 }
+
 
 void Closure::produce_lrat_for_and_merge (
     Gate *g, Gate *h, std::vector<LRAT_ID> &extra_reasons_lit,
