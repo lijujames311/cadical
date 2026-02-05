@@ -903,12 +903,11 @@ struct Closure {
 
   /*------------------------------------------------------------------------*/
   // learn units. You can delay units if you want to learn several at once
-  // before propagation. Otherwise, propagate! If you need propagation even
-  // if nothing is set, use the second parameter.
+  // before propagation. Otherwise, propagate!
   //
   // The function can also learn the empty clause if the unit is already
   // set. Do not add the unit in the chain!
-  bool learn_congruence_unit (int unit, bool = false, bool = false);
+  bool learn_congruence_unit (int unit);
   bool fully_propagate ();
 
 

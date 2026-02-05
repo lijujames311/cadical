@@ -1419,8 +1419,7 @@ bool Closure::fully_propagate () {
 
   return false;
 }
-bool Closure::learn_congruence_unit (int lit, bool delay_propagation,
-                                     bool force_propagation) {
+bool Closure::learn_congruence_unit (int lit) {
   if (internal->unsat)
     return false;
   LOG (lrat_chain, "assigning due to LRAT chain");
@@ -1429,8 +1428,6 @@ bool Closure::learn_congruence_unit (int lit, bool delay_propagation,
     LOG ("already set lit %d", lit);
     if (internal->lrat)
       lrat_chain.clear ();
-    if (force_propagation)
-      return fully_propagate ();
     return true;
   }
   LOG ("adding unit %s", LOGLIT (lit));
@@ -1455,10 +1452,7 @@ bool Closure::learn_congruence_unit (int lit, bool delay_propagation,
   internal->assign_unit (lit);
   assert (lrat_chain.empty ());
   assert (internal->lrat_chain.empty ());
-  if (delay_propagation)
-    return false;
-  else
-    return fully_propagate ();
+  return fully_propagate ();
 }
 
 // for merging the literals there are many cases
@@ -5881,7 +5875,7 @@ bool Closure::produce_ite_merge_lhs_then_else_reasons (
         simplify_and_add_to_proof_chain (unsimplified);
         unsimplified.clear ();
       }
-      learn_congruence_unit (unit, false);
+      learn_congruence_unit (unit);
       if (internal->unsat)
         return true;
 
