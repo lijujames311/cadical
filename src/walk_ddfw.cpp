@@ -907,7 +907,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     walker.noccs_vars_in_broken.resize (internal->max_var+1, 0);
     walker.noccs_vars_in_broken.resize (internal->max_var+1, 0);
     walker.position_vars_in_broken.resize (internal->max_var+1, Walker_DDFW::invalid_position);
-    const double weight = 0.8;
+    const double weight = 8;
 
     for (const auto c : clauses) {
       if (c->garbage)
