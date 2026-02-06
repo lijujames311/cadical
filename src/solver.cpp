@@ -1150,6 +1150,22 @@ void Solver::reset_observed_vars () {
 
 /*===== IPASIR-UP END ====================================================*/
 
+/*===== PUSH/POP BEGIN ===================================================*/
+
+void Solver::push () {
+  TRACE ("push");
+  REQUIRE_VALID_STATE ();
+  LOG_API_CALL_END ("push");
+}
+
+void Solver::pop () {
+  TRACE ("pop");
+  REQUIRE_VALID_STATE ();
+  LOG_API_CALL_END ("pop");
+}
+
+/*===== PUSH/POP END =====================================================*/
+
 int Solver::active () const {
   TRACE ("active");
   REQUIRE_VALID_STATE ();

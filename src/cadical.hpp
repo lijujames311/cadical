@@ -465,6 +465,18 @@ public:
 
   // ====== END IPASIR-UP ==================================================
 
+  // ====== BEGIN PUSH/POP =================================================
+
+  // Push a new context level or pop the top one.
+  // No integer argument, atm only exactly one context level can be
+  // pushed or popped.
+
+  void push ();
+
+  void pop ();
+
+  // ====== BEGIN PUSH/POP =================================================
+
   //------------------------------------------------------------------------
   // Adds a literal to the constraint clause. Same functionality as 'add'
   // but the clause only exists for the next call to solve (same lifetime as
