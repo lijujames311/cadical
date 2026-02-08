@@ -696,7 +696,7 @@ void Walker_DDFW::transfer_weights () {
       robbed_pos = random_satisfied_big_weight_clause (w_0);
     // TODO does this really trigger?
     if (robbed_pos == Walker_DDFW::invalid_position)
-      return;
+      continue;
     assert (robbed_pos < weight_clause_info.size ());
     DDFW_Counter &robbed = clause_info (robbed_pos);
     LOG (robbed.clause, "transfering weight from");
