@@ -157,8 +157,10 @@ struct Walker_DDFW {
 
   void add_uvar (int lit) {
     const int idx = internal->vidx (lit);
-    if (internal->var (lit).level == 1)
+    if (internal->var (lit).level == 1) {
+      LOG ("cannot mark %s as uvar", LOGLIT (lit));
       return;
+    }
     if (!noccs_vars_in_broken[idx]) {
       position_vars_in_broken[idx] = vars_in_broken.size ();
       vars_in_broken.push_back(idx);
@@ -661,13 +663,14 @@ size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
   while (max_clause == Walker_DDFW::invalid_position) {
     size_t pos = random.pick_int(0, weight_clause_info.size ()-1);
     assert (pos < weight_clause_info.size ());
-    DDFW_Counter &c = clause_info (pos);
+    const DDFW_Counter &c = clause_info (pos);
     if  (!--max_rounds) {
       LOG ("could not find random satisfied clause in neighborhood, just return the next satisfied clause");
       use_weight_condition = false;
     }
     if (!c.count)
       continue;
+    LOG ("searching at position %zd with weight %f < %f = %d", pos, c.weight, w_0, c.weight < w_0);
     if (use_weight_condition && c.weight < w_0)
       continue;
     max_clause = pos;
@@ -699,11 +702,20 @@ void Walker_DDFW::transfer_weights () {
       continue;
     assert (robbed_pos < weight_clause_info.size ());
     DDFW_Counter &robbed = clause_info (robbed_pos);
-    LOG (robbed.clause, "transfering weight from");
+    assert (robbed_pos != c.counter_pos);
 
-    double weight_difference = robbed.weight > w_0 ? c_big : c_small;
+    // this is the linear transfer function from the paper. The original ddfw
+    // implementation had actually coeff_a == 0 and `coeff_c == robbed.weight >
+    // w_0 ? c_big : c_small` with the inverted small/big !
+    //
+    // The idea of the condition `robbed.weight > w_0` is to initially transfer
+    // more weights and later less.
+    const double coeff_a = robbed.weight > w_0 ? 0.05 : 0.10;
+    const double coeff_c = robbed.weight > w_0 ? c_small : c_big;
+    double weight_difference = robbed.weight * coeff_a + coeff_c;
     robber.weight += weight_difference;
     robbed.weight -= weight_difference;
+    LOG (robbed.clause, "transfering weight (removing %.3f to get %.3f) from", weight_difference, robbed.weight);
     update_unsat_weights (c.counter_pos, weight_difference);
     update_sat_weights (robbed_pos, weight_difference);
   }
@@ -712,6 +724,7 @@ void Walker_DDFW::transfer_weights () {
 
 void Walker_DDFW::update_unsat_weights (size_t pos, double weight_difference) {
   assert (pos < weight_clause_info.size ());
+  assert (!clause_info (pos).count);
   ++ticks;
   for (auto lit : *clause_info (pos).clause) {
     critical_unsat_weight (lit) += weight_difference;
@@ -719,6 +732,7 @@ void Walker_DDFW::update_unsat_weights (size_t pos, double weight_difference) {
 }
 void Walker_DDFW::update_sat_weights (size_t pos, double weight_difference) {
   assert (pos < weight_clause_info.size ());
+  assert (clause_info (pos).count);
   if (clause_info (pos).count != 1)
     return;
   unsigned var = clause_info (pos).critical;
@@ -772,10 +786,11 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   START (walkwrv);
   int weight_reducing_var = 0;
-  double mini_weight_reduction = 0;
+  double mini_weight_reduction = 0.0;
   int loop_iterations = 0;
   for (auto idx : vars_in_broken) {
     double flip_gain = critical_sat_weight (idx) - critical_unsat_weight (idx);
+    LOG ("considering flipping %s gives %.3f", LOGLIT (idx), flip_gain);
     if (flip_gain < mini_weight_reduction) {
       mini_weight_reduction = flip_gain;
       weight_reducing_var = idx;
@@ -786,6 +801,7 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   if (weight_reducing_var && internal->val (weight_reducing_var) > 0)
     weight_reducing_var = -weight_reducing_var;
 
+  LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), mini_weight_reduction);
   STOP (walkwrv);
   return make_pair (weight_reducing_var, mini_weight_reduction);
 }
