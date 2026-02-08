@@ -96,6 +96,8 @@ struct Walker_DDFW {
   // walk occurrences
   std::vector<std::vector<DDFW_Tagged>> woccs;
 
+  static constexpr double w_0 = 8.0;
+
   using TOccs = std::vector<DDFW_Tagged>;
   TOccs &occs (int lit) {
     const int idx = internal->vlit (lit);
@@ -654,20 +656,13 @@ size_t Walker_DDFW::maximum_weight_neighbor (Clause *c) {
   return max_clause;
 }
 
-// TODO: we really hit the max_rounds limit repitedly on `59-131147.cnf`.
-// Therefore we reduced the limit to a more reasonnable value.
 size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
   size_t max_clause = Walker_DDFW::invalid_position;
-  int max_rounds = 1000;
   bool use_weight_condition = true;
   while (max_clause == Walker_DDFW::invalid_position) {
     size_t pos = random.pick_int(0, weight_clause_info.size ()-1);
     assert (pos < weight_clause_info.size ());
     const DDFW_Counter &c = clause_info (pos);
-    if  (!--max_rounds) {
-      LOG ("could not find random satisfied clause in neighborhood, just return the next satisfied clause");
-      use_weight_condition = false;
-    }
     if (!c.count)
       continue;
     LOG ("searching at position %zd with weight %f < %f = %d", pos, c.weight, w_0, c.weight < w_0);
@@ -681,7 +676,6 @@ size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
 void Walker_DDFW::transfer_weights () {
   START(walktransferweights);
   LOG ("transfering weights");
-  const double w_0 = 8.0;
   const double cspt = 0.01;   // probability to choose random satisfied clause
   const double c_big = 2.0;   // big weight increase factor
   const double c_small = 1.0; // small weight increase factor
@@ -710,8 +704,27 @@ void Walker_DDFW::transfer_weights () {
     //
     // The idea of the condition `robbed.weight > w_0` is to initially transfer
     // more weights and later less.
-    const double coeff_a = robbed.weight > w_0 ? 0.05 : 0.10;
-    const double coeff_c = robbed.weight > w_0 ? c_small : c_big;
+    const bool weight_larger = (robbed.weight > w_0);
+    double coeff_a;
+    double coeff_c ;
+    switch (internal->opts.walkddfwstrat) {
+      case 0: // lw-itl
+        coeff_a = weight_larger ? 0.1 : 0.05;
+        coeff_c = weight_larger ? 2 : 1;
+        break;
+      case 1: // lw-ite
+        coeff_a = 0.075;
+        coeff_c = 1.75;
+        break;
+      case 2: //lw-ith
+        coeff_a = weight_larger ? 0.05 : 0.10;
+        coeff_c = weight_larger ? c_small : c_big;
+        break;
+      default: // original ddfw
+        coeff_a = 0;
+        coeff_c = weight_larger ? c_big : c_small;
+        break;
+    }
     double weight_difference = robbed.weight * coeff_a + coeff_c;
     robber.weight += weight_difference;
     robbed.weight -= weight_difference;
@@ -830,27 +843,9 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
   PHASE ("walk", stats.walk.count,
          "random walk limit of %" PRId64 " propagations", limit);
 
-  // First compute the average clause size for picking the CB constant.
-  //
-  double size = 0;
-  int64_t n = 0;
-  for (const auto c : clauses) {
-    if (c->garbage)
-      continue;
-    if (c->redundant) {
-      if (!opts.walkredundant)
-        continue;
-      if (!likely_to_be_kept_clause (c))
-        continue;
-    }
-    size += c->size;
-    n++;
-  }
-  double average_size = relative (size, n);
-
   PHASE ("walk", stats.walk.count,
-         "%" PRId64 " clauses average size %.2f over %d variables", n,
-         average_size, active ());
+         "%" PRId64 " clauses over %d variables", clauses.size (),
+         active ());
 
   // Instantiate data structures for this local search round.
   //
@@ -923,7 +918,6 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     walker.noccs_vars_in_broken.resize (internal->max_var+1, 0);
     walker.noccs_vars_in_broken.resize (internal->max_var+1, 0);
     walker.position_vars_in_broken.resize (internal->max_var+1, Walker_DDFW::invalid_position);
-    const double weight = 8;
 
     for (const auto c : clauses) {
       if (c->garbage)
@@ -968,7 +962,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 
       assert (satisfied <= (size_t)c->size);
       size_t pos = walker.weight_clause_info.size ();
-      DDFW_Counter cw = DDFW_Counter (satisfied, Walker_DDFW::invalid_position, critical, c, weight);
+      DDFW_Counter cw = DDFW_Counter (satisfied, Walker_DDFW::invalid_position, critical, c, Walker_DDFW::w_0);
       LOG ("found %zd clauses so far, it has %d satisfied literals", pos, satisfied);
       walker.weight_clause_info.push_back (cw);
 #ifdef LOGGING

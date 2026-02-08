@@ -396,7 +396,6 @@ void Internal::rephase () {
   rephased = type;
 
   if (!marked_failed || unsat_constraint) {
-    assert (opts.warmup);
     return;
   }
   if (stable)
