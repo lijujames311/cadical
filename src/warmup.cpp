@@ -338,6 +338,42 @@ void Internal::warmup_decide () {
   STOP (decide);
 }
 
+int Internal::decide_and_propagate_all_assumptions (std::vector<int> &set_literals) {
+  assert (private_steps);
+  int res = 0;
+  int last_assumption_level = assumptions.size ();
+  if (!last_assumption_level)
+    return res;
+  if (constraint.size ())
+    last_assumption_level++;
+  while (!res) {
+    if (unsat)
+      res = 20;
+    else if (unsat_constraint)
+      res = 20;
+    else if (!propagate ()) {
+      // let analyze run to get failed assumptions
+      analyze ();
+      ^ }
+    else {
+      if (level >= last_assumption_level)
+        break;
+      res = decide ();
+    }
+  }
+
+  if (unsat || unsat_constraint)
+    res = 20;
+
+
+  set_literals.reserve(trail.size ());
+  for (auto lit: trail)
+    set_literals.push_back(lit);
+  if (!res)
+    backtrack ();
+  return res;
+}
+
 int Internal::warmup () {
   assert (!unsat);
   assert (!level);

@@ -38,6 +38,8 @@ struct DDFW_Tagged {
       : counter_pos (pos) {
 #ifndef NDEBUG
     c = d;
+#else
+    (void) d;
 #endif
   }
 };
@@ -77,7 +79,6 @@ struct Walker_DDFW {
   int64_t ticks;         // ticks to approximate run time
   int64_t limit;         // limit on number of propagations
   vector<DDFW_Tagged> broken; // currently unsatisfied clauses
-  double epsilon;        // smallest considered score
   std::vector<double> var_critical_sat_weights;
   std::vector<double> var_unsat_weights;
   std::vector<int>  flips; // remember the flips compared to the last best saved model
