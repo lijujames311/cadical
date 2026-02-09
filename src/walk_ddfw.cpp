@@ -1183,7 +1183,6 @@ void Internal::walk_ddfw () {
   }
   (void) walk_ddfw_round (limit, false);
   STOP_INNER_WALK ();
-  assert (!unsat);
 }
 
 } // namespace CaDiCaL

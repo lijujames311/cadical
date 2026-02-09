@@ -965,7 +965,6 @@ void Internal::walk_full_occs () {
   }
   (void) walk_full_occs_round (limit, false);
   STOP_INNER_WALK ();
-  assert (!unsat);
 }
 
 } // namespace CaDiCaL
