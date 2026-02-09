@@ -1448,7 +1448,16 @@ struct Internal {
   void warmup_propagate_beyond_conflict ();
   int warmup_decide_assumptions (); // only assumptions and constraints
   void warmup_decide (); // rest of the decisions
+  // Warmup is an attempt to combine the strength of the user propagator with
+  // SLS: we import the assignment one-by-one and propagate after each
+  // assignment. This attempts to avoid the (exponentially unlikeley) chance to
+  // find propagation chains.
   int warmup ();
+  // set and propagate all assumptions. Afterwards set the valued to the vector
+  // passed as argument and backtracks, unless it has derived UNSAT. This
+  // version does not care about the user propagator and cannot derive sat if
+  // there is an external propagator.
+  int decide_and_propagate_all_assumptions (std::vector<int> &set_lit);
 
   // Detect strongly connected components in the binary implication graph
   // (BIG) and equivalent literal substitution (ELS) in 'decompose.cpp'.

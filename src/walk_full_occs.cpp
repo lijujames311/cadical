@@ -641,6 +641,13 @@ inline void Internal::walk_full_occs_save_minimum (WalkerFO &walker) {
 int Internal::walk_full_occs_round (int64_t limit, bool prev) {
 
   stats.walk.count++;
+  std::vector<int> propagated;
+  bool failed = false; // Inconsistent assumptions?
+  int res = decide_and_propagate_all_assumptions (propagated);
+  if (res) {
+    failed = true;
+    return res;
+  }
 
   reset_watches ();
 
@@ -687,23 +694,21 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
   //
   WalkerFO walker (internal, average_size, limit);
 
-  bool failed = false; // Inconsistent assumptions?
-
   level = 1; // Assumed variables assigned at level 1.
 
   if (assumptions.empty ()) {
     LOG ("no assumptions so assigning all variables to decision phase");
   } else {
     LOG ("assigning assumptions to their forced phase first");
-    for (const auto lit : assumptions) {
+    std::vector<int> propagated;
+    for (auto lit : trail)
+    propagated.push_back(lit);
+
+    for (const auto lit : propagated) {
       signed char tmp = val (lit);
       if (tmp > 0)
         continue;
-      if (tmp < 0) {
-        LOG ("inconsistent assumption %d", lit);
-        failed = true;
-        break;
-      }
+      assert (tmp == 0);
       if (!active (lit))
         continue;
       tmp = sign (lit);
@@ -815,7 +820,6 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
 #endif
   }
   walker.check_all ();
-  int res; // Tells caller to continue with local search.
 
   if (!failed) {
 

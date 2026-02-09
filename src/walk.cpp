@@ -758,7 +758,12 @@ inline void Internal::walk_save_minimum (Walker &walker) {
 int Internal::walk_round (int64_t limit, bool prev) {
 
   stats.walk.count++;
-
+  std::vector<int> propagated;
+  bool failed = false; // Inconsistent assumptions?
+  int res = decide_and_propagate_all_assumptions (propagated);
+  if (res) {
+    return res;
+  }
   clear_watches ();
 
   // Remove all fixed variables first (assigned at decision level zero).
@@ -785,23 +790,21 @@ int Internal::walk_round (int64_t limit, bool prev) {
   size_t old_global_minimum = stats.walk.minimum;
 #endif
 
-  bool failed = false; // Inconsistent assumptions?
-
   level = 1; // Assumed variables assigned at level 1.
 
   if (assumptions.empty ()) {
     LOG ("no assumptions so assigning all variables to decision phase");
   } else {
     LOG ("assigning assumptions to their forced phase first");
-    for (const auto lit : assumptions) {
+    std::vector<int> propagated;
+    for (auto lit : trail)
+    propagated.push_back(lit);
+
+    for (const auto lit : propagated) {
       signed char tmp = val (lit);
       if (tmp > 0)
         continue;
-      if (tmp < 0) {
-        LOG ("inconsistent assumption %d", lit);
-        failed = true;
-        break;
-      }
+      assert (tmp == 0);
       if (!active (lit))
         continue;
       tmp = sign (lit);
@@ -932,8 +935,6 @@ int Internal::walk_round (int64_t limit, bool prev) {
   }
 
   assert (failed || walker.table.size ());
-
-  int res; // Tells caller to continue with local search.
 
   if (!failed) {
 
@@ -1087,7 +1088,6 @@ void Internal::walk () {
            last.walk.ticks, ticks, limit);
   (void) walk_round (limit, false);
   STOP_INNER_WALK ();
-  assert (!unsat);
 }
 
 } // namespace CaDiCaL

@@ -339,7 +339,8 @@ void Internal::warmup_decide () {
 }
 
 int Internal::decide_and_propagate_all_assumptions (std::vector<int> &set_literals) {
-  assert (private_steps);
+  LOG ("decide and propagate all assumptions to fill the vectors");
+  assert (!private_steps);
   int res = 0;
   int last_assumption_level = assumptions.size ();
   if (!last_assumption_level)
@@ -353,11 +354,22 @@ int Internal::decide_and_propagate_all_assumptions (std::vector<int> &set_litera
       res = 20;
     else if (!propagate ()) {
       // let analyze run to get failed assumptions
-      analyze ();
-      ^ }
-    else {
+      if (!unsat)
+        analyze ();
+      else
+       break;
+    } else if (satisfied ()) {
+      assert (!res);
+      if (external) {
+        LOG ("found satisfied assignment ignoring the external propagator, so probably not valid");
+      } else {
+        res = 10;
+      }
+      break;
+    } else {
       if (level >= last_assumption_level)
         break;
+      notify_assignments ();
       res = decide ();
     }
   }
@@ -369,8 +381,18 @@ int Internal::decide_and_propagate_all_assumptions (std::vector<int> &set_litera
   set_literals.reserve(trail.size ());
   for (auto lit: trail)
     set_literals.push_back(lit);
-  if (!res)
+  if (!res) {
+    // we need to repropagate now due to out-of-order units and renotify them
     backtrack ();
+    if (propagated < trail.size () && !propagate ()) {
+      LOG ("empty clause after root level propagation");
+      learn_empty_clause ();
+      res = 20;
+    }
+  } else {
+    assert (res == 20);
+    notify_assignments ();
+  }
   return res;
 }
 
@@ -389,6 +411,8 @@ int Internal::warmup () {
   const int64_t decision = stats.warmup.decision;
   const int64_t dummydecision = stats.warmup.dummydecision;
 #endif
+  LOG ("starting warmup");
+
   // first propagate assumptions in case we find a conflict. One subtle
   // thing, if we find a conflict in the assumption, then we actually do
   // need the notifications. Otherwise, we there should be no notification

@@ -959,8 +959,12 @@ int Internal::local_search () {
     return 0;
   if (constraint.size ())
     return 0;
+  if (!lim.localsearch)
+    return 0;
 
   int res = 0;
+  assert (imports.empty ());
+  assert (!level);
 
   for (int i = 1; !res && i <= lim.localsearch; i++)
     res = local_search_round (i);
@@ -972,7 +976,6 @@ int Internal::local_search () {
   } else if (res == 20) {
     LOG ("local search determined assumptions to be inconsistent");
     assert (!assumptions.empty ());
-    produce_failed_assumptions ();
   }
 
   return res;

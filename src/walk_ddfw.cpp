@@ -825,6 +825,14 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 
   stats.walk.count++;
 
+  std::vector<int> propagated;
+  bool failed = false; // Inconsistent assumptions?
+  assert (!private_steps);
+  int res = decide_and_propagate_all_assumptions (propagated);
+  if (res) {
+    failed = true;
+    return res;
+  }
   reset_watches ();
 
   // Remove all fixed variables first (assigned at decision level zero).
@@ -852,23 +860,20 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
   //
   Walker_DDFW walker (internal, limit);
 
-  bool failed = false; // Inconsistent assumptions?
 
   level = 1; // Assumed variables assigned at level 1.
 
-  if (assumptions.empty ()) {
+  if (failed) {
+    LOG ("assumptions are inconsistent");
+  } else if (assumptions.empty ()) {
     LOG ("no assumptions so assigning all variables to decision phase");
   } else {
-    LOG ("assigning assumptions to their forced phase first");
-    for (const auto lit : assumptions) {
+    LOG ("assigning assumptions and their propagations to their forced phase first");
+    for (const auto lit : propagated) {
       signed char tmp = val (lit);
       if (tmp > 0)
         continue;
-      if (tmp < 0) {
-        LOG ("inconsistent assumption %d", lit);
-        failed = true;
-        break;
-      }
+      assert (tmp == 0);
       if (!active (lit))
         continue;
       tmp = sign (lit);
@@ -1006,7 +1011,6 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     }
 #endif
   }
-  int res; // Tells caller to continue with local search.
 
   if (!failed) {
     walker.check_all ();
