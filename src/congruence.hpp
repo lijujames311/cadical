@@ -364,7 +364,8 @@ struct my_dummy_optional {
 //   gives a number that we can use.
 //
 //
-// Important for the proofs: the LHS is not eagerly updated.
+// Important for the proofs: the LHS is not eagerly updated. Therefore, in most
+// functions for rewriting, there is a parameter to ignore the literals.
 //
 // One warning for degenerated gate: it is a monotone property on the
 // defining clauses, but not on the LHS/RHS as the LHS is not rewritten:
@@ -488,7 +489,8 @@ struct Gate {
   }
 };
 
-typedef vector<Gate *> GOccs;
+typedef vector<Gate *> Gate_Occurrence;
+typedef vector<Gate_Occurrence> Gate_Occurrences;
 
 // Equality on gate inputs assuming that the literals are normalized in the same
 // way.
@@ -731,8 +733,8 @@ struct Closure {
       std::vector<LRAT_ID> &extra_reasons_lit,
       std::vector<LRAT_ID> &extra_reasons_ulit);
   // occs
-  vector<GOccs> gtab;
-  GOccs &goccs (int lit);
+  Gate_Occurrences gtab;
+  Gate_Occurrence &goccs (int lit);
   void connect_goccs (Gate *g, int lit);
   vector<Gate *> garbage;
   void mark_garbage (Gate *);
@@ -895,6 +897,8 @@ struct Closure {
   void learn_congruence_unit_falsifies_lrat_chain (Gate *g, int src,
                                                    int dst, int clashing,
                                                    int falsified, int unit);
+  // when the AND gate is reduced to arity one and the LHS is already set, then
+  // we produce the reason for the units.
   void learn_congruence_unit_when_lhs_set (Gate *g, int src, LRAT_ID id1,
                                            LRAT_ID id2, int dst);
 

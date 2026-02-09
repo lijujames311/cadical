@@ -1267,7 +1267,6 @@ void Closure::push_id_on_chain (std::vector<LRAT_ID> &chain,
   LOG (lrat_chain, "chain from %zd reasons", reasons.size ());
 }
 
-// Covered
 void Closure::learn_congruence_unit_when_lhs_set (Gate *g, int src,
                                                   LRAT_ID id1, LRAT_ID id2,
                                                   int dst) {
@@ -1288,7 +1287,6 @@ void Closure::learn_congruence_unit_when_lhs_set (Gate *g, int src,
   LOG (lrat_chain, "lrat");
 }
 
-// covered
 // Something very important here: as we are producing a unit, we cannot
 // simplify or rewrite the clauses as this will produce units.
 //
@@ -2014,7 +2012,7 @@ bool Closure::merge_literals_from_clauses (int lit, int other, Clause *c1,
 }
 
 /*------------------------------------------------------------------------*/
-GOccs &Closure::goccs (int lit) { return gtab[internal->vlit (lit)]; }
+inline Gate_Occurrence &Closure::goccs (int lit) { return gtab[internal->vlit (lit)]; }
 
 void Closure::connect_goccs (Gate *g, int lit) {
   LOG (g, "connect %d to", lit);
@@ -2490,7 +2488,7 @@ void Closure::update_and_gate (Gate *g, GatesTable::iterator it, int src,
         g->degenerated_gate == Special_Gate::DEGENERATED_AND_LHS_FALSE) {
       // if the assertion does not hold, we need to adapt the proof. However, we
       // have already replaced the LHS by its representative.
-      assert (-unit == find_eager_representative(-unit));
+      assert (-unit == find_eager_representative (-unit));
     }
     learn_congruence_unit (unit);
     if (internal->lrat)
@@ -6544,8 +6542,6 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
   return false;
 }
 
-
-// covered
 void Closure::produce_lrat_for_ite_merge_same_te_lrat (
     std::vector<LitClausePair> &clauses,
     std::vector<LRAT_ID> &reasons_implication,
@@ -6563,8 +6559,6 @@ void Closure::produce_lrat_for_ite_merge_same_te_lrat (
   reasons_back.push_back (neg_else_imp.clause->id);
 }
 
-
-// covered
 void Closure::simplify_ite_gate_then_else_set (
     Gate *g, std::vector<LRAT_ID> &reasons_implication,
     std::vector<LRAT_ID> &reasons_back, size_t idx1, size_t idx2) {
@@ -6615,7 +6609,6 @@ void Closure::simplify_ite_gate_condition_set (
 }
 
 
-// covered
 void Closure::simplify_ite_gate (Gate *g) {
   if (skip_ite_gate (g))
     return;
@@ -6721,7 +6714,8 @@ void Closure::simplify_ite_gate (Gate *g) {
       assert (is_sorted (begin (*g), end (*g),
                          sort_literals_by_var_smaller (internal)));
       check_and_gate_implied (g);
-      if (Gate *h = find_and_lits (begin (*g), end (*g)); h) {
+      Gate *h = find_and_lits (begin (*g), end (*g));
+      if (h) {
         assert (garbage);
         std::vector<LRAT_ID> reasons_lrat, reasons_lrat_back;
         if (internal->lrat) {
@@ -6755,7 +6749,6 @@ void Closure::simplify_ite_gate (Gate *g) {
   ++internal->stats.congruence.simplified_ites;
 }
 
-// Covered
 void Closure::add_ite_matching_proof_chain (
     Gate *g, Gate *h, int lhs1, int lhs2, std::vector<LRAT_ID> &reasons1,
     std::vector<LRAT_ID> &reasons2) {
@@ -7069,8 +7062,6 @@ void Closure::add_ite_matching_proof_chain (
     id3 = degenerated_g_then ? h_then_id : g_neg_then_id;
   } else {
     if (internal->lrat) {
-      // lrat_chain.push_back (g_then_id);
-      // lrat_chain.push_back (h_neg_then_id);
       lrat_chain.push_back (g_neg_then_id);
       lrat_chain.push_back (h_then_id);
     }
