@@ -9,7 +9,7 @@ namespace CaDiCaL {
 void Internal::init_enqueue (int idx) {
   Link &l = links[idx];
   assert (flags (idx).active () || flags (idx).fixed ());
-  if (!opts.varprioritizefirst) {
+  if (!opts.varprioritizeswap) {
     LOG ("enqueueing %s at the beginning", LOGLIT(idx));
     l.prev = 0;
     if (queue.first) {
