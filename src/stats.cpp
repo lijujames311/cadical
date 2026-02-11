@@ -787,6 +787,12 @@ void Stats::print (Internal *internal) {
     PRT ("  improved:      %15" PRId64 "   %10.2f    per walk",
          stats.walk.improved,
          relative (stats.walk.improved, stats.walk.count));
+    PRT ("  wrv-flip:      %15" PRId64 "   %10.2f    per flip",
+         stats.walk.weight_reducing_var, percent (stats.walk.weight_reducing_var, stats.walk.flips));
+    PRT ("  side-flip:     %15" PRId64 "   %10.2f    per flip",
+         stats.walk.sideways, percent (stats.walk.sideways, stats.walk.flips));
+    PRT ("  wght-transfer: %15" PRId64 "   %10.2f    per flip",
+         stats.walk.weight_transfer, percent (stats.walk.weight_transfer, stats.walk.flips));
   }
   if (all || stats.weakened) {
     PRT ("weakened:        %15" PRId64 "   %10.2f    average size",
@@ -836,7 +842,7 @@ void Stats::print (Internal *internal) {
     PRT ("   subsumed:     %15" PRId64 "   %10.2f%%  per round",
          stats.congruence.subsumed,
          relative (stats.congruence.subsumed, stats.congruence.rounds));
-    PRT ("   dummy-ands:     %15" PRId64 "   %10.2f%%  per round",
+    PRT ("   dummy-ands:   %15" PRId64 "   %10.2f%%  per round",
          stats.congruence.congruent_dummy_ands,
          relative (stats.congruence.congruent_dummy_ands, stats.congruence.rounds));
   }

@@ -628,8 +628,6 @@ void Walker_DDFW::walk_ddfw_flip_lit (int lit) {
   make_clauses (lit);
   break_clauses (-lit);
 
-  if (!broken.empty ())
-    check_all ();
   internal->stats.ticks.walkflip += ticks - old;
   STOP (walkflip);
 }
@@ -680,6 +678,7 @@ void Walker_DDFW::transfer_weights () {
   const double c_big = 2.0;   // big weight increase factor
   const double c_small = 1.0; // small weight increase factor
 
+  ++internal->stats.walk.weight_transfer;
   ticks +=
       (1 + internal->cache_lines (broken.size (), sizeof (DDFW_Tagged)));
   for (auto c : broken) {
@@ -849,7 +848,8 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 #endif
 
   PHASE ("walk", stats.walk.count,
-         "random walk limit of %" PRId64 " propagations", limit);
+         "random walk limit of %" PRId64 " ticks", limit);
+  assert (limit);
 
   PHASE ("walk", stats.walk.count,
          "%zd clauses over %d variables", clauses.size (),
@@ -1005,7 +1005,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     if (!failed) {
       size_t broken = walker.broken.size ();
       size_t total = watched + broken;
-      MSG ("watching %" PRId64 " clauses %.0f%% "
+      LOG ("watching %" PRId64 " clauses %.0f%% "
            "out of %zd (watched and broken)",
            watched, percent (watched, total), total);
     }
@@ -1031,7 +1031,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 #ifndef QUIET
     int64_t flips = 0;
 #endif
-    const double spt = 0.15;    // probability for sideways flips
+    const double sideways_percent = 0.15;    // probability for sideways flips
 
     while (!terminated_asynchronously () && !walker.broken.empty () &&
            walker.ticks < walker.limit) {
@@ -1040,10 +1040,9 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 #endif
 #ifndef NDEBUG
       //useful for debugging, but really really really expensive
-      walker.check_all();
+      if (internal->stats.walk.flips % 100 == 000)
+        walker.check_all();
 #endif
-      stats.walk.flips++;
-      stats.walk.broken += broken;
 
       broken = walker.broken.size ();
       LOG ("now have %zd broken clauses in total", broken);
@@ -1060,18 +1059,24 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       double weight_reduction = result.second;
 
       if (weight_reducing_lit && weight_reduction < 0.0) {
+        ++stats.walk.weight_reducing_var;
         LOG ("flipping one literal");
         walker.walk_ddfw_flip_lit (weight_reducing_lit);
         walker.push_flipped (weight_reducing_lit);
+        stats.walk.flips++;
+        stats.walk.broken += broken;
         continue;
       }
 
       // otherwise, do a sideways flip with low probability
       double perc = walker.random.generate_double ();
-      if (weight_reducing_lit && weight_reduction == 0.0 && perc < spt) {
+      if (weight_reducing_lit && weight_reduction == 0.0 && perc < sideways_percent) {
+        ++stats.walk.sideways;
         LOG ("sideways flip of one literal");
         walker.walk_ddfw_flip_lit (weight_reducing_lit);
         walker.push_flipped (weight_reducing_lit);
+        stats.walk.flips++;
+        stats.walk.broken += broken;
         continue;
       }
 

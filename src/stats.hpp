@@ -139,6 +139,9 @@ struct Stats {
     int64_t flips = 0;
     size_t minimum = 0;
     int64_t improved = 0;
+    int64_t weight_reducing_var = 0;
+    int64_t sideways = 0;
+    int64_t weight_transfer = 0;
   } walk;
 
   struct {
