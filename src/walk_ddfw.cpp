@@ -191,8 +191,15 @@ struct Walker_DDFW {
     LOG ("unmarking %s as uvar once, remaining %zd times", LOGLIT (lit), noccs_vars_in_broken[internal->vidx (lit)]);
   }
 
+  // Finds the variable that only reduces the most number of unsatisfied
+  // clauses.
   std::pair<int,double> find_weight_reducing_variable ();
+
+  // Finds and flips one literals which does not reduce the number of
+  // unsatisfied clauses (but does not make it worse either)
   void do_sideways_jump ();
+  // Transfer the weights from the satisfied to the unsatisfied clauses to
+  // increase the focuse on the latter, the hard-to-satisfy clauses
   void transfer_weights ();
   size_t maximum_weight_neighbor (Clause *c);
   size_t random_satisfied_big_weight_clause (double w_0);
@@ -676,6 +683,9 @@ size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
   return max_clause;
 }
 
+// side remark: we assume that there is a variable to flip without loss. In
+// yal-lin, the functions also handles the case there is no such variable, but
+// the assumptions is checked before the function call.
 void Walker_DDFW::do_sideways_jump () {
   assert (!no_gain_literals.empty ());
   size_t pos = random.pick_int(0, no_gain_literals.size() - 1);
