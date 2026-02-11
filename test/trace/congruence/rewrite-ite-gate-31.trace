@@ -141,7 +141,7 @@
 141 set transredmaxeff 0
 142 set transredmineff 1
 143 set varprioritizefirst 1
-144 set vartumble 1
+144 set varkeepname 1
 147 set vivify 0
 148 set warmup 0
 149 add -5

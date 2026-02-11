@@ -1,6 +1,6 @@
 0 init
 1 set check 1
-2 set vartumble 0
+2 set varkeepname 0
 3 add 6
 4 add 3
 5 add 0

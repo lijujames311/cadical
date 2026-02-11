@@ -34,7 +34,7 @@ void External::enlarge (int new_max_var) {
 int External::declare_var (int new_var, bool extension) {
   int ilit = internal_lit (new_var);
   if (!ilit) {
-    if (!internal->opts.vartumble)
+    if (!internal->opts.varkeepname)
       ilit = internal->max_var+1;
     else {
       ilit = new_var;

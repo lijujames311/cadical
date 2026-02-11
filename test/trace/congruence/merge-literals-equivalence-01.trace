@@ -1,7 +1,7 @@
 0 init
 1 set check 1
 2 set elim 0
-3 set vartumble 0
+3 set varkeepname 0
 4 add -10
 5 add 20
 6 add 0
