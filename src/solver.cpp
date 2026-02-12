@@ -816,6 +816,16 @@ void Solver::implied (std::vector<int> &entrailed) {
 int Solver::call_external_solve_and_check_results (bool preprocess_only) {
   transition_to_steady_state ();
   assert (state () & READY);
+  
+
+  // Add the current activator literal as an assumption
+  if (internal->ctx_stack.size()) {
+    // Currently we assume it only internally -> checker might will not like
+    // the results as it does not see the used assumption (TODO decide what
+    // to do here).
+    external->assume(internal->ctx_stack.back().activator);
+  }
+
   STATE (SOLVING);
   const int res = external->solve (preprocess_only);
   if (res == 10)
@@ -1155,12 +1165,14 @@ void Solver::reset_observed_vars () {
 void Solver::push () {
   TRACE ("push");
   REQUIRE_VALID_STATE ();
+  internal->push ();
   LOG_API_CALL_END ("push");
 }
 
 void Solver::pop () {
   TRACE ("pop");
   REQUIRE_VALID_STATE ();
+  internal->pop ();
   LOG_API_CALL_END ("pop");
 }
 
