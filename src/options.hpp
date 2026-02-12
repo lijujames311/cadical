@@ -165,6 +165,8 @@ OPTION( minimizeticks,     1,  0,  1,0,0,1, "increment ticks in minimization") \
 OPTION( modelalllits,      0,  0,  1,0,0,1, "print all literals (including unsed) in the model") \
 OPTION( otfs,              1,  0,  1,0,0,1, "on-the-fly self subsumption") \
 OPTION( phase,             1,  0,  1,0,0,1, "initial phase") \
+OPTION( ppassumptions,     1,  1,  1,0,0,0, "assumption strategy for push-pop (1: assume only top and propagate rest 2: assume all levels)") \
+OPTION( pprecycle,         0,  0,  0,0,1,0, "eagerness of recycling for push-pop (0: never)") \
 OPTION( preprocessinit,  2e6,  0,2e9,2,0,1, "initial preprocessing base limit" ) \
 OPTION( preprocesslight,   1,  0,  1,0,1,1, "lightweight preprocessing" ) \
 OPTION( probe,             1,  0,  1,0,1,1, "failed literal probing" ) \
