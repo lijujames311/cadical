@@ -281,6 +281,7 @@ struct Internal {
 
   vector<int> probes;       // remaining scheduled probes
   vector<Level> control;    // 'level + 1 == control.size ()'
+  vector<CtxLevel> ctx_stack; // ctx_level == ctx_stack.size() 
   vector<Clause *> clauses; // ordered collection of all clauses
   Averages averages;        // glue, size, jump moving averages
   Delay delay[2];           // Delay certain functions
@@ -868,6 +869,9 @@ struct Internal {
   void get_all_fixed_literals (std::vector<int> &);
 #endif
 
+  void push ();
+  void pop ();
+
   void recompute_tier ();
   void decay_clauses_upon_incremental_clauses ();
   void print_tier_usage_statistics ();
@@ -1364,7 +1368,7 @@ struct Internal {
   void schedule_factorization (Factoring &);
   bool run_factorization (int64_t limit);
   bool factor ();
-  int get_new_extension_variable ();
+  int get_new_extension_variable (bool must_reset_watches = true);
   Clause *new_factor_clause (int);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
 

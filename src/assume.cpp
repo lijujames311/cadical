@@ -613,4 +613,12 @@ void Internal::sort_and_reuse_assumptions () {
   else
     stats.assumptionsreused += level;
 }
+
+void Internal::push () {
+  ctx_stack.emplace_back();
+}
+
+void Internal::pop () {
+  ctx_stack.resize(ctx_stack.size()-1);
+}
 } // namespace CaDiCaL

@@ -914,13 +914,13 @@ bool Internal::run_factorization (int64_t limit) {
   return completed;
 }
 
-int Internal::get_new_extension_variable () {
+int Internal::get_new_extension_variable (bool must_reset_watches) {
   const int current_max_external = external->max_var;
   const int new_external = current_max_external + 1;
   const int new_internal = external->internalize (new_external, true);
   // one sideeffect of internalize is enlarging the internal datastructures
   // which can initialize the watches (wtab)
-  if (watching ())
+  if (watching () && must_reset_watches)
     reset_watches ();
   // it does not enlarge otab, however, so we do this manually
   init_occs ();
