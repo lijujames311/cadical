@@ -209,9 +209,36 @@ void Internal::reserve_vars (int new_min_vsize) {
 
 void Internal::add_original_lit (int lit) {
   assert (abs (lit) <= max_var);
+  
   if (lit) {
     original.push_back (lit);
   } else {
+    bool new_ctx_level_started = false;
+    if (ctx_stack.size() > 0) {
+      int activator_ilit = ctx_stack.back().activator;
+      if (!activator_ilit) {
+        // Declare an internal variable that has no external representation
+        new_ctx_level_started = true;
+        activator_ilit = get_new_extension_variable (false);
+        LOG ("new activator variable is created: %d",activator_ilit);
+        ctx_stack.back().activator = activator_ilit;
+      } 
+
+      original.push_back (-activator_ilit);
+      // external->eclause is used in proof and checker, so we need to add
+      // explicitly the activator to it as well.
+      external->eclause.push_back(-i2e[activator_ilit]);
+
+      if (internal->opts.check &&
+        (internal->opts.checkwitness || internal->opts.checkfailed)) {
+        // clauses in external->original is used during final checking.
+        // The original lit was 0, so we overwrite it with the activator lit 
+        // and then add a new closing 0.
+        assert (external->original.size() && !external->original.back());
+        external->original.back() = -i2e[activator_ilit];
+        external->original.push_back(0);
+      }
+    }
     const int64_t id =
         original_id < reserved_ids ? ++original_id : ++clause_id;
     if (proof) {
@@ -239,6 +266,15 @@ void Internal::add_original_lit (int lit) {
 
     add_new_original_clause (id);
     original.clear ();
+
+    if (new_ctx_level_started && ctx_stack.size() > 1) {
+      // Define the relation between the new activator and the previous one
+      original.push_back(-ctx_stack.end()[-1].activator);
+      original.push_back(ctx_stack.end()[-2].activator);
+      const int64_t act_rel_clause_id =
+        original_id < reserved_ids ? ++original_id : ++clause_id;
+      add_new_original_clause (act_rel_clause_id);
+    }
   }
 }
 
