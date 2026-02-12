@@ -820,10 +820,17 @@ int Solver::call_external_solve_and_check_results (bool preprocess_only) {
 
   // Add the current activator literal as an assumption
   if (internal->ctx_stack.size()) {
-    // Currently we assume it only internally -> checker might will not like
-    // the results as it does not see the used assumption (TODO decide what
-    // to do here).
-    external->assume(internal->ctx_stack.back().activator);
+    // The assumptions are added through external, so the proofs and checkers
+    // also see them without any workaround
+    if (internal->opts.ppassumptions == 1) {
+      external->assume(internal->i2e[internal->ctx_stack.back().activator]);
+    } else {
+      assert (internal->opts.ppassumptions == 2);
+      for (const auto cl : internal->ctx_stack) {
+        int activator_elit = internal->i2e[cl.activator];
+        if (activator_elit) external->assume(activator_elit);
+      }
+    } 
   }
 
   STATE (SOLVING);

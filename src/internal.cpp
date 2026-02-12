@@ -267,8 +267,9 @@ void Internal::add_original_lit (int lit) {
     add_new_original_clause (id);
     original.clear ();
 
-    if (new_ctx_level_started && ctx_stack.size() > 1) {
+    if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1) {
       // Define the relation between the new activator and the previous one
+      // TODO how to handle these clauses in proofs and checkers?
       original.push_back(-ctx_stack.end()[-1].activator);
       original.push_back(ctx_stack.end()[-2].activator);
       const int64_t act_rel_clause_id =
