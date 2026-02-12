@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 namespace CaDiCaL {
 
@@ -91,6 +92,7 @@ struct Walker_DDFW {
   std::vector<int> vars_in_broken;
   std::vector<size_t> position_vars_in_broken;
   std::vector<size_t> noccs_vars_in_broken;
+  size_t last_searched_vars_in_broken;
 
   // for sideways jumps, we remember all the literals that have no impact on the overall cost
   std::vector<int> no_gain_literals;
@@ -700,7 +702,7 @@ void Walker_DDFW::do_sideways_jump () {
 void Walker_DDFW::transfer_weights () {
   START(walktransferweights);
   LOG ("transfering weights");
-  const double cspt = 0.01;   // probability to choose random satisfied clause
+  const double cspt = 0.1;   // probability to choose random satisfied clause
   const double c_big = 2.0;   // big weight increase factor
   const double c_small = 1.0; // small weight increase factor
 
@@ -714,7 +716,8 @@ void Walker_DDFW::transfer_weights () {
     assert (robber.clause);
     size_t robbed_pos = maximum_weight_neighbor (robber.clause);
     double p = random.generate_double();
-    if (robbed_pos == invalid_position || clause_info (robbed_pos).weight < w_0 || p < cspt)
+    // TODO: the code does not have this condition on weights
+    if (robbed_pos == invalid_position || /*clause_info (robbed_pos).weight < w_0 ||*/ p < cspt)
       robbed_pos = random_satisfied_big_weight_clause (w_0);
     // TODO does this really trigger?
     if (robbed_pos == invalid_position)
@@ -821,19 +824,46 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 
 /*------------------------------------------------------------------------*/
 
+// In a departure from the yal-lin implementation we remember where we found a
+// literal for the last time and start from here. Unlike the cache for
+// propagations, we do not save a quadratic effort, because we have to go
+// through all literals anyway. However, this is an attempt to flip in a more
+// fair way (first literals with the same probability as the last literals), as
+// we pick the first reached minimum.
 std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   START (walkwrv);
   int weight_reducing_var = 0;
   double mini_weight_reduction = 0.0;
   int loop_iterations = 0;
   no_gain_literals.clear ();
-  for (auto idx : vars_in_broken) {
+  const auto begin = vars_in_broken.begin ();
+  const auto end = vars_in_broken.end ();
+  const auto mid = last_searched_vars_in_broken < vars_in_broken.size () ? vars_in_broken.begin () + last_searched_vars_in_broken : vars_in_broken.end ();
+  for (auto it = mid; it != end; ++it) {
+    const int idx = *it;
     double flip_gain = critical_sat_weight (idx) - critical_unsat_weight (idx);
     LOG ("considering flipping %s gives %.3f", LOGLIT (idx), flip_gain);
     if (flip_gain < mini_weight_reduction) {
       mini_weight_reduction = flip_gain;
       weight_reducing_var = idx;
       ++loop_iterations;
+      last_searched_vars_in_broken = std::distance (begin, it);
+      assert (begin <= it);
+    }
+    else if (flip_gain == 0) {
+      no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);
+    }
+  }
+  for (auto it = vars_in_broken.begin (); it != mid; ++it) {
+    const int idx = *it;
+    double flip_gain = critical_sat_weight (idx) - critical_unsat_weight (idx);
+    LOG ("considering flipping %s gives %.3f", LOGLIT (idx), flip_gain);
+    if (flip_gain < mini_weight_reduction) {
+      mini_weight_reduction = flip_gain;
+      weight_reducing_var = idx;
+      ++loop_iterations;
+      last_searched_vars_in_broken = std::distance (begin, it);
+      assert (begin <= it);
     }
     else if (flip_gain == 0) {
       no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);

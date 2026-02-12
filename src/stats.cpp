@@ -787,11 +787,11 @@ void Stats::print (Internal *internal) {
     PRT ("  improved:      %15" PRId64 "   %10.2f    per walk",
          stats.walk.improved,
          relative (stats.walk.improved, stats.walk.count));
-    PRT ("  wrv-flip:      %15" PRId64 "   %10.2f    per flip",
+    PRT ("  wrv-flip:      %15" PRId64 "   %10.2f %% flip",
          stats.walk.weight_reducing_var, percent (stats.walk.weight_reducing_var, stats.walk.flips));
-    PRT ("  side-flip:     %15" PRId64 "   %10.2f    per flip",
+    PRT ("  side-flip:     %15" PRId64 "   %10.2f %% flip",
          stats.walk.sideways, percent (stats.walk.sideways, stats.walk.flips));
-    PRT ("  wght-transfer: %15" PRId64 "   %10.2f    per flip",
+    PRT ("  wght-transfer: %15" PRId64 "   %10.2f %% flip",
          stats.walk.weight_transfer, percent (stats.walk.weight_transfer, stats.walk.flips));
   }
   if (all || stats.weakened) {
