@@ -268,21 +268,43 @@ void Internal::add_original_lit (int lit) {
     original.clear ();
 
     if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1) {
-      // Define the relation between the new activator and the previous one
+      // Define the relation between the new activator and the previous one (if
+      // there is a previous one)
+
       // TODO how to handle these clauses in proofs and checkers?
+
       assert (ctx_stack.size() && ctx_stack.back().activator);
+      assert (original.empty());
+      assert (external->eclause.empty());
      
-      for (auto rit = std::next(ctx_stack.rbegin()) ; rit < ctx_stack.rend(); ++rit ) {
+      for (auto rit = std::next(ctx_stack.rbegin()); rit < ctx_stack.rend(); ++rit ) {
         if ((*rit).activator) {
           original.push_back((*rit).activator);
           break;
         }
       }
       if (original.size()) {
+        // There is a previous active context level, so we need to add a
+        // connecting clause
         original.push_back(-ctx_stack.back().activator);
         const int64_t act_rel_clause_id =
-        original_id < reserved_ids ? ++original_id : ++clause_id;
-      add_new_original_clause (act_rel_clause_id);
+          original_id < reserved_ids ? ++original_id : ++clause_id;
+        
+        if (internal->opts.check &&
+          (internal->opts.checkwitness || internal->opts.checkfailed)) {
+          assert (original.size() == 2);
+          for (const auto lit: original) {
+            external->original.push_back(i2e[lit]);
+            if (proof) external->eclause.push_back(i2e[lit]);
+          }
+          external->original.push_back(0);
+        }
+        if (proof) {
+          assert (!original.size () || !external->eclause.empty ());
+          proof->add_external_original_clause (act_rel_clause_id, false, external->eclause);
+        }
+        add_new_original_clause (act_rel_clause_id);
+        original.clear();
       }
     }
   }
