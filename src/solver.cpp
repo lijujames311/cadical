@@ -823,7 +823,14 @@ int Solver::call_external_solve_and_check_results (bool preprocess_only) {
     // The assumptions are added through external, so the proofs and checkers
     // also see them without any workaround
     if (internal->opts.ppassumptions == 1) {
-      external->assume(internal->i2e[internal->ctx_stack.back().activator]);
+      int activator_trigger_elit = 0;
+      for (auto rit = internal->ctx_stack.rbegin(); rit < internal->ctx_stack.rend(); ++rit ) {
+        if ((*rit).activator) {
+          activator_trigger_elit = internal->i2e[(*rit).activator];
+          break;
+        }
+      }
+      if (activator_trigger_elit) external->assume(activator_trigger_elit);
     } else {
       assert (internal->opts.ppassumptions == 2);
       for (const auto cl : internal->ctx_stack) {
