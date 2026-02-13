@@ -270,11 +270,20 @@ void Internal::add_original_lit (int lit) {
     if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1) {
       // Define the relation between the new activator and the previous one
       // TODO how to handle these clauses in proofs and checkers?
-      original.push_back(-ctx_stack.end()[-1].activator);
-      original.push_back(ctx_stack.end()[-2].activator);
-      const int64_t act_rel_clause_id =
+      assert (ctx_stack.size() && ctx_stack.back().activator);
+     
+      for (auto rit = std::next(ctx_stack.rbegin()) ; rit < ctx_stack.rend(); ++rit ) {
+        if ((*rit).activator) {
+          original.push_back((*rit).activator);
+          break;
+        }
+      }
+      if (original.size()) {
+        original.push_back(-ctx_stack.back().activator);
+        const int64_t act_rel_clause_id =
         original_id < reserved_ids ? ++original_id : ++clause_id;
       add_new_original_clause (act_rel_clause_id);
+      }
     }
   }
 }
