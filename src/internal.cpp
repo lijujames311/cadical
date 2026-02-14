@@ -115,7 +115,13 @@ void Internal::enlarge_vals (size_t new_vsize) {
 }
 
 /*------------------------------------------------------------------------*/
-
+// This function enlarges all data structures. You should use it only if you add
+// many literals at once. Otherwise, use `reserve_vars` followed by importing
+// all variables.
+//
+// Remark: for the first literal we cannot distinguish between not watching and
+// watching. Therefore, we resize the watch lists, because we are watching
+// anyway.
 void Internal::enlarge (int new_max_var) {
   // New variables can be created that can invoke enlarge anytime (via calls
   // during ipasir-up call-backs), thus assuming (!level) is not correct
@@ -126,8 +132,12 @@ void Internal::enlarge (int new_max_var) {
   // Ordered in the size of allocated memory (larger block first).
   if (lrat || frat)
     enlarge_zero (unit_clauses_idx, 2 * new_vsize);
-  if (watching())
-    enlarge_only (wtab, 2 * new_vsize);
+  if (!vsize || watching())
+    enlarge_init (wtab, 2 * new_vsize, {});
+  if (!otab.empty ())
+    enlarge_init (otab, 2 * new_vsize, Occs ());
+  if (!ntab.empty ())
+    enlarge_zero (ntab, 2 * new_vsize);
   enlarge_only (vtab, new_vsize);
   enlarge_zero (parents, new_vsize);
   enlarge_only (links, new_vsize);
@@ -179,6 +189,15 @@ void Internal::init_and_declare_vars (int new_max_var) {
   LOG ("finished initializing %d internal variables", initialized);
 }
 
+// This function enlarges enough to do backtracking (without updating the phases
+// only!) and (if needed) watched and occurrence table, but it does not enlarge
+// everything. This is done later when importing all variables. It does enlarge
+// watch lists (only if you watching) and occurrence lists (only if you are
+// having occs).
+//
+// Remark: for the first literal we cannot distinguish between not watching and
+// watching. Therefore, we resize the watch lists, because we are watching
+// anyway.
 void Internal::reserve_vars (int new_min_vsize) {
   if ((size_t)new_min_vsize < vsize)
     return;
@@ -194,15 +213,19 @@ void Internal::reserve_vars (int new_min_vsize) {
   enlarge_zero (marks, new_vsize);
   enlarge_vals (new_vsize);
   enlarge_only (vtab, new_vsize);
-  // try to accomodate backtrack during external addition
-  // but this is not going to be enough
   enlarge_only (phases.saved, new_vsize);
   enlarge_zero (stab, new_vsize);
   enlarge_zero (btab, new_vsize);
   if (external)
     enlarge_zero (relevanttab, new_vsize);
-  if (!vsize || watching ())
+  if (!vsize || watching ()) {
+    LOG ("enlarging wtab");
     enlarge_only (wtab, 2 * new_vsize);
+  }
+  if (!otab.empty ())
+    enlarge_init (otab, 2 * new_vsize, Occs ());
+  if (!ntab.empty ())
+    enlarge_zero (ntab, 2 * new_vsize);
   LOG ("reserving %d new internal variables, reserved so far: %d", new_vars, max_var);
   vsize = new_vsize;
 }

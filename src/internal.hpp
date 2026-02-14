@@ -1365,6 +1365,9 @@ struct Internal {
   void schedule_factorization (Factoring &);
   bool run_factorization (int64_t limit);
   bool factor ();
+  // returns a new fresh variable, enlarges all data structures required for
+  // importing clauses, but not all. Does not add that literal to the decision
+  // queue! You need to activate all new literals later.
   int get_new_extension_variable ();
   Clause *new_factor_clause (int);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
