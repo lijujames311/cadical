@@ -853,7 +853,8 @@ void Walker_DDFW::transfer_weights () {
         coeff_a = 0;
         coeff_c = weight_larger ? c_big : c_small;
         break;
-      case 4:// tassat
+      default:// tassat
+        assert (internal->opts.walkddfwstrat == 4);
         if (robbed.weight == w_0) {
        	  coeff_a = 1; // initpct in the TaSSaT paper
        	  coeff_c = 0; // simplified to 0 in the TaSSAT paper
@@ -862,8 +863,6 @@ void Walker_DDFW::transfer_weights () {
        	  coeff_c = 0.175 * w_0; // baspct in the TaSSaT paper
        	}
        	break;
-      default:
-        assert (false);
     }
     double weight_difference = robbed.weight * coeff_a + coeff_c;
     robber.weight += weight_difference;
@@ -957,7 +956,9 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   int weight_reducing_var = 0;
   double mini_weight_reduction = 0.0;
   int loop_iterations = 0;
-  no_gain_literals.clear ();
+  const bool sideways_opt = (internal->opts.walkddfwstrat < 4);
+  if (sideways_opt)
+    no_gain_literals.clear ();
   const auto begin = vars_in_broken.begin ();
   const auto end = vars_in_broken.end ();
   const auto mid = last_searched_vars_in_broken < vars_in_broken.size () ? vars_in_broken.begin () + last_searched_vars_in_broken : vars_in_broken.end ();
@@ -973,11 +974,9 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
       last_searched_vars_in_broken = std::distance (begin, it);
       assert (begin <= it);
     }
-#if 0
-    else if (flip_gain == 0) {
+    else if (sideways_opt && flip_gain == 0) {
       no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);
     }
-#endif
   }
   for (auto it = vars_in_broken.begin (); it != mid; ++it) {
     const int idx = *it;
@@ -991,11 +990,9 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
       last_searched_vars_in_broken = std::distance (begin, it);
       assert (begin <= it);
     }
-#if 0
-    else if (flip_gain == 0) {
+    else if (sideways_opt && flip_gain == 0) {
       no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);
     }
-#endif
   }
   ticks += internal->cache_lines (vars_in_broken.size (), sizeof (int)) + loop_iterations / 64;
   if (weight_reducing_var && internal->val (weight_reducing_var) > 0)
@@ -1218,7 +1215,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     int64_t flips = 0;
 #endif
     const double sideways_percent = 0.15;    // probability for sideways flips
-
+    const bool sideways_opt = (internal->opts.walkddfwstrat < 4);
     while (!terminated_asynchronously () && !walker.broken.empty () &&
            walker.ticks < walker.limit) {
 #ifndef QUIET
@@ -1253,14 +1250,14 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
         stats.walk.broken += broken;
         continue;
       }
-#if 0
       // otherwise, do a sideways flip with low probability
-      double perc = walker.random.generate_double ();
-      if (!walker.no_gain_literals.empty () && perc < sideways_percent) {
-        walker.do_sideways_jump ();
-        continue;
+      if (sideways_opt) {
+        double perc = walker.random.generate_double ();
+        if (!walker.no_gain_literals.empty () && perc < sideways_percent) {
+          walker.do_sideways_jump ();
+          continue;
+        }
       }
-#endif
       // transfer weights
       walker.transfer_weights ();
     }

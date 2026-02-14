@@ -281,7 +281,7 @@ OPTION( vivifytier2eff,    2,  1,100,1,0,1, "relative tier2 effort") \
 OPTION( vivifytier3,       1,  0,  1,0,0,1, "vivification tier3") \
 OPTION( vivifytier3eff,    1,  1,100,1,0,1, "relative tier3 effort") \
 OPTION( walk,              1,  0,  1,0,0,1, "enable random walks") \
-OPTION( walkddfwstrat,      0, 0,  3,1,0,1, "ddfw weight strategy") \
+OPTION( walkddfwstrat,      0, 0,  4,1,0,1, "ddfw weight strategy [0=yalin-itl,1=yalin=ite,2=yalin-ith,3=ddfw,4=tassat") \
 OPTION( walkeffort,       80,  1,1e5,1,0,1, "relative efficiency per mille") \
 OPTION( walkfullocc,       0,   0,  2,1,0,1, "0 = single watched, 1 = Kissat watched, 2 = ddfw") \
 OPTION( walkmaxeff,      1e7,  0,2e9,1,0,1, "maximum efficiency (in 1e3 ticks)") \
