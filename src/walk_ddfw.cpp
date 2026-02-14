@@ -721,7 +721,7 @@ void Walker_DDFW::walk_ddfw_flip_lit (int lit) {
 size_t Walker_DDFW::maximum_weight_neighbor (const DDFW_Counter& c) {
   LOG (c.always_clause, "searching for maximum weight neighbor of");
   size_t max_clause = invalid_position;
-  double max_weight = std::numeric_limits<double>::min ();
+  double max_weight = 0;
   if (c.binary) {
     for (auto lit : {c.binary_clause.lit, c.binary_clause.other}) {
       ticks +=
@@ -734,10 +734,12 @@ size_t Walker_DDFW::maximum_weight_neighbor (const DDFW_Counter& c) {
 #endif
         if (!neighbor.count)
           continue;
+#if 0
         if (neighbor.weight <= w_0)
           continue;
-        if (max_clause == invalid_position || neighbor.weight > max_weight)
-          max_clause = c.counter_pos;
+#endif
+        if (neighbor.weight >= max_weight)
+          max_clause = c.counter_pos, max_weight = neighbor.weight;
       }
     }
   }
@@ -754,10 +756,12 @@ size_t Walker_DDFW::maximum_weight_neighbor (const DDFW_Counter& c) {
 #endif
         if (!neighbor.count)
           continue;
+#if 0
         if (neighbor.weight <= w_0)
           continue;
-        if (max_clause == invalid_position || neighbor.weight > max_weight)
-          max_clause = c.counter_pos;
+#endif
+        if (neighbor.weight >= max_weight)
+          max_clause = c.counter_pos, max_weight = neighbor.weight;
       }
     }
   }
@@ -766,7 +770,6 @@ size_t Walker_DDFW::maximum_weight_neighbor (const DDFW_Counter& c) {
 
 size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
   size_t max_clause = invalid_position;
-  bool use_weight_condition = true;
   while (max_clause == invalid_position) {
     size_t pos = random.pick_int(0, weight_clause_info.size ()-1);
     assert (pos < weight_clause_info.size ());
@@ -774,7 +777,7 @@ size_t Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
     if (!c.count)
       continue;
     LOG ("searching at position %zd with weight %f < %f = %d", pos, c.weight, w_0, c.weight < w_0);
-    if (use_weight_condition && c.weight < w_0)
+    if (c.weight < w_0)
       continue;
     max_clause = pos;
   }
