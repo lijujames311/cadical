@@ -60,9 +60,10 @@ struct DDFW_Counter {
   double weight;
   unsigned critical; // critical literal if any
   bool binary : 1;
-  unsigned count : 31; // number of true literals
+  uint32_t count : 31; // number of true literals
   size_t pos;   // pos in the broken clauses
 #if defined (LOGGING) || !defined (NDEBUG)
+  //only useful for debugging or logging to check that the binary clause is correct.
   Clause *always_clause;
 #endif
   inline void initialize_binary (Clause *d) {
@@ -813,12 +814,12 @@ void Walker_DDFW::transfer_weights () {
   for (auto c : broken) {
     assert (c.counter_pos < weight_clause_info.size ());
     DDFW_Counter &robber = clause_info (c.counter_pos);
-  #if defined (LOGGING)
+#if defined (LOGGING)
     assert (robber.always_clause);
     LOG (robber.always_clause, "transfering weight to");
-  #endif
+#endif
     size_t robbed_pos = maximum_weight_neighbor (robber);
-    double p = random.generate_double();
+    const double p = random.generate_double();
     // TODO: the code does not have this condition on weights
     if (robbed_pos == invalid_position || /*clause_info (robbed_pos).weight < w_0 ||*/ p < cspt)
       robbed_pos = random_satisfied_big_weight_clause (w_0);
@@ -848,11 +849,11 @@ void Walker_DDFW::transfer_weights () {
         coeff_a = 0.075;
         coeff_c = 1.75;
         break;
-      case 2: //lw-ith
+      case 2: //lw-ith, called linear_wt2 in tassat (yals->opts.wtrule.val == 3)
         coeff_a = weight_larger ? 0.05 : 0.10;
         coeff_c = weight_larger ? c_small : c_big;
         break;
-      case 3: // original ddfw
+      case 3: // original ddfw, not in tassat anymore
         coeff_a = 0;
         coeff_c = weight_larger ? c_big : c_small;
         break;
@@ -863,7 +864,7 @@ void Walker_DDFW::transfer_weights () {
        	  coeff_c = 0; // simplified to 0 in the TaSSAT paper
        	} else {
        	  coeff_a = 0.075; // currpct in the TaSSaT paper
-       	  coeff_c = 0.175 * w_0; // baspct in the TaSSaT paper
+       	  coeff_c = 0.175; // baspct in the TaSSaT paper
        	}
        	break;
     }
