@@ -936,10 +936,13 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 // through all literals anyway. However, this is an attempt to flip in a more
 // fair way (first literals with the same probability as the last literals), as
 // we pick the first reached minimum.
+//
+// Also the only store the literals for sideways jumps (yal-lin and ddfw only),
+// only when the option is activated.
 std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   START (walkwrv);
   int weight_reducing_var = 0;
-  double mini_weight_reduction = 0.0;
+  double best_new_satisfied = 0.0;
   int loop_iterations = 0;
   const bool sideways_opt = (internal->opts.walkddfwstrat < 4);
   if (sideways_opt)
@@ -950,10 +953,13 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   for (auto it = mid; it != end; ++it) {
     const int idx = *it;
     const int lit = internal->val (idx) ? -idx : idx;
-    double flip_gain = critical_sat_weight (lit) - critical_unsat_weight (lit);
+    // number of new satisfied clauses: the old unsat now sat - the new unsat
+    // ones (formerly critical sat)
+    double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
     LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
-    if (flip_gain < mini_weight_reduction) {
-      mini_weight_reduction = flip_gain;
+    // the condition `flip_gain > 0 ` is only in Tassat, not in Yallin.
+    if (flip_gain > 0 && flip_gain > best_new_satisfied) {
+      best_new_satisfied = flip_gain;
       weight_reducing_var = idx;
       ++loop_iterations;
       last_searched_vars_in_broken = std::distance (begin, it);
@@ -966,10 +972,10 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   for (auto it = vars_in_broken.begin (); it != mid; ++it) {
     const int idx = *it;
     const int lit = internal->val (idx) ? -idx : idx;
-    double flip_gain = critical_sat_weight (lit) - critical_unsat_weight (lit);
+    double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
     LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
-    if (flip_gain < mini_weight_reduction) {
-      mini_weight_reduction = flip_gain;
+    if (flip_gain > 0 && flip_gain > best_new_satisfied) {
+      best_new_satisfied = flip_gain;
       weight_reducing_var = idx;
       ++loop_iterations;
       last_searched_vars_in_broken = std::distance (begin, it);
@@ -985,7 +991,7 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
 
   LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), mini_weight_reduction);
   STOP (walkwrv);
-  return make_pair (weight_reducing_var, mini_weight_reduction);
+  return make_pair (weight_reducing_var, best_new_satisfied);
 }
 /*------------------------------------------------------------------------*/
 
