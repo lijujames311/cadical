@@ -1247,7 +1247,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       int weight_reducing_lit = result.first;
       double weight_reduction = result.second;
 
-      if (weight_reducing_lit && weight_reduction < 0.0) {
+      if (weight_reducing_lit && weight_reduction > 0.0) {
         ++stats.walk.weight_reducing_var;
         LOG ("flipping one literal");
         walker.walk_ddfw_flip_lit (weight_reducing_lit);
