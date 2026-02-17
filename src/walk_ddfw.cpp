@@ -239,7 +239,7 @@ struct Walker_DDFW {
       vars_in_broken.push_back(idx);
     }
     ++uvar_count (lit);
-    LOG ("marking %s as uvar, found %zd times", LOGLIT (lit), uvar_count (lit));
+    LOG ("marking %s as uvar, found %d times", LOGLIT (lit), uvar_count (lit));
   }
 
   void remove_uvar (int lit) {
@@ -256,7 +256,7 @@ struct Walker_DDFW {
       position_vars_in_broken[old_idx] = pos;
     }
     --uvar_count (lit);
-    LOG ("unmarking %s as uvar once, remaining %zd times", LOGLIT (lit), uvar_count (lit));
+    LOG ("unmarking %s as uvar once, remaining %d times", LOGLIT (lit), uvar_count (lit));
   }
 
   // Finds the variable that only reduces the most number of unsatisfied
@@ -292,7 +292,7 @@ struct Walker_DDFW {
     unsigned unsatisfied = 0;
     for (auto c : weight_clause_info) {
       unsigned count = 0;
-      LOG (c.always_clause, "checking clause with counter %d at position %zd and weight %f:", c.count, c.pos, c.weight);
+      LOG (c.always_clause, "checking clause with counter %d at position %d and weight %f:", c.count, c.pos, c.weight);
       unsigned xor_lit = 0;
       bool satisfied = 0;
       for (auto lit : *c.always_clause) {
@@ -534,7 +534,7 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
   auto old_count = d.count++;
   if (old_count) {
     LOG (d.always_clause,
-         "already made with counter %d at position %zd",
+         "already made with counter %d at position %d",
          d.count, d.pos);
     assert (d.always_clause == t.c);
     assert (d.pos == invalid_position);
@@ -544,7 +544,7 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
     return;
   }
   LOG (d.always_clause,
-       "make with counter %d at position %zd", d.count,
+       "make with counter %d at position %d", d.count,
        d.pos);
   assert (d.pos != invalid_position);
   assert (d.pos < broken.size ());
@@ -1057,7 +1057,7 @@ bool Walker_DDFW::import_clauses (bool &failed) {
        return false;
      }
      DDFW_Counter cw = DDFW_Counter (satisfied, invalid_position, critical, c, Walker_DDFW::base_weight);
-     LOG ("found %zd clauses so far, it has %d satisfied literals", pos, satisfied);
+     LOG ("found %d clauses so far, it has %d satisfied literals", pos, satisfied);
      weight_clause_info.push_back (cw);
 #ifdef LOGGING
      assert (weight_clause_info.size () == pos + 1);
