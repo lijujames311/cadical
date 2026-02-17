@@ -19,6 +19,7 @@ Closure::Closure (Internal *i)
   dummy_search_gate = new Gate ();
   dummy_search_gate->lhs = 0;
   dummy_search_gate->garbage = false;
+  dummy_search_gate->indexed = false;
 }
 
 char &Closure::lazy_propagated (int lit) {
@@ -7064,6 +7065,9 @@ Gate *Closure::new_ite_gate (int lhs, int cond, int then_lit, int else_lit,
   g->tag = Gate_Type::ITE_Gate;
   g->rhs = {rhs};
   g->pos_lhs_ids = clauses;
+  g->indexed = false;
+  g->degenerated_gate = Special_Gate::NORMAL;
+  g->garbage = false;
 #ifdef LOGGING
   g->id = -1;
 #endif
