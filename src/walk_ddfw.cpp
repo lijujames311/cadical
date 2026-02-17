@@ -817,10 +817,16 @@ void Walker_DDFW::transfer_weights () {
     double coeff_c ;
     // this is the linear transfer function from the paper. The original ddfw
     // implementation had actually coeff_a == 0 and `coeff_c == robbed.weight >
-    // w_0 ? c_big : c_small` with the inverted small/big !
+    // w_0 ? c_big : c_small` with the inverted small/big!
     //
     // The idea of the condition `robbed.weight > w_0` is to initially transfer
     // more weights and later less.
+    //
+    // One important difference is that Tassat has a different base-weight, but
+    // the authors have decided not to scale the coefficients in the linear_wt2
+    // function and just use the old coefficients as 2 from a base weight of 8
+    // is the same as 2 from a base weight of 100. Therefore, we have decided to
+    // scale the weight accordingly.
     const bool weight_larger = (robbed.weight > base_weight);
     switch (internal->opts.walkddfwstrat) {
       case 0: // lw-itl
@@ -829,15 +835,15 @@ void Walker_DDFW::transfer_weights () {
         break;
       case 1: // lw-ite
         coeff_a = 0.075;
-        coeff_c = 1.75;
+        coeff_c = 1.75 * Walker_DDFW::base_weight / 8.0;
         break;
       case 2: //lw-ith, called linear_wt2 in tassat (yals->opts.wtrule.val == 3)
         coeff_a = weight_larger ? 0.05 : 0.10;
-        coeff_c = weight_larger ? c_small : c_big;
+        coeff_c = (weight_larger ? c_small : c_big) * Walker_DDFW::base_weight / 8.0;
         break;
       case 3: // original ddfw, not in tassat anymore
         coeff_a = 0;
-        coeff_c = weight_larger ? c_big : c_small;
+        coeff_c = (weight_larger ? c_big : c_small) * Walker_DDFW::base_weight / 8.0;
         break;
       default:// tassat
         assert (internal->opts.walkddfwstrat == 4);
