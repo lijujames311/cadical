@@ -410,6 +410,7 @@ Walker_DDFW::Walker_DDFW (Internal *i, int64_t l)
   best_values.resize (i->max_var + 1, 0);
   woccs.resize (i->max_var * 2 + 2);
   weight_clause_info.reserve (1+internal->irredundant());
+  last_searched_vars_in_broken = 0;
 }
 
 // Add the literal to flip to the queue
@@ -991,7 +992,7 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   if (weight_reducing_var && internal->val (weight_reducing_var) > 0)
     weight_reducing_var = -weight_reducing_var;
 
-  LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), mini_weight_reduction);
+  LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), best_new_satisfied);
   STOP (walkwrv);
   return make_pair (weight_reducing_var, best_new_satisfied);
 }
