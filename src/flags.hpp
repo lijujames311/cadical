@@ -37,7 +37,9 @@ struct Flags { // Variable flags.
   unsigned char assumed : 2;
   unsigned char failed : 2; // 0 if not part of failure
                             // 1 if positive lit is in failure
-  // 2 if negated lit is in failure
+                            // 2 if negated lit is in failure
+
+  bool activator : 1; // used as an activator literal (*)
 
   enum {
     UNUSED = 0,
@@ -55,7 +57,7 @@ struct Flags { // Variable flags.
   //
   Flags () {
     seen = keep = poison = removable = shrinkable = added = sweep =
-        backbone1 = backbone0 = false;
+        backbone1 = backbone0 = activator = false;
     subsume = elim = ternary = true;
     block = 3u;
     skip = assumed = failed = marked_signed = factor = 0;
@@ -84,6 +86,7 @@ struct Flags { // Variable flags.
     dst.backbone1 = backbone1;
     dst.added = added;
     dst.factor = factor;
+    dst.activator = activator;
     // seen, keep, poison, removable, shrinkable are unused
   }
 };
