@@ -621,4 +621,53 @@ void Internal::push () {
 void Internal::pop () {
   ctx_stack.resize(ctx_stack.size()-1);
 }
+
+bool Internal::init_ctx_top () {
+  bool new_ctx_level_started = false;
+  assert (ctx_stack.size());
+  
+  int activator_elit = ctx_stack.back().act_elit;
+  int activator_ilit = 0;
+  if (!activator_elit) {
+    // Declare a new extension variable
+    new_ctx_level_started = true;
+    activator_ilit = get_new_extension_variable ();
+    activator_elit =  i2e[activator_ilit]; // it is a fresh var, so i2e works
+    freeze (activator_ilit);
+    assert (activator_elit);
+    LOG ("new activator variable is created: i%d (e%d)",activator_ilit, activator_elit);
+    
+    ctx_stack.back().act_elit = activator_elit;
+    ctx_stack.back().activator = activator_ilit;
+  }
+
+  return new_ctx_level_started;
+}
+
+void Internal::add_activator_assumptions () {
+  if (!ctx_stack.size())
+    return;
+  
+  // The assumptions are added through external, so the proofs and checkers
+  // also see them without any workaround, but it call internalize on the way
+  if (internal->opts.ppassumptions == 1) {
+    // Add the current activator literal as an assumption
+    int activator_trigger_elit = 0;
+    for (auto rit = internal->ctx_stack.rbegin(); rit < internal->ctx_stack.rend(); ++rit ) {
+      if ((*rit).activator) {
+        activator_trigger_elit = (*rit).act_elit;
+        break;
+      }
+    }
+    if (activator_trigger_elit) external->assume(activator_trigger_elit);
+  } else {
+    // Add all activator literals as an assumptions
+    assert (internal->opts.ppassumptions == 2);
+    for (const auto cl : internal->ctx_stack) {
+      const int activator_elit = cl.act_elit;
+      if (activator_elit) external->assume(activator_elit);
+    }
+  } 
+}
+
 } // namespace CaDiCaL
