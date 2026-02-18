@@ -29,15 +29,14 @@ struct Level {
 };
 
 struct CtxLevel {
-
+  int act_elit = 0; // external activator variable
   int activator = 0; // Activating assumption literal of that level (ilit!)
-  bool defined_imp = false; // Indicates that a_i+1 -> a_i clause was added
   
-  CtxLevel (int alit) : activator(alit) {};
+  CtxLevel (int elit) : act_elit(elit) {};
   CtxLevel () {};
 
   bool is_empty_level () const {
-    return activator == 0;
+    return act_elit == 0;
   }
 };
 
