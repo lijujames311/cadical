@@ -443,6 +443,37 @@ void Internal::compact () {
            external->constraint.size () - 1);
   }
 
+
+  if (!ctx_stack.empty()) {
+    assert (!level);
+    int active_level_count = 0;
+    for (auto it = internal->ctx_stack.begin(); it < internal->ctx_stack.end(); ++it ) {
+      const int elit = (*it).act_elit;
+#ifndef NDEBUG
+      int old_ilit = (*it).activator;
+#endif
+      if (!elit) {
+        continue;
+      }
+      active_level_count++;
+      int eidx = abs (elit);
+      assert (eidx <= external->max_var);
+      int ilit = external->e2i[eidx];
+      assert(ilit);
+      if (elit < 0)
+        ilit = -ilit;
+      LOG ("re adding lit external %d internal %d to context level", elit,ilit);
+#ifndef NDEBUG
+      LOG ("tadjusting activator external lit %d to internal %d from internal %d in context stack", elit,
+          ilit,old_ilit);
+#endif
+      (*it).activator = ilit;
+    }
+    PHASE ("compact", stats.compacts,
+           "added %d external literals to context levels",
+           active_level_count);
+  }
+
   mapper.map_vector (i2e);
   mapper.map2_vector (ptab);
   mapper.map_vector (btab);
