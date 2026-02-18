@@ -785,6 +785,7 @@ int Solver::propagate () {
   TRACE ("propagate_assumptions");
   REQUIRE_VALID_STATE ();
   transition_to_steady_state ();
+  internal->add_activator_assumptions (); //TODO: filter out activator variables from 'entrailed'
   const int res = external->propagate_assumptions ();
   if (tracing_nb_lidrup_env_var_method)
     flush_proof_trace (true);
@@ -817,28 +818,7 @@ int Solver::call_external_solve_and_check_results (bool preprocess_only) {
   transition_to_steady_state ();
   assert (state () & READY);
   
-
-  // Add the current activator literal as an assumption
-  if (internal->ctx_stack.size()) {
-    // The assumptions are added through external, so the proofs and checkers
-    // also see them without any workaround
-    if (internal->opts.ppassumptions == 1) {
-      int activator_trigger_elit = 0;
-      for (auto rit = internal->ctx_stack.rbegin(); rit < internal->ctx_stack.rend(); ++rit ) {
-        if ((*rit).activator) {
-          activator_trigger_elit = internal->i2e[(*rit).activator];
-          break;
-        }
-      }
-      if (activator_trigger_elit) external->assume(activator_trigger_elit);
-    } else {
-      assert (internal->opts.ppassumptions == 2);
-      for (const auto cl : internal->ctx_stack) {
-        int activator_elit = internal->i2e[cl.activator];
-        if (activator_elit) external->assume(activator_elit);
-      }
-    } 
-  }
+  internal->add_activator_assumptions ();
 
   STATE (SOLVING);
   const int res = external->solve (preprocess_only);
