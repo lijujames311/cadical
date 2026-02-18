@@ -126,8 +126,12 @@ void Internal::enlarge (int new_max_var) {
   // Ordered in the size of allocated memory (larger block first).
   if (lrat || frat)
     enlarge_zero (unit_clauses_idx, 2 * new_vsize);
-  if (watching())
-    enlarge_only (wtab, 2 * new_vsize);
+  if (!vsize || watching())
+    enlarge_init (wtab, 2 * new_vsize, {});
+  if (!otab.empty ())
+    enlarge_init (otab, 2 * new_vsize, Occs ());
+  if (!ntab.empty ())
+    enlarge_zero (ntab, 2 * new_vsize);
   enlarge_only (vtab, new_vsize);
   enlarge_zero (parents, new_vsize);
   enlarge_only (links, new_vsize);
@@ -194,15 +198,19 @@ void Internal::reserve_vars (int new_min_vsize) {
   enlarge_zero (marks, new_vsize);
   enlarge_vals (new_vsize);
   enlarge_only (vtab, new_vsize);
-  // try to accomodate backtrack during external addition
-  // but this is not going to be enough
   enlarge_only (phases.saved, new_vsize);
   enlarge_zero (stab, new_vsize);
   enlarge_zero (btab, new_vsize);
   if (external)
     enlarge_zero (relevanttab, new_vsize);
-  if (!vsize || watching ())
+  if (!vsize || watching ()) {
+    LOG ("enlarging wtab");
     enlarge_only (wtab, 2 * new_vsize);
+  }
+  if (!otab.empty ())
+    enlarge_init (otab, 2 * new_vsize, Occs ());
+  if (!ntab.empty ())
+    enlarge_zero (ntab, 2 * new_vsize);
   LOG ("reserving %d new internal variables, reserved so far: %d", new_vars, max_var);
   vsize = new_vsize;
 }
@@ -214,48 +222,48 @@ void Internal::add_original_lit (int lit) {
     original.push_back (lit);
   } else {
     bool new_ctx_level_started = false;
+    bool do_checking = (internal->opts.check &&
+        (internal->opts.checkwitness || internal->opts.checkfailed));
     if (ctx_stack.size() > 0) {
+      new_ctx_level_started = init_ctx_top ();
+      int activator_elit = ctx_stack.back().act_elit;
       int activator_ilit = ctx_stack.back().activator;
-      if (!activator_ilit) {
-        // Declare an internal variable that has no external representation
-        new_ctx_level_started = true;
-        activator_ilit = get_new_extension_variable (false);
-        LOG ("new activator variable is created: %d",activator_ilit);
-        ctx_stack.back().activator = activator_ilit;
-      } 
+      LOG ("current context has activator e%d (i%d)",activator_elit,activator_ilit);
+      assert (activator_elit && activator_ilit);
 
       original.push_back (-activator_ilit);
-      // external->eclause is used in proof and checker, so we need to add
-      // explicitly the activator to it as well.
-      external->eclause.push_back(-i2e[activator_ilit]);
+      external->eclause.push_back(-activator_elit);
 
-      if (internal->opts.check &&
-        (internal->opts.checkwitness || internal->opts.checkfailed)) {
+      if (do_checking) {
         // clauses in external->original is used during final checking.
         // The original lit was 0, so we overwrite it with the activator lit 
         // and then add a new closing 0.
         assert (external->original.size() && !external->original.back());
-        external->original.back() = -i2e[activator_ilit];
+        external->original.back() = -activator_elit;
         external->original.push_back(0);
       }
+
+      LOG(original,"add new extended clause to context level");
     }
     const int64_t id =
         original_id < reserved_ids ? ++original_id : ++clause_id;
+
     if (proof) {
-      // Use the external form of the clause for printing in proof
-      // Externalize(internalized literal) != external literal
       assert (!original.size () || !external->eclause.empty ());
+      // if (lrat) {
+      //   for (const auto &elit : external->eclause) {
+      //     external->ext_flags[abs (elit)] = true;
+      //   }
+      // }
       proof->add_external_original_clause (id, false, external->eclause);
     }
-    if (internal->opts.check &&
-        (internal->opts.checkwitness || internal->opts.checkfailed)) {
+    if (do_checking) {
       bool forgettable = from_propagator && ext_clause_forgettable;
       if (forgettable && opts.check) {
         assert (!original.size () || !external->eclause.empty ());
 
         // First integer is the presence-flag (even if the clause is empty)
         external->forgettable_original[id] = {1};
-
         for (auto const &elit : external->eclause)
           external->forgettable_original[id].push_back (elit);
 
@@ -266,45 +274,57 @@ void Internal::add_original_lit (int lit) {
 
     add_new_original_clause (id);
     original.clear ();
+    external->eclause.clear();
 
-    if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1) {
+    if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1 && !unsat) {
       // Define the relation between the new activator and the previous one (if
       // there is a previous one)
-
-      // TODO how to handle these clauses in proofs and checkers?
-
       assert (ctx_stack.size() && ctx_stack.back().activator);
       assert (original.empty());
       assert (external->eclause.empty());
-     
+      external->eclause.clear();
+
+      // Find the previous active context level
       for (auto rit = std::next(ctx_stack.rbegin()); rit < ctx_stack.rend(); ++rit ) {
-        if ((*rit).activator) {
-          original.push_back((*rit).activator);
+        if (!(*rit).is_empty_level()) {
+          int elit = (*rit).act_elit;
+          original.push_back(external->internalize(elit)); //reactivates elit
+          if (proof || do_checking) {
+            external->eclause.push_back(elit);
+            if (lrat) external->ext_flags[abs (elit)] = true;
+          }
           break;
         }
       }
       if (original.size()) {
         // There is a previous active context level, so we need to add a
         // connecting clause
-        original.push_back(-ctx_stack.back().activator);
+        assert(original.size() == 1);
+        
+        original.push_back(-external->internalize(ctx_stack.back().act_elit));
+        if (proof || do_checking) {
+          external->eclause.push_back(-ctx_stack.back().act_elit);
+          if (lrat) external->ext_flags[abs (ctx_stack.back().act_elit)] = true;
+        }
+
+        LOG ("new activator trigger clause is constructed: %d %d",original[0],original[1]);
         const int64_t act_rel_clause_id =
           original_id < reserved_ids ? ++original_id : ++clause_id;
         
-        if (internal->opts.check &&
-          (internal->opts.checkwitness || internal->opts.checkfailed)) {
-          assert (original.size() == 2);
-          for (const auto lit: original) {
-            external->original.push_back(i2e[lit]);
-            if (proof) external->eclause.push_back(i2e[lit]);
-          }
+        if (do_checking) {
+          assert (external->eclause.size() == 2);
+          for (const auto lit: external->eclause) 
+            external->original.push_back(lit);
+          
           external->original.push_back(0);
         }
-        if (proof) {
-          assert (!original.size () || !external->eclause.empty ());
+        if (proof) {          
+          assert (!external->eclause.empty ());
           proof->add_external_original_clause (act_rel_clause_id, false, external->eclause);
         }
         add_new_original_clause (act_rel_clause_id);
         original.clear();
+        external->eclause.clear();
       }
     }
   }

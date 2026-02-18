@@ -871,6 +871,8 @@ struct Internal {
 
   void push ();
   void pop ();
+  bool init_ctx_top ();
+  void add_activator_assumptions ();
 
   void recompute_tier ();
   void decay_clauses_upon_incremental_clauses ();
@@ -1368,7 +1370,7 @@ struct Internal {
   void schedule_factorization (Factoring &);
   bool run_factorization (int64_t limit);
   bool factor ();
-  int get_new_extension_variable (bool must_reset_watches = true);
+  int get_new_extension_variable ();
   Clause *new_factor_clause (int);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
 
