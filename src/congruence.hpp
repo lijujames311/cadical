@@ -731,22 +731,22 @@ struct Closure {
   // overwritten by one of the arguments
   //
   // This does not produce a new clause and only extends the chain. It also
-  // checks that no reason for rewriting is added twice.g
+  // checks that no reason for rewriting is added twice.
   void produce_lrat_chain_for_rewriting (Clause *c, Rewrite rewrite1,
                                         std::vector<LRAT_ID> &chain,
                                         bool = true,
                                         Rewrite rewrite2 = Rewrite (),
                                         int execept_lhs = 0,
                                         int except_lhs2 = 0);
-  // TODO: does nothing except pushing on the stack, remove!
+  // push the id of c to the lrat chain.
   void push_id_on_chain (std::vector<LRAT_ID> &chain, Clause *c);
-  // TODO: does nothing except pushing on the stack, remove!
+  // push the ids of c to the lrat chain in order.
   void push_id_on_chain (std::vector<LRAT_ID> &chain,
                          const std::vector<LitClausePair> &c);
   void push_id_on_chain (std::vector<LRAT_ID> &chain,
                          const my_dummy_optional &c);
-  // TODO: does nothing except pushing on the stack, remove!
-  void push_id_on_chain (std::vector<LRAT_ID> &chain, Rewrite rewrite, int);
+  // Push the id required to rewrite lit to chain according to the rewrite.
+  void push_id_on_chain (std::vector<LRAT_ID> &chain, Rewrite rewrite, int lit);
 
   // produces the LRAT for merging two AND-gates, including all the special
   // cases.
@@ -762,10 +762,13 @@ struct Closure {
   Gate_Occurrence &goccs (int lit);
   void connect_goccs (Gate *g, int lit);
   vector<Gate *> garbage;
+  // mark the gate garbage and add it to the list of garbage clauses
   void mark_garbage (Gate *);
-  // remove the gate from the table
+  // remove the gate from the hash table
   bool remove_gate (Gate *);
+  // remove the gate given by the iterator from the hash table
   bool remove_gate (GatesTable::iterator git);
+  // adds the gate from the hash table
   void index_gate (Gate *);
 
   // second counter for size, complements noccs

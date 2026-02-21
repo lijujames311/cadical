@@ -1164,6 +1164,7 @@ void Closure::push_id_on_chain (std::vector<LRAT_ID> &chain,
                                 Rewrite rewrite, int lit) {
   LOG ("adding reason %" PRId64 " for rewriting %d marked",
        lit == rewrite.src ? rewrite.id1 : rewrite.id2, lit);
+  assert (internal->vidx (lit) == internal->vidx (rewrite.src));
   chain.push_back (lit == rewrite.src ? rewrite.id1 : rewrite.id2);
 }
 
