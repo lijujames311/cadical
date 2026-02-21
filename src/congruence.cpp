@@ -536,20 +536,6 @@ int Closure::eager_representative (int lit) const {
   return eager_representant[internal->vlit (lit)];
 }
 
-int Closure::find_lrat_representative_with_marks (int lit) {
-  int res = lit;
-  int nxt = lit;
-  do {
-    res = nxt;
-    nxt = representative (nxt);
-    if (nxt != res) {
-      LOG ("%d has reason %" PRIu64, res, representative_id (res));
-      lrat_chain.push_back (representative_id (res));
-    }
-  } while (nxt != res || marked (nxt) || marked (-nxt));
-
-  return nxt;
-}
 int Closure::find_representative (int lit) {
   int res = lit;
   int nxt = lit;
@@ -6362,7 +6348,6 @@ void Closure::simplify_ite_gate_produce_unit_lrat (Gate *g, int lit,
   lrat_chain.push_back (d->id);
 }
 
-// odd copy of rewrite_ite_gate_lrat_and
 bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
                                         int removed_lit) {
   assert (internal->lrat_chain.empty ());
@@ -6546,7 +6531,7 @@ bool Closure::simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
   return false;
 }
 
-void Closure::produce_lrat_for_ite_merge_same_te_lrat (
+void Closure::produce_lrat_for_ite_merge_same_then_else_lrat (
     std::vector<LitClausePair> &clauses,
     std::vector<LRAT_ID> &reasons_implication,
     std::vector<LRAT_ID> &reasons_back) {
@@ -7113,7 +7098,7 @@ Gate *Closure::new_ite_gate (int lhs, int cond, int then_lit, int else_lit,
          (then_lit), (else_lit));
     std::vector<LRAT_ID> reasons_implication, reasons_back;
     if (internal->lrat) {
-      produce_lrat_for_ite_merge_same_te_lrat (clauses, reasons_implication,
+      produce_lrat_for_ite_merge_same_then_else_lrat (clauses, reasons_implication,
                                           reasons_back);
     }
     if (merge_literals (lhs, then_lit, reasons_implication, reasons_back))

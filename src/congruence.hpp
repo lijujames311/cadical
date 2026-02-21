@@ -213,11 +213,13 @@ struct lit_equivalence {
   lit_equivalence ()
       : first (0), second (0), first_clause (nullptr),
         second_clause (nullptr) {}
+  // swaps the first and the second literal (and their corresponding id)
   lit_equivalence swap () {
     std::swap (first, second);
     std::swap (first_clause, second_clause);
     return *this;
   }
+  // negate both literals
   lit_equivalence negate_both () {
     first = -first;
     second = -second;
@@ -612,13 +614,17 @@ struct Closure {
   size_t units; // next trail position to propagate
   char &lazy_propagated (int lit);
 
-  int find_lrat_representative_with_marks (int lit);
   // representative in the union-find structure in the lazy equivalences
   int find_representative (int lit);
   // representative in the union-find structure in the lazy equivalences.
   // only useful if you do not care about proofs like during forward
   // subsumption.
   int find_representative_and_compress_no_proofs (int lit);
+  // returns the representant assumping that path compression has already been
+  // implied.
+  //
+  // This is mostly useful at the end in the forward subsumption, where no new
+  // rewriting is happening.
   int find_representative_already_compressed (int lit);
   // find the representative and produce the binary clause representing the
   // normalization from the literal to the result.
@@ -701,12 +707,14 @@ struct Closure {
 
   // proof production
   vector<LitClausePair> lrat_chain_and_gate;
+  // pushed the id of the reason of literal lit to the lrat chain
   void push_lrat_unit (int lit);
 
-  // pushes the clause with the reasons to rewrite clause
-  // unless:
-  //   - the rewriting is not necessary (resolvent_marked == 1)
-  //   - it is overwritten by one of the arguments
+  // This functions produces the LRAT reasoning to normalize the clause.
+  //
+  // It pushes the clause with the reasons to rewrite clause unless: -
+  // the rewriting is not necessary (resolvent_marked == 1) - it is
+  // overwritten by one of the arguments
   //
   // This does not produce a new clause and only extends the chain. It also
   // checks that no reason for rewriting is added twice.g
@@ -725,6 +733,9 @@ struct Closure {
                          const my_dummy_optional &c);
   // TODO: does nothing except pushing on the stack, remove!
   void push_id_on_chain (std::vector<LRAT_ID> &chain, Rewrite rewrite, int);
+
+  // produces the LRAT for merging two AND-gates, including all the special
+  // cases.
   void produce_lrat_for_and_merge (
       Gate *g, Gate *h, std::vector<LRAT_ID> &extra_reasons_lit,
       std::vector<LRAT_ID> &extra_reasons_ulit, bool remove_units = true);
@@ -1076,18 +1087,38 @@ struct Closure {
 
   // Produce unit c out of ITE gate c := c ? !e : e.
   void produce_ite_merge_rhs_cond (Gate *g, int, int);
+  // Updates the reason clauses after rewriting in an ITE gate, assuming that it
+  // is not a special case and remains an ITE gate.
   void rewrite_ite_gate_update_lrat_reasons (Gate *g, int src, int dst);
+  // Generates the LRAT proof for deriving a unit clause when an ITE's `then`
+  // and `else` branches are both true (simplifying `lhs = (cond ? true : true)`
+  // to `lhs`) or both false (simplifying `lhs = (cond ? false : false)` to
+  // `~lhs`).
   void simplify_ite_gate_produce_unit_lrat (Gate *g, int lit, size_t idx1,
                                             size_t idx2);
 
-  // first index is a binary clause after unit propagation and the second
+  // Transforms an ITE (If-Then-Else) gate into an AND gate when unit
+  // propagation assigns values to the condition or then/else branches if
+  // possible. Returns `true` if the gate degenerates to a learned unit clause,
+  // `false` for successful AND gate transformation.
+  //
+  // The first index is a binary clause after unit propagation and the second
   // has length 3
   bool simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
                                  int removed);
-  void produce_lrat_for_ite_merge_same_te_lrat (
+  // Generates the LRAT proof chain for merging ITE gates where the `then` and
+  // `else` branches are identical (i.e., trivial case `lhs = (cond ? x : x)`
+  // simplifying to `lhs = x`). This function assumes that no rewriting is
+  // possible!
+  void produce_lrat_for_ite_merge_same_then_else_lrat (
       std::vector<LitClausePair> &clauses,
       std::vector<LRAT_ID> &reasons_implication,
       std::vector<LRAT_ID> &reasons_back);
+  // Produces the LRAT proof for simplifying ITE gates when both `then` and
+  // `else` branches have assigned values (one true, one false), reducing the
+  // ITE to a direct equivalence `lhs = cond` or `lhs = ~cond`. It generates
+  // proof chains for the two relevant clauses indexed by idx1 and idx2 in the
+  // clauses.
   void simplify_ite_gate_then_else_set (
       Gate *g, std::vector<LRAT_ID> &reasons_implication,
       std::vector<LRAT_ID> &reasons_back, size_t idx1, size_t idx2);
@@ -1097,7 +1128,7 @@ struct Closure {
   void simplify_ite_gate_condition_set (
       Gate *g, std::vector<LRAT_ID> &reasons_lrat,
       std::vector<LRAT_ID> &reasons_back_lrat, size_t idx1, size_t idx2);
-  // sort the literals in ITE gates
+  // normalize the sign and order of the literals in ITE gates
   bool normalize_ite_lits_gate (Gate *rhs);
 };
 
