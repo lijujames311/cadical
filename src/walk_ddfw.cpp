@@ -145,6 +145,11 @@ struct Walker_DDFW {
   size_t minimum = (size_t)-1;
   std::vector<signed char> best_values; // best model found so far
 
+#ifndef NDEBUG
+  // counts the number of transfered weight in order to estimate how much the
+  // imprecision accumulated
+  double tranferred_weights = 0;
+#endif
 
   // variables appearing in a broken clause, called uvars in the paper
   std::vector<int> vars_in_broken;
@@ -327,7 +332,12 @@ struct Walker_DDFW {
       // value 0.001. This way more than sufficient to find bugs on usual
       // mobical runs. However sometimes, we reached rounding errors. Therefore,
       // we decided to increase the bound with the number of weight transfer.
-      const double bound = 0.001 * log(internal->stats.walk.weight_transfer + 10);
+      // Even this was not sufficient, so we count the number of weight
+      // transfers instead of the number of transfer rounds. We tried an
+      // logarithm of the number of weight, but still hit the same issues. This
+      // version of the assert should still be good enough to find calculations
+      // errors.
+      const double bound = 0.00001 * (tranferred_weights + 1);
       assert (std::abs (unsat_weights[internal->vidx (v)] - critical_unsat_weight(v)) < bound);
       assert (std::abs (sat_weights[internal->vidx (v)] - critical_sat_weight(v)) < bound);
     }
@@ -794,6 +804,10 @@ void Walker_DDFW::transfer_weights () {
   const double cspt = internal->opts.walkddfwstrat != 3 ? 0.1 : 0.01;   // probability to choose random satisfied clause
   const double c_big = 2.0;   // big weight increase factor
   const double c_small = 1.0; // small weight increase factor
+
+#ifndef NDEBUG
+  tranferred_weights += broken.size ();
+#endif
 
   ++internal->stats.walk.weight_transfer;
   ticks +=
