@@ -222,8 +222,8 @@ void Internal::add_original_lit (int lit) {
     original.push_back (lit);
   } else {
     bool new_ctx_level_started = false;
-    bool do_checking = (internal->opts.check &&
-        (internal->opts.checkwitness || internal->opts.checkfailed));
+    bool do_checking = (opts.check &&
+        (opts.checkwitness || opts.checkfailed));
     if (ctx_stack.size() > 0) {
       new_ctx_level_started = init_ctx_top ();
       int activator_elit = ctx_stack.back().act_elit;

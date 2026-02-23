@@ -619,6 +619,23 @@ void Internal::push () {
 }
 
 void Internal::pop () {
+  assert (ctx_stack.size()); // ensured in Solver::pop ()
+
+  int activator_elit = ctx_stack.back().act_elit;
+  if (activator_elit) {
+    int activator_ilit = ctx_stack.back().activator;
+    Flags &f = flags(activator_ilit);
+    assert (f.activator);
+    f.activator = false;
+    melt(activator_ilit);
+
+    // Clean up + garbage collector calls come here TODO
+    if (opts.pppopunit == 1) {
+      add_deactivator_unit_clause ();
+    }
+  }
+
+
   ctx_stack.resize(ctx_stack.size()-1);
 }
 
@@ -635,6 +652,9 @@ bool Internal::init_ctx_top () {
     activator_elit =  i2e[activator_ilit]; // it is a fresh var, so i2e works
     freeze (activator_ilit);
     assert (activator_elit);
+    Flags &f = flags(activator_ilit);
+    assert (!f.activator);
+    f.activator = true;
     LOG ("new activator variable is created: i%d (e%d)",activator_ilit, activator_elit);
     
     ctx_stack.back().act_elit = activator_elit;
@@ -650,10 +670,10 @@ void Internal::add_activator_assumptions () {
   
   // The assumptions are added through external, so the proofs and checkers
   // also see them without any workaround, but it call internalize on the way
-  if (internal->opts.ppassumptions == 1) {
+  if (opts.ppassumptions == 1) {
     // Add the current activator literal as an assumption
     int activator_trigger_elit = 0;
-    for (auto rit = internal->ctx_stack.rbegin(); rit < internal->ctx_stack.rend(); ++rit ) {
+    for (auto rit = ctx_stack.rbegin(); rit < ctx_stack.rend(); ++rit ) {
       if ((*rit).activator) {
         activator_trigger_elit = (*rit).act_elit;
         break;
@@ -662,12 +682,46 @@ void Internal::add_activator_assumptions () {
     if (activator_trigger_elit) external->assume(activator_trigger_elit);
   } else {
     // Add all activator literals as an assumptions
-    assert (internal->opts.ppassumptions == 2);
-    for (const auto cl : internal->ctx_stack) {
+    assert (opts.ppassumptions == 2);
+    for (const auto cl : ctx_stack) {
       const int activator_elit = cl.act_elit;
       if (activator_elit) external->assume(activator_elit);
     }
   } 
+}
+
+void Internal::add_deactivator_unit_clause () {
+  if (!ctx_stack.size())
+    return;
+
+  const int unit_elit = -ctx_stack.back().act_elit;
+  const int unit_ilit = -ctx_stack.back().activator;
+  assert (abs (unit_ilit) <= max_var);
+  if (!unit_elit || !unit_ilit)
+    return;
+
+  original.push_back (unit_ilit);  
+  external->eclause.push_back(unit_elit);
+
+  bool do_checking = (opts.check && (opts.checkwitness || opts.checkfailed));
+  if (do_checking) {
+    external->original.push_back(unit_elit);
+    external->original.push_back(0);
+  }
+
+  LOG(original,"add new deactivator unit clause to root context level");
+
+  const int64_t id =
+      original_id < reserved_ids ? ++original_id : ++clause_id;
+
+  if (proof) {
+    assert (!original.size () || !external->eclause.empty ());
+    proof->add_external_original_clause (id, false, external->eclause);
+  }
+
+  add_new_original_clause (id);
+  original.clear ();
+  external->eclause.clear();
 }
 
 } // namespace CaDiCaL
