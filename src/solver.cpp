@@ -817,7 +817,7 @@ void Solver::implied (std::vector<int> &entrailed) {
 int Solver::call_external_solve_and_check_results (bool preprocess_only) {
   transition_to_steady_state ();
   assert (state () & READY);
-  
+
   internal->add_activator_assumptions ();
 
   STATE (SOLVING);
@@ -1905,6 +1905,12 @@ int64_t Solver::get_statistic_value (const char *opt) const {
            internal->stats.all.fasteliminated;
   if (!strcmp (opt, "substituted"))
     return internal->stats.all.substituted;
+  if (!strcmp (opt, "restored"))
+    return internal->stats.restored;
+  if (!strcmp (opt, "weakened"))
+    return internal->stats.weakened;
+  if (!strcmp (opt, "restorations"))
+    return internal->stats.restorations;
   return -1;
 }
 } // namespace CaDiCaL
