@@ -616,14 +616,16 @@ void Internal::sort_and_reuse_assumptions () {
 
 void Internal::push () {
   ctx_stack.emplace_back();
+  switch_ctx(ctx_stack.size() - 1);
 }
 
 void Internal::pop () {
-  assert (ctx_stack.size()); // ensured in Solver::pop ()
+  assert (ctx_stack.size() > 1); // ensured in Solver::pop ()
+  switch_ctx(ctx_stack.size() - 1);
 
-  int activator_elit = ctx_stack.back().act_elit;
+  int activator_elit = ctx_stack[ctx_level].act_elit;//ctx_stack.back().act_elit;
   if (activator_elit) {
-    int activator_ilit = ctx_stack.back().activator;
+    int activator_ilit = ctx_stack[ctx_level].activator;// ctx_stack.back().activator;
     Flags &f = flags(activator_ilit);
     assert (f.activator);
     f.activator = false;
@@ -637,13 +639,14 @@ void Internal::pop () {
 
 
   ctx_stack.resize(ctx_stack.size()-1);
+  switch_ctx(ctx_stack.size() - 1);
 }
 
-bool Internal::init_ctx_top () {
+bool Internal::init_ctx () {
   bool new_ctx_level_started = false;
-  assert (ctx_stack.size());
+  assert (ctx_level > 0);
   
-  int activator_elit = ctx_stack.back().act_elit;
+  int activator_elit = ctx_stack[ctx_level].act_elit;
   int activator_ilit = 0;
   if (!activator_elit) {
     // Declare a new extension variable
@@ -655,10 +658,10 @@ bool Internal::init_ctx_top () {
     Flags &f = flags(activator_ilit);
     assert (!f.activator);
     f.activator = true;
-    LOG ("new activator variable is created: i%d (e%d)",activator_ilit, activator_elit);
+    LOG ("new activator variable is created for context level %ld: i%d (e%d)",ctx_level, activator_ilit, activator_elit);
     
-    ctx_stack.back().act_elit = activator_elit;
-    ctx_stack.back().activator = activator_ilit;
+    ctx_stack[ctx_level].act_elit = activator_elit;
+    ctx_stack[ctx_level].activator = activator_ilit;
   }
 
   return new_ctx_level_started;
@@ -668,6 +671,7 @@ void Internal::add_activator_assumptions () {
   if (!ctx_stack.size())
     return;
   
+  switch_ctx (ctx_stack.size() - 1);
   // The assumptions are added through external, so the proofs and checkers
   // also see them without any workaround, but it call internalize on the way
   if (opts.ppassumptions == 1) {
@@ -691,11 +695,11 @@ void Internal::add_activator_assumptions () {
 }
 
 void Internal::add_deactivator_unit_clause () {
-  if (!ctx_stack.size())
+  if (!ctx_stack.size() || !ctx_level)
     return;
 
-  const int unit_elit = -ctx_stack.back().act_elit;
-  const int unit_ilit = -ctx_stack.back().activator;
+  const int unit_elit = -ctx_stack[ctx_level].act_elit;
+  const int unit_ilit = -ctx_stack[ctx_level].activator;
   assert (abs (unit_ilit) <= max_var);
   if (!unit_elit || !unit_ilit)
     return;
@@ -711,8 +715,7 @@ void Internal::add_deactivator_unit_clause () {
 
   LOG(original,"add new deactivator unit clause to root context level");
 
-  const int64_t id =
-      original_id < reserved_ids ? ++original_id : ++clause_id;
+  const int64_t id = original_id < reserved_ids ? ++original_id : ++clause_id;
 
   if (proof) {
     assert (!original.size () || !external->eclause.empty ());
@@ -722,6 +725,115 @@ void Internal::add_deactivator_unit_clause () {
   add_new_original_clause (id);
   original.clear ();
   external->eclause.clear();
+}
+
+void Internal::switch_ctx (int new_ctx_level) {
+  assert (new_ctx_level >= 0 && (size_t)new_ctx_level < ctx_stack.size()); //ensured in Solver::switch
+  LOG ("switching context level from %ld to %d",ctx_level,new_ctx_level);
+  ctx_level = new_ctx_level;
+}
+
+void Internal::add_activator_implication () {
+  if (!ctx_stack.size())
+    return;
+
+  if (opts.ppassumptions != 1)
+    return;
+
+  assert (ctx_level > 0 &&  ctx_level < ctx_stack.size());
+  assert (original.empty());
+  assert (external->eclause.empty());
+
+  bool do_checking = (opts.check && (opts.checkwitness || opts.checkfailed));
+ 
+  if (ctx_level > 1) {
+    // Find the previous active context level
+    int prev_elit = 0;
+    for (auto idx = ctx_level - 1; idx > 0; idx--) {
+      if (!ctx_stack[idx].is_empty_level()) {
+        prev_elit = ctx_stack[idx].act_elit;
+        break;
+      }
+    }
+    if (prev_elit) {
+      const int act_elit = ctx_stack[ctx_level].act_elit;
+      const int act_ilit = external->internalize(act_elit);
+      // assert (!act_elit && !act_ilit); // Fixed literals are considered here
+      // The current level is not the first active one, we need to add the
+      // implication current activator -> prev activator
+      
+      original.push_back(external->internalize(prev_elit));
+      original.push_back(-act_ilit);
+
+      external->eclause.push_back(prev_elit);
+      external->eclause.push_back(-act_elit);
+
+      if (do_checking) {
+        external->original.push_back(prev_elit);
+        external->original.push_back(-act_elit);
+        external->original.push_back(0);
+        // if (lrat) external->ext_flags[abs (elit)] = true;
+      }
+
+      LOG(original,"add new activator trigger binary clause to root context level");
+
+      const int64_t id = original_id < reserved_ids ? ++original_id : ++clause_id;
+      if (proof) {
+        assert (!original.size () || !external->eclause.empty ());
+        proof->add_external_original_clause (id, false, external->eclause);
+      }
+
+      add_new_original_clause (id);
+      original.clear ();
+      external->eclause.clear();
+    }
+  }
+
+  if (ctx_stack.size() > 2 && ctx_level < ctx_stack.size() - 1) {
+    int next_elit = 0;
+    for (auto idx = ctx_level + 1; idx < ctx_stack.size(); idx++) {
+      if (!ctx_stack[idx].is_empty_level()) {
+        next_elit = ctx_stack[idx].act_elit;
+        break;
+      }
+    }
+    if (next_elit) {
+      const int act_elit = ctx_stack[ctx_level].act_elit;
+      const int act_ilit = external->internalize(act_elit);
+      // assert (!act_elit && !act_ilit); // Fixed literals are considered here
+      // The current level is not the first active one, we need to add the
+      // implication current activator -> prev activator
+      
+      original.push_back(external->internalize(next_elit));
+      original.push_back(-act_ilit);
+
+      external->eclause.push_back(next_elit);
+      external->eclause.push_back(-act_elit);
+
+      if (do_checking) {
+        external->original.push_back(next_elit);
+        external->original.push_back(-act_elit);
+        external->original.push_back(0);
+        // if (lrat) external->ext_flags[abs (elit)] = true;
+      }
+
+      LOG(original,"add new activator trigger binary clause to root context level");
+
+      const int64_t id = original_id < reserved_ids ? ++original_id : ++clause_id;
+      if (proof) {
+        assert (!original.size () || !external->eclause.empty ());
+        proof->add_external_original_clause (id, false, external->eclause);
+      }
+
+      add_new_original_clause (id);
+      original.clear ();
+      external->eclause.clear();
+    }
+  }
+
+  assert (ctx_level > 0 &&  ctx_level < ctx_stack.size());
+  assert (original.empty());
+  assert (external->eclause.empty());
 }
 
 } // namespace CaDiCaL

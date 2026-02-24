@@ -26,14 +26,15 @@ Internal::Internal ()
       earliest_changed_val (0), notified (0), probe_reason (0), propagated (0),
       propagated2 (0), propergated (0), best_assigned (0),
       target_assigned (0), no_conflict_until (0),
-      randomized_deciding (false), citten (nullptr), num_assigned (0), proof (0),
-      opts (this),
+      randomized_deciding (false), citten (nullptr), num_assigned (0),
+      ctx_level(0), proof (0), opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
 #endif
       arena (this), prefix ("c "), internal (this), external (0),
       termination_forced (false), vars (this->max_var),
       lits (this->max_var) {
+  ctx_stack.emplace_back ();
   control.emplace_back (0, 0);
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
@@ -224,10 +225,10 @@ void Internal::add_original_lit (int lit) {
     bool new_ctx_level_started = false;
     bool do_checking = (opts.check &&
         (opts.checkwitness || opts.checkfailed));
-    if (ctx_stack.size() > 0) {
-      new_ctx_level_started = init_ctx_top ();
-      int activator_elit = ctx_stack.back().act_elit;
-      int activator_ilit = ctx_stack.back().activator;
+    if (ctx_level > 0) {
+      new_ctx_level_started = init_ctx ();
+      int activator_elit = ctx_stack[ctx_level].act_elit;
+      int activator_ilit = ctx_stack[ctx_level].activator;
       LOG ("current context has activator e%d (i%d)",activator_elit,activator_ilit);
       assert (activator_elit && activator_ilit);
 
@@ -277,55 +278,7 @@ void Internal::add_original_lit (int lit) {
     external->eclause.clear();
 
     if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1 && !unsat) {
-      // Define the relation between the new activator and the previous one (if
-      // there is a previous one)
-      assert (ctx_stack.size() && ctx_stack.back().activator);
-      assert (original.empty());
-      assert (external->eclause.empty());
-      external->eclause.clear();
-
-      // Find the previous active context level
-      for (auto rit = std::next(ctx_stack.rbegin()); rit < ctx_stack.rend(); ++rit ) {
-        if (!(*rit).is_empty_level()) {
-          int elit = (*rit).act_elit;
-          original.push_back(external->internalize(elit)); //reactivates elit
-          if (proof || do_checking) {
-            external->eclause.push_back(elit);
-            if (lrat) external->ext_flags[abs (elit)] = true;
-          }
-          break;
-        }
-      }
-      if (original.size()) {
-        // There is a previous active context level, so we need to add a
-        // connecting clause
-        assert(original.size() == 1);
-        
-        original.push_back(-external->internalize(ctx_stack.back().act_elit));
-        if (proof || do_checking) {
-          external->eclause.push_back(-ctx_stack.back().act_elit);
-          if (lrat) external->ext_flags[abs (ctx_stack.back().act_elit)] = true;
-        }
-
-        LOG ("new activator trigger clause is constructed: %d %d",original[0],original[1]);
-        const int64_t act_rel_clause_id =
-          original_id < reserved_ids ? ++original_id : ++clause_id;
-        
-        if (do_checking) {
-          assert (external->eclause.size() == 2);
-          for (const auto lit: external->eclause) 
-            external->original.push_back(lit);
-          
-          external->original.push_back(0);
-        }
-        if (proof) {          
-          assert (!external->eclause.empty ());
-          proof->add_external_original_clause (act_rel_clause_id, false, external->eclause);
-        }
-        add_new_original_clause (act_rel_clause_id);
-        original.clear();
-        external->eclause.clear();
-      }
+      add_activator_implication ();
     }
   }
 }

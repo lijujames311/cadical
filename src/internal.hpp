@@ -281,7 +281,8 @@ struct Internal {
 
   vector<int> probes;       // remaining scheduled probes
   vector<Level> control;    // 'level + 1 == control.size ()'
-  vector<CtxLevel> ctx_stack; // ctx_level == ctx_stack.size()
+  vector<CtxLevel> ctx_stack; // ctx_level + 1 == ctx_stack.size()
+  size_t ctx_level;         // current context level (max 'ctx_stack.size () - 1')
   vector<Clause *> clauses; // ordered collection of all clauses
   Averages averages;        // glue, size, jump moving averages
   Delay delay[2];           // Delay certain functions
@@ -871,9 +872,11 @@ struct Internal {
 
   void push ();
   void pop ();
-  bool init_ctx_top ();
+  void switch_ctx (int new_ctx_level);
+  bool init_ctx ();
   void add_activator_assumptions ();
   void add_deactivator_unit_clause ();
+  void add_activator_implication ();
 
   void recompute_tier ();
   void decay_clauses_upon_incremental_clauses ();
