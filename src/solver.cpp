@@ -1166,8 +1166,21 @@ void Solver::push () {
 void Solver::pop () {
   TRACE ("pop");
   REQUIRE_VALID_STATE ();
+  REQUIRE (internal->ctx_stack.size() > 1, "can not pop from an empty context stack");
   internal->pop ();
   LOG_API_CALL_END ("pop");
+}
+
+void Solver::switch_ctx (int new_level) {
+  TRACE ("switch", new_level);
+  REQUIRE_VALID_STATE ();
+  REQUIRE (new_level >= 0,
+           "the target context level of switch must be non-negative.");
+  REQUIRE ((size_t)new_level < internal->ctx_stack.size(),
+           "the target context level of switch must be smaller than "
+           "the maximum context level");
+  internal->switch_ctx (new_level);
+  LOG_API_CALL_END ("switch", new_level);
 }
 
 /*===== PUSH/POP END =====================================================*/
