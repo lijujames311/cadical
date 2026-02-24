@@ -215,7 +215,8 @@ struct Internal {
       probehbr_chains;          // only used if opts.probehbr=false
   bool lrat;                    // generate LRAT internally
   bool frat;                    // finalize non-deleted clauses in proof
-  bool new_binary_since_dedup;// new binary clause has been learned since last decompose round
+  bool new_binary_since_dedup;  // new binary clause has been learned since
+                                // last decompose round
   int level;                    // decision level ('control.size () - 1')
   Phases phases;                // saved, target and best phases
   signed char *vals;            // assignment [-max_var,max_var]
@@ -250,7 +251,10 @@ struct Internal {
   bool unsat_constraint;        // constraint used for unsatisfiability?
   bool marked_failed;           // are the failed assumptions marked?
   bool sweep_incomplete;        // sweep
-  int earliest_changed_val;     // earliest literal whose value was changed but was not notified yet. Only relevant for ILB (otherwise, we backtrack, so no renotification is needed).
+  int earliest_changed_val;  // earliest literal whose value was changed but
+                             // was not notified yet. Only relevant for ILB
+                             // (otherwise, we backtrack, so no
+                             // renotification is needed).
   size_t notified;           // next trail position to notify external prop
   Clause *probe_reason;      // set during probing
   size_t propagated;         // next trail position to propagate
@@ -274,7 +278,8 @@ struct Internal {
 
   vector<int> sweep_schedule; // remember sweep varibles to reschedule
   uint64_t randomized_deciding;
-  vector <int> imports;      // impported literals (ordered by order of appearance)
+  vector<int>
+      imports; // impported literals (ordered by order of appearance)
 
   kitten *citten;
 
@@ -333,8 +338,8 @@ struct Internal {
   ~Internal ();
 
   /*----------------------------------------------------------------------*/
-  // Enlarge the external to internal data structures up to the index without
-  // activating any literal.
+  // Enlarge the external to internal data structures up to the index
+  // without activating any literal.
   void reserve_vars (int new_max_var);
 
   void activating_all_new_imported_literals ();
@@ -417,7 +422,7 @@ struct Internal {
   int u2i (unsigned u) {
     assert (u > 1);
     assert (u <= INT32_MAX);
-    int res = (int)u / 2;
+    int res = (int) u / 2;
     assert (res <= max_var);
     if (u & 1)
       res = -res;
@@ -426,7 +431,7 @@ struct Internal {
 
   int citten2lit (unsigned ulit) {
     assert (ulit <= INT32_MAX);
-    int res = (int)(ulit / 2) + 1;
+    int res = (int) (ulit / 2) + 1;
     assert (res <= max_var);
     if (ulit & 1)
       res = -res;
@@ -470,10 +475,13 @@ struct Internal {
   // Size of the trail as an int
   //
   // The trail containts at most every variable at most once from 1 to
-  // INT32_MAX. Therefore the size is at most INT32_MAX. This is already used
-  // implicitely in the code (like var (lit).trail). With the assertion we
-  // document the invariant.
-  int get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
+  // INT32_MAX. Therefore the size is at most INT32_MAX. This is already
+  // used implicitely in the code (like var (lit).trail). With the assertion
+  // we document the invariant.
+  int get_trail_size () const {
+    assert (trail.size () <= INT32_MAX);
+    return static_cast<int> (trail.size ());
+  }
 
   Bins &bins (int lit) { return big[vlit (lit)]; }
   Occs &occs (int lit) { return otab[vlit (lit)]; }
@@ -905,8 +913,9 @@ struct Internal {
   void lucky_assume_decision (int);
   int trivially_false_satisfiable ();
   int trivially_true_satisfiable ();
-  template<class Iterator>
-  int lucky_fixed_test (Iterator begin, Iterator end, signed char pol, std::string str);
+  template <class Iterator>
+  int lucky_fixed_test (Iterator begin, Iterator end, signed char pol,
+                        std::string str);
   int forward_false_satisfiable ();
   int forward_true_satisfiable ();
   int backward_false_satisfiable ();
@@ -1304,8 +1313,6 @@ struct Internal {
   void schedule_inner (Sweeper &sweeper, int idx);
   void schedule_outer (Sweeper &sweeper, int idx);
   int next_scheduled (Sweeper &sweeper);
-  void substitute_connected_clauses (Sweeper &sweeper, int lit, int other,
-                                     int64_t id);
   void sweep_remove (Sweeper &sweeper, int lit);
   void flip_partition_literals (struct Sweeper &sweeper);
   const char *sweep_variable (Sweeper &sweeper, int idx);
@@ -1322,8 +1329,7 @@ struct Internal {
   void sweep_dense_propagate (Sweeper &sweeper);
   void sweep_sparse_mode ();
   void sweep_dense_mode_and_watch_irredundant ();
-  void sweep_substitute_lrat (Clause *c, int64_t id);
-  void sweep_substitute_new_equivalences (Sweeper &sweeper);
+  bool sweep_substitute_clause (Sweeper &sweeper, Clause *c);
   void sweep_update_noccs (Clause *c);
   void delete_sweep_binary (const sweep_binary &sb);
   bool can_sweep_clause (Clause *c);
@@ -1359,8 +1365,8 @@ struct Internal {
   bool run_factorization (int64_t limit);
   bool factor ();
   // returns a new fresh variable, enlarges all data structures required for
-  // importing clauses, but not all. Does not add that literal to the decision
-  // queue! You need to activate all new literals later.
+  // importing clauses, but not all. Does not add that literal to the
+  // decision queue! You need to activate all new literals later.
   int get_new_extension_variable ();
   Clause *new_factor_clause (int);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
@@ -1443,16 +1449,16 @@ struct Internal {
   inline void warmup_assign (int lit, Clause *reason);
   void warmup_propagate_beyond_conflict ();
   int warmup_decide_assumptions (); // only assumptions and constraints
-  void warmup_decide (); // rest of the decisions
-  // Warmup is an attempt to combine the strength of the user propagator with
-  // SLS: we import the assignment one-by-one and propagate after each
-  // assignment. This attempts to avoid the (exponentially unlikeley) chance to
-  // find propagation chains.
+  void warmup_decide ();            // rest of the decisions
+  // Warmup is an attempt to combine the strength of the user propagator
+  // with SLS: we import the assignment one-by-one and propagate after each
+  // assignment. This attempts to avoid the (exponentially unlikeley) chance
+  // to find propagation chains.
   int warmup ();
-  // set and propagate all assumptions. Afterwards set the valued to the vector
-  // passed as argument and backtracks, unless it has derived UNSAT. This
-  // version does not care about the user propagator and cannot derive sat if
-  // there is an external propagator.
+  // set and propagate all assumptions. Afterwards set the valued to the
+  // vector passed as argument and backtracks, unless it has derived UNSAT.
+  // This version does not care about the user propagator and cannot derive
+  // sat if there is an external propagator.
   int decide_and_propagate_all_assumptions (std::vector<int> &set_lit);
 
   // Detect strongly connected components in the binary implication graph
@@ -1581,8 +1587,8 @@ struct Internal {
   //
   int already_solved ();
   int restore_clauses ();
-  bool preprocess_round (int round, bool&);
-  void preprocess_quickly (bool always, bool&);
+  bool preprocess_round (int round, bool &);
+  void preprocess_quickly (bool always, bool &);
   int preprocess (bool always);
   int local_search_round (int round);
   int local_search ();
@@ -1690,7 +1696,7 @@ struct Internal {
   }
   void melt (int lit) {
     int idx = vidx (lit);
-    if ((size_t)idx < frozentab.size ()) {
+    if ((size_t) idx < frozentab.size ()) {
       LOG ("variable %d completely molten", idx);
       return;
     }

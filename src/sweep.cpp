@@ -184,8 +184,9 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
       ticks++;
       if (c->garbage)
         continue;
-      // if (c->redundant)  // TODO I assume it does not hurt to mark
-      // everything here continue;
+      // Marking everything instead of just irredundant should not
+      // make a difference here.
+      // if (c->redundant) continue;
       LOG (c, "sweeping propagation of %d produces satisfied", lit);
       mark_garbage (c);
       sweep_update_noccs (c);
@@ -214,6 +215,10 @@ void Internal::init_sweeper (Sweeper &sweeper) {
   enlarge_zero (sweeper.depths, max_var + 1);
   sweeper.reprs = new int[2 * max_var + 1];
   sweeper.reprs += max_var;
+  if (lrat) {
+    sweeper.ids = new int64_t[2 * max_var + 1]{};
+    sweeper.ids += max_var;
+  }
   enlarge_zero (sweeper.prev, max_var + 1);
   enlarge_zero (sweeper.next, max_var + 1);
   for (const auto &lit : lits)
@@ -273,6 +278,16 @@ void Internal::release_sweeper (Sweeper &sweeper) {
 
   sweeper.reprs -= max_var;
   delete[] sweeper.reprs;
+  if (lrat) {
+    sweeper.ids -= max_var;
+    delete[] sweeper.ids;
+  }
+  // TODO: propably add these to the solver instead of deleting them.
+  // Because decompose should find the equivalences...
+  // Maybe just change add_sweep_binary for this.
+  // And remove sweeper.binaries entirely.
+  for (auto &bin : sweeper.binaries)
+    delete_sweep_binary (bin);
 
   erase_vector (sweeper.depths);
   erase_vector (sweeper.prev);
@@ -353,8 +368,8 @@ void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
 }
 
 void Internal::sweep_add_clause (Sweeper &sweeper, unsigned depth) {
-  // TODO: assertion fails, check if this an issue or can be avoided
-  // assert (sweeper.clause.size () > 1);
+  // TODO: this assertion might not hold?
+  assert (sweeper.clause.size () > 1);
   for (const auto &lit : sweeper.clause)
     add_literal_to_environment (sweeper, depth, lit);
   citten_clause_with_id (citten, sweeper.clauses.size (),
@@ -364,30 +379,110 @@ void Internal::sweep_add_clause (Sweeper &sweeper, unsigned depth) {
     sweeper.encoded++;
 }
 
+bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
+  LOG (c, "substituting equivalences and units in");
+  assert (!c->garbage);
+  assert (sweeper.clause.empty ());
+  bool satisfied = false;
+  bool different = false;
+  // TODO: lrat for this loop.
+  for (const auto &lit : *c) {
+    if (val (lit) < 0) {
+      different = true;
+      continue;
+    }
+    if (val (lit) > 0) {
+      satisfied = true;
+      break;
+    }
+    const auto &repr = sweep_repr (sweeper, lit);
+    if (repr != lit)
+      different = true;
+    if (marked (repr))
+      continue;
+    if (marked (!repr)) {
+      satisfied = true;
+      break;
+    }
+    if (val (repr) < 0)
+      continue;
+    if (val (repr) > 0) {
+      satisfied = true;
+      break;
+    }
+    mark (repr);
+    sweeper.clause.push_back (repr);
+  }
+  if (satisfied) {
+    for (const auto &lit : sweeper.clause)
+      unmark (lit);
+    sweeper.clause.clear ();
+    mark_garbage (c);
+    sweep_update_noccs (c);
+    return false;
+  }
+  if (!different) {
+    c->swept = true;
+    sweeper.clauses.push_back (c);
+    return true;
+  }
+  const unsigned new_size = sweeper.clause.size ();
+  if (new_size == 0) {
+    LOG (c, "substituted empty clause");
+    assert (!unsat);
+    learn_empty_clause ();
+    return false;
+  }
+  if (new_size == 1) {
+    LOG (c, "reduces to unit");
+    const int unit = sweeper.clause[0];
+    assign_unit (unit);
+    sweeper.propagate.push_back (unit);
+    mark_garbage (c);
+    sweep_update_noccs (c);
+    stats.sweep_units++;
+    return true;
+  }
+  assert (c->size >= 2);
+  assert (!c->redundant);
+  mark_removed (c);
+  uint64_t new_id = ++clause_id;
+  if (proof) {
+    proof->add_derived_clause (new_id, c->redundant, sweeper.clause,
+                               lrat_chain);
+    proof->delete_clause (c);
+  }
+  c->id = new_id;
+  lrat_chain.clear ();
+  size_t l;
+  int *literals = c->literals;
+  for (l = 0; l < sweeper.clause.size (); l++)
+    literals[l] = sweeper.clause[l];
+  int flushed = c->size - (int) l;
+  if (flushed) {
+    LOG ("flushed %d literals", flushed);
+    (void) shrink_clause (c, l);
+  } else if (likely_to_be_kept_clause (c))
+    mark_added (c);
+  LOG (c, "substituted");
+  c->swept = true;
+  sweeper.clauses.push_back (c);
+  return true;
+}
+
 void Internal::sweep_clause (Sweeper &sweeper, unsigned depth, Clause *c) {
   if (c->swept)
     return;
   assert (can_sweep_clause (c));
   LOG (c, "sweeping[%u]", depth);
   assert (sweeper.clause.empty ());
-  for (const auto &lit : *c) {
-    const signed char tmp = val (lit);
-    if (tmp > 0) {
-      mark_garbage (c);
-      sweep_update_noccs (c);
-      sweeper.clause.clear ();
-      return;
-    }
-    if (tmp < 0) {
-      if (lrat)
-        sweeper.prev_units[abs (lit)] = true;
-      continue;
-    }
-    sweeper.clause.push_back (lit);
-  }
-  c->swept = true;
+  bool adding = sweep_substitute_clause (sweeper, c);
+  if (!adding)
+    return;
+  // set c->swept and add clause in sweep_substitute_clause
+  // c->swept = true;
+  // sweeper.clauses.push_back (c);
   sweep_add_clause (sweeper, depth);
-  sweeper.clauses.push_back (c);
 }
 
 extern "C" {
@@ -1031,217 +1126,10 @@ int Internal::next_scheduled (Sweeper &sweeper) {
   return res;
 }
 
-void Internal::sweep_substitute_lrat (Clause *c, int64_t id) {
-  if (!lrat)
-    return;
-  for (const auto &lit : *c) {
-    assert (val (lit) <= 0);
-    if (val (lit) < 0) {
-      int64_t id = unit_id (-lit);
-      lrat_chain.push_back (id);
-    }
-  }
-  lrat_chain.push_back (id);
-  lrat_chain.push_back (c->id);
-}
-
 #define all_scheduled(IDX) \
   int IDX = sweeper.first, NEXT_##IDX; \
   IDX != 0 && (NEXT_##IDX = sweeper.next[IDX], true); \
   IDX = NEXT_##IDX
-
-// Substitute equivalences in clauses (see
-// 'sweep_substitute_new_equivalences' for explanation)
-void Internal::substitute_connected_clauses (Sweeper &sweeper, int lit,
-                                             int repr, int64_t id) {
-  if (unsat)
-    return;
-  if (val (lit))
-    return;
-  if (val (repr))
-    return;
-  LOG ("substituting %d with %d in all irredundant clauses", lit, repr);
-
-  assert (lit != repr);
-  assert (lit != -repr);
-
-  assert (active (lit));
-  assert (active (repr));
-
-  uint64_t &ticks = sweeper.current_ticks;
-
-  {
-    ticks += 1 + cache_lines (occs (lit).size (), sizeof (Clause *));
-    Occs &ns = occs (lit);
-    auto const begin = ns.begin ();
-    const auto end = ns.end ();
-    auto q = begin;
-    auto p = q;
-    while (p != end) {
-      Clause *c = *q++ = *p++;
-      ticks++;
-      if (c->garbage)
-        continue;
-      assert (clause.empty ());
-      bool satisfied = false;
-      bool repr_already_watched = false;
-      const int not_repr = -repr;
-#ifndef NDEBUG
-      bool found = false;
-#endif
-      for (const auto &other : *c) {
-        if (other == lit) {
-#ifndef NDEBUG
-          assert (!found);
-          found = true;
-#endif
-          clause.push_back (repr);
-          continue;
-        }
-        assert (other != -lit);
-        if (other == repr) {
-          assert (!repr_already_watched);
-          repr_already_watched = true;
-          continue;
-        }
-        if (other == not_repr) {
-          satisfied = true;
-          break;
-        }
-        const signed char tmp = val (other);
-        if (tmp < 0)
-          continue;
-        if (tmp > 0) {
-          satisfied = true;
-          break;
-        }
-        clause.push_back (other);
-      }
-      if (satisfied) {
-        clause.clear ();
-        mark_garbage (c);
-        sweep_update_noccs (c);
-        continue;
-      }
-      assert (found);
-      const unsigned new_size = clause.size ();
-      sweep_substitute_lrat (c, id);
-      if (new_size == 0) {
-        LOG (c, "substituted empty clause");
-        assert (!unsat);
-        learn_empty_clause ();
-        break;
-      }
-      ticks++;
-      if (new_size == 1) {
-        LOG (c, "reduces to unit");
-        const int unit = clause[0];
-        clause.clear ();
-        assign_unit (unit);
-        sweeper.propagate.push_back (unit);
-        mark_garbage (c);
-        sweep_update_noccs (c);
-        stats.sweep_units++;
-        break;
-      }
-      assert (c->size >= 2);
-      if (!c->redundant)
-        mark_removed (c);
-      uint64_t new_id = ++clause_id;
-      if (proof) {
-        proof->add_derived_clause (new_id, c->redundant, clause,
-                                   lrat_chain);
-        proof->delete_clause (c);
-      }
-      c->id = new_id;
-      lrat_chain.clear ();
-      size_t l;
-      int *literals = c->literals;
-      for (l = 0; l < clause.size (); l++)
-        literals[l] = clause[l];
-      int flushed = c->size - (int) l;
-      if (flushed) {
-        LOG ("flushed %d literals", flushed);
-        (void) shrink_clause (c, l);
-      } else if (likely_to_be_kept_clause (c))
-        mark_added (c);
-      LOG (c, "substituted");
-      if (!repr_already_watched) {
-        occs (repr).push_back (c);
-        noccs (repr)++;
-      }
-      clause.clear ();
-      q--;
-    }
-    while (p != end)
-      *q++ = *p++;
-    ns.resize (q - ns.begin ());
-  }
-}
-
-// In contrast to kissat we substitute the equivalences explicitely after
-// every successful round of sweeping. This is necessary in order to extract
-// valid LRAT proofs for subsequent rounds of sweeping.
-void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
-  if (unsat)
-    return;
-
-  unsigned count = 0;
-  assert (lrat_chain.empty ());
-
-  for (const auto &sb : sweeper.binaries) {
-    count++;
-    const auto lit = sb.lit;
-    const auto other = sb.other;
-    if (abs (lit) < abs (other)) {
-      substitute_connected_clauses (sweeper, -other, lit, sb.id);
-    } else {
-      substitute_connected_clauses (sweeper, -lit, other, sb.id);
-    }
-    assert (lrat_chain.empty ());
-    if (val (lit) < 0) {
-      if (lrat) {
-        const int64_t lid = unit_id (-lit);
-        lrat_chain.push_back (lid);
-      }
-      if (!val (other)) {
-        if (lrat)
-          lrat_chain.push_back (sb.id);
-        assign_unit (other);
-      } else if (val (other) < 0) {
-        if (lrat) {
-          const int64_t oid = unit_id (-other);
-          lrat_chain.push_back (oid);
-          lrat_chain.push_back (sb.id);
-        }
-        learn_empty_clause ();
-        return;
-      }
-    } else if (val (other) < 0) {
-      if (!val (lit)) {
-        if (lrat) {
-          const int64_t oid = unit_id (-other);
-          lrat_chain.push_back (oid);
-          lrat_chain.push_back (sb.id);
-        }
-        assign_unit (lit);
-      } else
-        assert (val (lit) > 0);
-    }
-    lrat_chain.clear ();
-    delete_sweep_binary (sb);
-    if (count == 2) {
-      if (!val (lit) && !val (other)) {
-        const auto idx = abs (lit) < abs (other) ? abs (other) : abs (lit);
-        if (!flags (idx).fixed ())
-          mark_substituted (idx);
-      }
-      count = 0;
-    }
-    assert (lrat_chain.empty ());
-  }
-  sweeper.binaries.clear ();
-}
 
 void Internal::sweep_remove (Sweeper &sweeper, int lit) {
   assert (sweeper.reprs[lit] != lit);
@@ -1469,26 +1357,26 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
   // store the equivalence .
   add_core (sweeper, 0);
   add_core (sweeper, 1);
+  sweep_binary bin1;
+  sweep_binary bin2;
   if (!val (lit) && !val (other)) {
     assert (sweeper.core[0].size ());
     assert (sweeper.core[1].size ());
     stats.sweep_equivalences++;
-    sweep_binary bin1;
-    sweep_binary bin2;
-    if (abs (lit) > abs (other)) {
-      bin1.lit = lit;
-      bin1.other = not_other;
-      bin2.lit = not_lit;
-      bin2.other = other;
-      bin1.id = add_sweep_binary (sweeper.core[0].back (), lit, not_other);
-      bin2.id = add_sweep_binary (sweeper.core[1].back (), not_lit, other);
-    } else {
+    if (abs (lit) < abs (other)) {
       bin1.lit = not_other;
       bin1.other = lit;
       bin2.lit = other;
       bin2.other = not_lit;
       bin1.id = add_sweep_binary (sweeper.core[0].back (), not_other, lit);
       bin2.id = add_sweep_binary (sweeper.core[1].back (), other, not_lit);
+    } else {
+      bin1.lit = lit;
+      bin1.other = not_other;
+      bin2.lit = not_lit;
+      bin2.other = other;
+      bin1.id = add_sweep_binary (sweeper.core[0].back (), lit, not_other);
+      bin2.id = add_sweep_binary (sweeper.core[1].back (), not_lit, other);
     }
     if (bin1.id && bin2.id) {
       sweeper.binaries.push_back (bin1);
@@ -1501,10 +1389,18 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
     repr = sweeper.reprs[other] = lit;
     sweeper.reprs[not_other] = not_lit;
     sweep_remove (sweeper, other);
+    if (lrat) {
+      sweeper.ids[other] = bin1.id;
+      sweeper.ids[not_other] = bin2.id;
+    }
   } else {
     repr = sweeper.reprs[lit] = other;
     sweeper.reprs[not_lit] = not_other;
     sweep_remove (sweeper, lit);
+    if (lrat) {
+      sweeper.ids[lit] = bin2.id;
+      sweeper.ids[not_lit] = bin1.id;
+    }
   }
   clear_core (sweeper, 0);
   clear_core (sweeper, 1);
@@ -1696,8 +1592,6 @@ DONE:
   clear_sweeper (sweeper);
 
   if (!unsat)
-    sweep_substitute_new_equivalences (sweeper);
-  if (!unsat)
     sweep_dense_propagate (sweeper);
 
   if (success && limit_reached)
@@ -1883,7 +1777,7 @@ bool Internal::sweep () {
     return false;
   if (terminated_asynchronously ())
     return false;
-  if (delaying_sweep.bumpreasons.delay ()) { // TODO need to fix Delay
+  if (delaying_sweep.bumpreasons.delay ()) { // TODO: need to fix Delay
     last.sweep.ticks = stats.ticks.search[0] + stats.ticks.search[1];
     return false;
   }

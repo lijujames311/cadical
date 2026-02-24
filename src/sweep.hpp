@@ -38,6 +38,7 @@ struct Sweeper {
   Random random;
   std::vector<unsigned> depths;
   int *reprs;
+  int64_t *ids;
   std::vector<int> next, prev;
   int first, last;
   unsigned encoded;
