@@ -54,14 +54,6 @@ void Internal::sweep_set_kitten_ticks_limit (Sweeper &sweeper) {
   kitten_set_ticks_limit (citten, remaining);
 }
 
-void Internal::sweep_update_noccs (Clause *c) {
-  if (c->redundant)
-    return;
-  for (const auto &lit : *c) {
-    noccs (lit)--;
-  }
-}
-
 bool Internal::can_sweep_clause (Clause *c) {
   if (c->garbage)
     return false;
@@ -161,7 +153,6 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
         LOG (c, "sweeping propagation of %d finds %d satisfied", lit,
              satisfied);
         mark_garbage (c);
-        sweep_update_noccs (c);
       } else if (!unit) {
         LOG ("empty clause during sweeping propagation of %d", lit);
         // need to set conflict = c for lrat
@@ -192,7 +183,6 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
       // if (c->redundant) continue;
       LOG (c, "sweeping propagation of %d produces satisfied", lit);
       mark_garbage (c);
-      sweep_update_noccs (c);
     }
   }
   work.clear ();
@@ -478,7 +468,6 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     lrat_chain.clear ();
     minimize_chain.clear ();
     mark_garbage (c);
-    sweep_update_noccs (c);
     return false;
   }
   if (!different) {
@@ -506,7 +495,6 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     assign_unit (unit);
     sweeper.propagate.push_back (unit);
     mark_garbage (c);
-    sweep_update_noccs (c);
     stats.sweep_units++;
     return true;
   }
@@ -1489,9 +1477,6 @@ void Internal::sweep_move_occs (int to, int from) {
                      occs (-from).end ());
   occs (from).clear ();
   occs (-from).clear ();
-  noccs (to) += noccs (from);
-  noccs (-to) += noccs (-from);
-  noccs (from) = noccs (-from) = 0;
 }
 
 const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {

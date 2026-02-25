@@ -1332,7 +1332,6 @@ struct Internal {
   void sweep_sparse_mode ();
   void sweep_dense_mode_and_watch_irredundant ();
   bool sweep_substitute_clause (Sweeper &sweeper, Clause *c);
-  void sweep_update_noccs (Clause *c);
   void delete_tmp_sweep_binary (int64_t, int, int);
   int64_t add_tmp_sweep_binary (std::vector<int64_t> &, int, int);
   bool can_sweep_clause (Clause *c);
