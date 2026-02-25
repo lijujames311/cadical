@@ -156,8 +156,13 @@ void External::restore_clauses () {
     int satisfied = 0;
     auto end_of_clause = p;
     while (end_of_clause != end_of_extension && (elit = *end_of_clause)) {
-      if (!satisfied && fixed (elit) > 0)
-        satisfied = elit;
+      if (!satisfied && fixed (elit) > 0) {
+        const int ilit = internalize (elit);
+        Flags &f = internal->flags(ilit);
+        if (f.activator)
+          satisfied = elit;
+      }
+        
       end_of_clause++;
     }
     assert (id);

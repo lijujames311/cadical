@@ -626,11 +626,14 @@ void Internal::pop () {
   int activator_elit = ctx_stack[ctx_level].act_elit;//ctx_stack.back().act_elit;
   if (activator_elit) {
     int activator_ilit = ctx_stack[ctx_level].activator;// ctx_stack.back().activator;
-    Flags &f = flags(activator_ilit);
-    assert (f.activator);
-    f.activator = false;
-    melt(activator_ilit);
+    // Flags &f = flags(activator_ilit);
+    // assert (f.activator);
+    // f.activator = false;
+    // melt(activator_ilit);
 
+    // Do not melt previous activator literals, otherwise restore flush is
+    // not applicable!
+    
     // Clean up + garbage collector calls come here TODO
     if (opts.pppopunit == 1) {
       add_deactivator_unit_clause ();
