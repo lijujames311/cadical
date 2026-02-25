@@ -142,17 +142,19 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
         continue;
       int unit = 0, satisfied = 0;
       for (const auto &other : *c) {
-        const signed char tmp = val (other);
+        // TODO: maybe propagate on sweep_repr instead.
+        const auto &repr = other; //= sweep_repr (sweeper, other);
+        const signed char tmp = val (repr);
         if (tmp < 0)
           continue;
         if (tmp > 0) {
-          satisfied = other;
+          satisfied = repr;
           break;
         }
-        if (unit)
+        if (unit != repr)
           unit = INT_MIN;
         else
-          unit = other;
+          unit = repr;
       }
       if (satisfied) {
         LOG (c, "sweeping propagation of %d finds %d satisfied", lit,
@@ -282,12 +284,6 @@ void Internal::release_sweeper (Sweeper &sweeper) {
     sweeper.ids -= max_var;
     delete[] sweeper.ids;
   }
-  // TODO: propably add these to the solver instead of deleting them.
-  // Because decompose should find the equivalences...
-  // Maybe just change add_sweep_binary for this.
-  // And remove sweeper.binaries entirely.
-  for (auto &bin : sweeper.binaries)
-    delete_sweep_binary (bin);
 
   erase_vector (sweeper.depths);
   erase_vector (sweeper.prev);
@@ -369,11 +365,15 @@ void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
 
 void Internal::sweep_add_clause (Sweeper &sweeper, unsigned depth) {
   // TODO: this assertion might not hold?
-  assert (sweeper.clause.size () > 1);
+  // assert (sweeper.clause.size () > 1);
   for (const auto &lit : sweeper.clause)
     add_literal_to_environment (sweeper, depth, lit);
-  citten_clause_with_id (citten, sweeper.clauses.size (),
-                         sweeper.clause.size (), sweeper.clause.data ());
+  if (sweeper.clause.size () == 1)
+    citten_clause_with_id (citten, -1, sweeper.clause.size (),
+                           sweeper.clause.data ());
+  else
+    citten_clause_with_id (citten, sweeper.clauses.size () - 1,
+                           sweeper.clause.size (), sweeper.clause.data ());
   sweeper.clause.clear ();
   if (opts.sweepcountbinary || sweeper.clause.size () > 2)
     sweeper.encoded++;
@@ -400,7 +400,7 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
       different = true;
     if (marked (repr))
       continue;
-    if (marked (!repr)) {
+    if (marked (-repr)) {
       satisfied = true;
       break;
     }
@@ -413,9 +413,9 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     mark (repr);
     sweeper.clause.push_back (repr);
   }
+  for (const auto &lit : sweeper.clause)
+    unmark (lit);
   if (satisfied) {
-    for (const auto &lit : sweeper.clause)
-      unmark (lit);
     sweeper.clause.clear ();
     mark_garbage (c);
     sweep_update_noccs (c);
@@ -494,7 +494,7 @@ static void save_core_clause (void *state, unsigned id, bool learned,
     return;
   vector<sweep_proof_clause> &core = sweeper->core[sweeper->save];
   sweep_proof_clause pc;
-  if (learned) {
+  if (learned || id == INVALID) {
     pc.sweep_id = INVALID; // necessary
     pc.cad_id = INVALID64; // delay giving ids
   } else {
@@ -725,6 +725,7 @@ void Internal::init_backbone_and_partition (Sweeper &sweeper) {
   LOG ("initializing backbone and equivalent literals candidates");
   sweeper.backbone.clear ();
   sweeper.partition.clear ();
+  bool make_partition = false;
   for (const auto &idx : sweeper.vars) {
     if (!active (idx))
       continue;
@@ -736,8 +737,11 @@ void Internal::init_backbone_and_partition (Sweeper &sweeper) {
     LOG ("sweeping candidate %d", candidate);
     sweeper.backbone.push_back (candidate);
     sweeper.partition.push_back (candidate);
+    make_partition = true;
   }
-  sweeper.partition.push_back (0);
+  // TODO: figure out if this is an issue.
+  if (make_partition)
+    sweeper.partition.push_back (0);
 
   LOG (sweeper.backbone, "initialized backbone candidates");
   LOG (sweeper.partition, "initialized equivalence candidates");
@@ -1009,33 +1013,10 @@ int64_t Internal::add_sweep_binary (sweep_proof_clause pc, int lit,
   }
   clause.push_back (lit);
   clause.push_back (other);
-  const int64_t id = ++clause_id;
-  if (proof) {
-    proof->add_derived_clause (id, false, clause, lrat_chain);
-    proof->weaken_minus (id, clause);
-  }
-  external->push_binary_clause_on_extension_stack (id, lit, other);
-  for (auto &tracer : tracers) {
-    if (externalize (lit) < 0)
-      break;
-    const int elit = externalize (lit);
-    const int eother = externalize (other);
-    tracer->notify_equivalence (elit, -eother);
-  }
+  Clause *res = new_binary_equivalence_clause ();
   clause.clear ();
   lrat_chain.clear ();
-  return id;
-}
-
-void Internal::delete_sweep_binary (const sweep_binary &sb) {
-  if (unsat)
-    return;
-  if (!proof)
-    return;
-  vector<int> bin;
-  bin.push_back (sb.lit);
-  bin.push_back (sb.other);
-  proof->delete_clause (sb.id, false, bin);
+  return res->id;
 }
 
 bool Internal::scheduled_variable (Sweeper &sweeper, int idx) {
@@ -1169,6 +1150,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
   assert (sweeper.partition.size ());
   if (kitten_status (citten) != 10)
     return;
+  assert (sweeper.partition.size () > 1);
 #ifdef LOGGING
   unsigned total_flipped = 0;
 #endif
@@ -1378,10 +1360,6 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
       bin1.id = add_sweep_binary (sweeper.core[0].back (), lit, not_other);
       bin2.id = add_sweep_binary (sweeper.core[1].back (), not_lit, other);
     }
-    if (bin1.id && bin2.id) {
-      sweeper.binaries.push_back (bin1);
-      sweeper.binaries.push_back (bin2);
-    }
   }
 
   int repr;
@@ -1540,7 +1518,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
     solved = stats.sweep_solved - solved;
 #endif
     VERBOSE (4,
-             "complete swept variable %d backbone with %" PRIu64
+             "completely swept variable %d backbone with %" PRIu64
              " units in %" PRIu64 " solver calls",
              externalize (idx), units, solved);
     assert (sweeper.backbone.empty ());

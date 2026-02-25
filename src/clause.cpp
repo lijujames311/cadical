@@ -581,6 +581,20 @@ Clause *Internal::new_hyper_binary_resolved_clause (bool red, int glue) {
   return res;
 }
 
+// Add binary clause during 'sweep'.
+//
+Clause *Internal::new_binary_equivalence_clause () {
+  external->check_learned_clause ();
+  size_t size = clause.size ();
+  assert (size == 2);
+  Clause *res = new_clause (false, size);
+  if (proof) {
+    proof->add_derived_clause (res, lrat_chain);
+  }
+  assert (!watching ());
+  return res;
+}
+
 // Add hyper ternary resolved clause during 'ternary'.
 //
 Clause *Internal::new_hyper_ternary_resolved_clause (bool red) {

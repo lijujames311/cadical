@@ -741,6 +741,7 @@ struct Internal {
   void add_new_original_clause (int64_t);
   Clause *new_learned_redundant_clause (int glue);
   Clause *new_hyper_binary_resolved_clause (bool red, int glue);
+  Clause *new_binary_equivalence_clause ();
   Clause *new_clause_as (const Clause *orig);
   Clause *new_resolved_irredundant_clause ();
 
