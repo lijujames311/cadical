@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <cstdint>
 
 namespace CaDiCaL {
 
@@ -278,13 +279,22 @@ void Internal::init_sweeper (Sweeper &sweeper) {
 
 void Internal::release_sweeper (Sweeper &sweeper) {
 
-  sweeper.reprs -= max_var;
-  delete[] sweeper.reprs;
   if (lrat) {
+    for (auto &binary : sweeper.binaries) {
+      if (sweeper.ids[binary])
+        delete_tmp_sweep_binary (sweeper.ids[binary], -binary,
+                                 sweeper.reprs[binary]);
+      if (sweeper.ids[-binary])
+        delete_tmp_sweep_binary (sweeper.ids[-binary], binary,
+                                 sweeper.reprs[-binary]);
+    }
     sweeper.ids -= max_var;
     delete[] sweeper.ids;
   }
+  sweeper.reprs -= max_var;
+  delete[] sweeper.reprs;
 
+  erase_vector (sweeper.binaries);
   erase_vector (sweeper.depths);
   erase_vector (sweeper.prev);
   erase_vector (sweeper.next);
@@ -326,15 +336,42 @@ void Internal::clear_sweeper (Sweeper &sweeper) {
 
 int Internal::sweep_repr (Sweeper &sweeper, int lit) {
   int res;
+  vector<int> chain;
   {
     int prev = lit;
-    while ((res = sweeper.reprs[prev]) != prev)
+    while ((res = sweeper.reprs[prev]) != prev) {
+      if (lrat)
+        chain.push_back (prev);
       prev = res;
+    }
   }
   if (res == lit)
     return res;
   LOG ("sweeping repr[%d] = %d", lit, res);
   {
+    if (lrat && chain.size () > 1) {
+      vector<int64_t> lrat1;
+      vector<int64_t> lrat2;
+      int last = res;
+      for (auto other = chain.rbegin (); other != chain.rend (); other++) {
+        const int &tmp = *other;
+        lrat1.push_back (sweeper.ids[tmp]);
+        lrat2.push_back (sweeper.ids[-tmp]);
+        if (lrat1.size () > 1) {
+          int64_t old1 = sweeper.ids[tmp];
+          int64_t old2 = sweeper.ids[-tmp];
+          sweeper.ids[tmp] = add_tmp_sweep_binary (lrat1, -tmp, res);
+          sweeper.ids[-tmp] = add_tmp_sweep_binary (lrat2, tmp, -res);
+          delete_tmp_sweep_binary (old1, -tmp, last);
+          delete_tmp_sweep_binary (old2, tmp, -last);
+        }
+        lrat1.clear ();
+        lrat2.clear ();
+        lrat1.push_back (sweeper.ids[tmp]);
+        lrat2.push_back (sweeper.ids[-tmp]);
+        last = tmp;
+      }
+    }
     const int not_res = -res;
     int next, prev = lit;
     while ((next = sweeper.reprs[prev]) != res) {
@@ -386,9 +423,12 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
   bool satisfied = false;
   bool different = false;
   // TODO: lrat for this loop.
+  assert (lrat_chain.empty ());
   for (const auto &lit : *c) {
     if (val (lit) < 0) {
       different = true;
+      if (lrat)
+        lrat_chain.push_back (unit_id (-lit));
       continue;
     }
     if (val (lit) > 0) {
@@ -396,16 +436,22 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
       break;
     }
     const auto &repr = sweep_repr (sweeper, lit);
-    if (repr != lit)
+    if (repr != lit) {
       different = true;
+      if (lrat)
+        lrat_chain.push_back (sweeper.ids[lit]);
+    }
     if (marked (repr) > 0)
       continue;
     if (marked (repr) < 0) {
       satisfied = true;
       break;
     }
-    if (val (repr) < 0)
+    if (val (repr) < 0) {
+      if (lrat)
+        lrat_chain.push_back (unit_id (-repr));
       continue;
+    }
     if (val (repr) > 0) {
       satisfied = true;
       break;
@@ -417,15 +463,18 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     unmark (lit);
   if (satisfied) {
     sweeper.clause.clear ();
+    lrat_chain.clear ();
     mark_garbage (c);
     sweep_update_noccs (c);
     return false;
   }
   if (!different) {
+    assert (lrat_chain.empty ());
     c->swept = true;
     sweeper.clauses.push_back (c);
     return true;
   }
+  lrat_chain.push_back (c->id);
   const unsigned new_size = sweeper.clause.size ();
   if (new_size == 0) {
     LOG (c, "substituted empty clause");
@@ -533,17 +582,7 @@ static void save_core_clause_with_lrat (void *state, unsigned cid,
   pc.learned = learned;
   pc.sweep_id = INVALID;
   pc.cad_id = INVALID64;
-  if (!learned) {
-    assert (size);
-    assert (!chain_size);
-    assert (id < clauses.size ());
-    pc.sweep_id = id;
-    assert (id < clauses.size ());
-    pc.cad_id = clauses[id]->id;
-    for (const auto &lit : *clauses[id]) {
-      pc.literals.push_back (lit);
-    }
-  } else {
+  if (learned) {
     assert (chain_size);
     pc.sweep_id = INVALID;
     pc.cad_id = INVALID64; // delay giving ids
@@ -554,12 +593,26 @@ static void save_core_clause_with_lrat (void *state, unsigned cid,
     for (const unsigned *p = chain + chain_size; p != chain; p--) {
       pc.chain.push_back (*(p - 1));
     }
+  } else if (size == 1) {
+    pc.sweep_id = INVALID;
+    pc.cad_id = internal->unit_id (internal->citten2lit (*lits));
+  } else {
+    assert (size);
+    assert (!chain_size);
+    pc.sweep_id = id;
+    assert (id < clauses.size ());
+    pc.cad_id = clauses[id]->id;
+    for (const auto &lit : *clauses[id]) {
+      pc.literals.push_back (lit);
+    }
   }
 #ifdef LOGGING
   if (learned)
     LOG (pc.literals, "traced %s",
          pc.learned == true ? "learned" : "original");
-  else {
+  else if (size == 1) {
+    LOG ("traced unit id %" PRId64, pc.cad_id);
+  } else {
     assert (id < clauses.size ());
     LOG (clauses[id], "traced");
   }
@@ -618,7 +671,9 @@ void Internal::add_core (Sweeper &sweeper, unsigned core_idx) {
           if (cpc.kit_id == cid) {
             if (cpc.learned)
               id = cpc.cad_id;
-            else {
+            else if (cpc.sweep_id == INVALID) {
+              id = cpc.cad_id;
+            } else {
               id = cpc.cad_id;
               assert (cpc.cad_id == sweeper.clauses[cpc.sweep_id]->id);
               assert (!sweeper.clauses[cpc.sweep_id]->garbage);
@@ -989,6 +1044,31 @@ bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
   return false;
 }
 
+void Internal::delete_tmp_sweep_binary (int64_t id, int lit, int other) {
+  if (unsat)
+    return;
+  if (!proof)
+    return;
+  vector<int> bin;
+  bin.push_back (lit);
+  bin.push_back (other);
+  proof->delete_clause (id, false, bin);
+}
+
+int64_t Internal::add_tmp_sweep_binary (std::vector<int64_t> &chain,
+                                        int lit, int other) {
+  if (unsat)
+    return 0;
+  if (!lrat)
+    return 0;
+  vector<int> bin;
+  bin.push_back (lit);
+  bin.push_back (other);
+  int64_t id = ++clause_id;
+  proof->add_derived_clause (id, false, bin, chain);
+  return id;
+}
+
 // at this point the binary (lit or other) is already present
 // in the proof via 'add_core'.
 // We just copy it as an irredundant clause, call weaken minus
@@ -1018,7 +1098,11 @@ int64_t Internal::add_sweep_binary (sweep_proof_clause pc, int lit,
   Clause *res = new_binary_equivalence_clause ();
   clause.clear ();
   lrat_chain.clear ();
-  return res->id;
+  if (lrat)
+    lrat_chain.push_back (res->id);
+  int64_t id = add_tmp_sweep_binary (lrat_chain, lit, other);
+  lrat_chain.clear ();
+  return id;
 }
 
 bool Internal::scheduled_variable (Sweeper &sweeper, int idx) {
@@ -1341,45 +1425,38 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
   // store the equivalence .
   add_core (sweeper, 0);
   add_core (sweeper, 1);
-  sweep_binary bin1;
-  sweep_binary bin2;
+  int64_t id1 = 0;
+  int64_t id2 = 0;
   if (!val (lit) && !val (other)) {
     assert (sweeper.core[0].size ());
     assert (sweeper.core[1].size ());
     stats.sweep_equivalences++;
     if (abs (lit) < abs (other)) {
-      bin1.lit = not_other;
-      bin1.other = lit;
-      bin2.lit = other;
-      bin2.other = not_lit;
-      bin1.id = add_sweep_binary (sweeper.core[0].back (), not_other, lit);
-      bin2.id = add_sweep_binary (sweeper.core[1].back (), other, not_lit);
+      id1 = add_sweep_binary (sweeper.core[0].back (), not_other, lit);
+      id2 = add_sweep_binary (sweeper.core[1].back (), other, not_lit);
     } else {
-      bin1.lit = lit;
-      bin1.other = not_other;
-      bin2.lit = not_lit;
-      bin2.other = other;
-      bin1.id = add_sweep_binary (sweeper.core[0].back (), lit, not_other);
-      bin2.id = add_sweep_binary (sweeper.core[1].back (), not_lit, other);
+      id1 = add_sweep_binary (sweeper.core[0].back (), lit, not_other);
+      id2 = add_sweep_binary (sweeper.core[1].back (), not_lit, other);
     }
   }
-
   int repr;
   if (abs (lit) < abs (other)) {
     repr = sweeper.reprs[other] = lit;
     sweeper.reprs[not_other] = not_lit;
     sweep_remove (sweeper, other);
     if (lrat) {
-      sweeper.ids[other] = bin1.id;
-      sweeper.ids[not_other] = bin2.id;
+      sweeper.binaries.push_back (other);
+      sweeper.ids[other] = id1;
+      sweeper.ids[not_other] = id2;
     }
   } else {
     repr = sweeper.reprs[lit] = other;
     sweeper.reprs[not_lit] = not_other;
     sweep_remove (sweeper, lit);
     if (lrat) {
-      sweeper.ids[lit] = bin2.id;
-      sweeper.ids[not_lit] = bin1.id;
+      sweeper.binaries.push_back (lit);
+      sweeper.ids[lit] = id2;
+      sweeper.ids[not_lit] = id1;
     }
   }
   clear_core (sweeper, 0);
@@ -1388,7 +1465,21 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
   const int repr_idx = abs (repr);
   schedule_inner (sweeper, repr_idx);
 
+  sweep_move_occs (lit, other);
+
   return true;
+}
+
+void Internal::sweep_move_occs (int to, int from) {
+  occs (to).insert (occs (to).end (), occs (from).begin (),
+                    occs (from).end ());
+  occs (-to).insert (occs (-to).end (), occs (-from).begin (),
+                     occs (-from).end ());
+  occs (from).clear ();
+  occs (-from).clear ();
+  noccs (to) += noccs (from);
+  noccs (-to) += noccs (-from);
+  noccs (from) = noccs (-from) = 0;
 }
 
 const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {

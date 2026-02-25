@@ -52,7 +52,7 @@ struct Sweeper {
   std::vector<int> backbone;
   std::vector<int> partition;
   std::vector<bool> prev_units;
-  std::vector<sweep_binary> binaries;
+  std::vector<int> binaries;
   std::vector<sweep_proof_clause> core[2];
   uint64_t current_ticks;
   struct {

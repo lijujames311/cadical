@@ -1313,6 +1313,7 @@ struct Internal {
   bool scheduled_variable (Sweeper &sweeper, int idx);
   void schedule_inner (Sweeper &sweeper, int idx);
   void schedule_outer (Sweeper &sweeper, int idx);
+  void sweep_move_occs (int, int);
   int next_scheduled (Sweeper &sweeper);
   void sweep_remove (Sweeper &sweeper, int lit);
   void flip_partition_literals (struct Sweeper &sweeper);
@@ -1332,7 +1333,8 @@ struct Internal {
   void sweep_dense_mode_and_watch_irredundant ();
   bool sweep_substitute_clause (Sweeper &sweeper, Clause *c);
   void sweep_update_noccs (Clause *c);
-  void delete_sweep_binary (const sweep_binary &sb);
+  void delete_tmp_sweep_binary (int64_t, int, int);
+  int64_t add_tmp_sweep_binary (std::vector<int64_t> &, int, int);
   bool can_sweep_clause (Clause *c);
   bool sweep_flip (int);
   int sweep_flip_and_implicant (int);
