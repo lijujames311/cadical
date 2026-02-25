@@ -398,9 +398,9 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     const auto &repr = sweep_repr (sweeper, lit);
     if (repr != lit)
       different = true;
-    if (marked (repr))
+    if (marked (repr) > 0)
       continue;
-    if (marked (-repr)) {
+    if (marked (repr) < 0) {
       satisfied = true;
       break;
     }
@@ -431,6 +431,7 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     LOG (c, "substituted empty clause");
     assert (!unsat);
     learn_empty_clause ();
+    assert (unsat);
     return false;
   }
   if (new_size == 1) {
@@ -1417,7 +1418,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
   unsigned depth = 1;
 
   uint64_t &ticks = sweeper.current_ticks;
-  while (!limit_reached) {
+  while (!limit_reached && !unsat) {
     if (sweeper.encoded >= sweeper.limit.clauses) {
       LOG ("environment clause limit reached");
       limit_reached = true;
@@ -1456,6 +1457,10 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
         if (!can_sweep_clause (c))
           continue;
         sweep_clause (sweeper, depth, c);
+        if (unsat) {
+          LOG ("found empty clause while adding environment");
+          break;
+        }
         if (sweeper.vars.size () >= sweeper.limit.vars) {
           LOG ("environment variable limit reached");
           limit_reached = true;
@@ -1476,6 +1481,10 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
            externalize (idx), sweeper.vars.size (), sweeper.encoded, depth);
 
   int res;
+  if (unsat) {
+    LOG ("found empty clause while adding environment");
+    goto DONE;
+  }
   if (sweeper.vars.size () == 1) {
     LOG ("not sweeping literal %d with environment size 1", idx);
     goto DONE;
