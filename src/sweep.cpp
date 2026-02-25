@@ -420,6 +420,8 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
   LOG (c, "substituting equivalences and units in");
   assert (!c->garbage);
   assert (sweeper.clause.empty ());
+  assert (lrat_chain.empty ());
+  assert (minimize_chain.empty ());
   bool satisfied = false;
   bool different = false;
   // TODO: lrat for this loop.
@@ -427,8 +429,11 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
   for (const auto &lit : *c) {
     if (val (lit) < 0) {
       different = true;
-      if (lrat)
-        lrat_chain.push_back (unit_id (-lit));
+      if (lrat && !flags (lit).seen) {
+        flags (lit).seen = true;
+        analyzed.push_back (lit);
+        minimize_chain.push_back (unit_id (-lit));
+      }
       continue;
     }
     if (val (lit) > 0) {
@@ -448,8 +453,11 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
       break;
     }
     if (val (repr) < 0) {
-      if (lrat)
-        lrat_chain.push_back (unit_id (-repr));
+      if (lrat && !flags (repr).seen) {
+        flags (repr).seen = true;
+        analyzed.push_back (repr);
+        minimize_chain.push_back (unit_id (-repr));
+      }
       continue;
     }
     if (val (repr) > 0) {
@@ -461,9 +469,12 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
   }
   for (const auto &lit : sweeper.clause)
     unmark (lit);
+  clear_analyzed_literals ();
+  assert (analyzed.empty ());
   if (satisfied) {
     sweeper.clause.clear ();
     lrat_chain.clear ();
+    minimize_chain.clear ();
     mark_garbage (c);
     sweep_update_noccs (c);
     return false;
@@ -474,6 +485,9 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     sweeper.clauses.push_back (c);
     return true;
   }
+  lrat_chain.insert (lrat_chain.end (), minimize_chain.begin (),
+                     minimize_chain.end ());
+  minimize_chain.clear ();
   reverse (lrat_chain.begin (), lrat_chain.end ());
   lrat_chain.push_back (c->id);
   const unsigned new_size = sweeper.clause.size ();

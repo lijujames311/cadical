@@ -238,7 +238,7 @@ OPTION( sweepmaxclauses, 3e5,  2,2e9,1,0,1, "maximum environment clauses") \
 OPTION( sweepmaxdepth,     3,  1,2e9,1,0,1, "maximum environment depth") \
 OPTION( sweepmaxvars,   8192,  2,2e9,1,0,1, "maximum environment variables") \
 OPTION( sweeprand,         0,  0,  1,0,0,1, "randomize sweeping environment") \
-OPTION( sweepthresh,       5,  0,100,1,0,1, "delay if ticks smaller thresh*clauses") \
+OPTION( sweepthresh,       0,  0,100,1,0,1, "delay if ticks smaller thresh*clauses") \
 OPTION( sweepvars,       256,  0,2e9,1,0,1, "environment variables") \
 OPTION( target,            1,  0,  2,0,0,1, "target phases (1=stable only)") \
 OPTION( terminateint,     10,  0,1e4,0,0,1, "termination check interval") \
