@@ -624,8 +624,8 @@ void Internal::pop () {
   switch_ctx(ctx_stack.size() - 1);
 
   int activator_elit = ctx_stack[ctx_level].act_elit;//ctx_stack.back().act_elit;
-  if (activator_elit) {
-    int activator_ilit = ctx_stack[ctx_level].activator;// ctx_stack.back().activator;
+  if (activator_elit && opts.pppopunit == 1) {
+    //int activator_ilit = ctx_stack[ctx_level].activator;// ctx_stack.back().activator;
     // Flags &f = flags(activator_ilit);
     // assert (f.activator);
     // f.activator = false;
@@ -633,11 +633,11 @@ void Internal::pop () {
 
     // Do not melt previous activator literals, otherwise restore flush is
     // not applicable!
-    
+
     // Clean up + garbage collector calls come here TODO
-    if (opts.pppopunit == 1) {
-      add_deactivator_unit_clause ();
-    }
+    //if (opts.pppopunit == 1) {
+    add_deactivator_unit_clause ();
+    //}
   }
 
 
@@ -689,10 +689,19 @@ void Internal::add_activator_assumptions () {
     if (activator_trigger_elit) external->assume(activator_trigger_elit);
   } else {
     // Add all activator literals as an assumptions
-    assert (opts.ppassumptions == 2);
-    for (const auto cl : ctx_stack) {
-      const int activator_elit = cl.act_elit;
-      if (activator_elit) external->assume(activator_elit);
+    if (opts.ppassumptions == 2) {
+      for (const auto cl : ctx_stack) {
+        const int activator_elit = cl.act_elit;
+        if (activator_elit) external->assume(activator_elit);
+      }
+    } else {
+      assert (opts.ppassumptions == 3);
+      // Assert all activators but in reverse order (top level is first)
+      for (auto rit = ctx_stack.rbegin(); rit < ctx_stack.rend(); ++rit ) {
+        if ((*rit).activator) {
+          external->assume((*rit).act_elit);
+        }
+      }
     }
   } 
 }
