@@ -3770,7 +3770,7 @@ void Mobical::notify (Trace &trace, signed char ch) {
     terminal.erase_line_if_connected_otherwise_new_line ();
   prefix ();
   if (traces)
-    cerr << ' ' << left << setw (12) << traces;
+    cerr << ' ' << left << setw (12) << trace.executed;
   else
     cerr << left << "red: " << setw (8) << trace.executed;
   terminal.yellow ();

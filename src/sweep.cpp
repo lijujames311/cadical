@@ -1045,10 +1045,7 @@ bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
 }
 
 void Internal::delete_tmp_sweep_binary (int64_t id, int lit, int other) {
-  if (unsat)
-    return;
-  if (!proof)
-    return;
+  assert (lrat);
   vector<int> bin;
   bin.push_back (lit);
   bin.push_back (other);
@@ -1057,8 +1054,6 @@ void Internal::delete_tmp_sweep_binary (int64_t id, int lit, int other) {
 
 int64_t Internal::add_tmp_sweep_binary (std::vector<int64_t> &chain,
                                         int lit, int other) {
-  if (unsat)
-    return 0;
   if (!lrat)
     return 0;
   vector<int> bin;
