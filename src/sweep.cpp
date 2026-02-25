@@ -103,7 +103,7 @@ void Internal::sweep_dense_mode_and_watch_irredundant () {
   // Connect irredundant clauses.
   //
   for (const auto &c : clauses) {
-    if (!c->garbage) {
+    if (can_sweep_clause (c)) {
       for (const auto &lit : *c)
         if (active (lit))
           occs (lit).push_back (c);
@@ -389,6 +389,8 @@ void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
                                            int lit) {
   const int repr = sweep_repr (sweeper, lit);
   if (repr != lit)
+    return;
+  if (val (lit))
     return;
   const int idx = abs (lit);
   if (sweeper.depths[idx])
