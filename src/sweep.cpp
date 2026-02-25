@@ -1454,6 +1454,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
     repr = sweeper.reprs[other] = lit;
     sweeper.reprs[not_other] = not_lit;
     sweep_remove (sweeper, other);
+    sweep_move_occs (lit, other);
     if (lrat) {
       sweeper.binaries.push_back (other);
       sweeper.ids[other] = id1;
@@ -1463,6 +1464,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
     repr = sweeper.reprs[lit] = other;
     sweeper.reprs[not_lit] = not_other;
     sweep_remove (sweeper, lit);
+    sweep_move_occs (other, lit);
     if (lrat) {
       sweeper.binaries.push_back (lit);
       sweeper.ids[lit] = id2;
@@ -1474,8 +1476,6 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
 
   const int repr_idx = abs (repr);
   schedule_inner (sweeper, repr_idx);
-
-  sweep_move_occs (lit, other);
 
   return true;
 }
