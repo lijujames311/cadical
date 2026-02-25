@@ -445,8 +445,9 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     return true;
   }
   assert (c->size >= 2);
-  assert (!c->redundant);
-  mark_removed (c);
+  assert (!c->redundant || c->size == 2);
+  if (!c->redundant)
+    mark_removed (c);
   uint64_t new_id = ++clause_id;
   if (proof) {
     proof->add_derived_clause (new_id, c->redundant, sweeper.clause,
@@ -1167,7 +1168,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
       auto end_src = src;
       while (assert (end_src != end), *end_src != 0)
         end_src++;
-      unsigned size = end_src - src;
+      unsigned size = &end_src - &src;
       assert (size > 1);
       auto q = dst;
       for (auto p = src; p != end_src; p++) {
