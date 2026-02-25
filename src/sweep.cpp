@@ -474,6 +474,7 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     sweeper.clauses.push_back (c);
     return true;
   }
+  reverse (lrat_chain.begin (), lrat_chain.end ());
   lrat_chain.push_back (c->id);
   const unsigned new_size = sweeper.clause.size ();
   if (new_size == 0) {
