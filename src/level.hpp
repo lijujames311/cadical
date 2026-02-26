@@ -32,6 +32,8 @@ struct CtxLevel {
   int act_elit = 0; // external activator variable
   int activator = 0; // Activating assumption literal of that level (ilit!)
   
+  Clause *reason = 0; // The clause that propagates the activator literal
+
   CtxLevel (int elit) : act_elit(elit) {};
   CtxLevel () {};
 
