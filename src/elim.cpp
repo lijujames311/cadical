@@ -1023,6 +1023,8 @@ void Internal::elim (bool update_limits) {
     return;
   }
 
+  if (!protected_reasons) protect_reasons ();
+
   stats.elimphases++;
   PHASE ("elim-phase", stats.elimphases,
          "starting at most %d elimination rounds", opts.elimrounds);
@@ -1124,6 +1126,9 @@ void Internal::elim (bool update_limits) {
   reset_citten ();
   if (deleted_binary_clause)
     delete_garbage_clauses ();
+  
+  unprotect_reasons ();
+
   init_watches ();
   connect_watches ();
 
