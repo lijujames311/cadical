@@ -787,7 +787,6 @@ void Internal::init_backbone_and_partition (Sweeper &sweeper) {
   LOG ("initializing backbone and equivalent literals candidates");
   sweeper.backbone.clear ();
   sweeper.partition.clear ();
-  bool make_partition = false;
   for (const auto &idx : sweeper.vars) {
     if (!active (idx))
       continue;
@@ -799,10 +798,10 @@ void Internal::init_backbone_and_partition (Sweeper &sweeper) {
     LOG ("sweeping candidate %d", candidate);
     sweeper.backbone.push_back (candidate);
     sweeper.partition.push_back (candidate);
-    make_partition = true;
   }
-  // TODO: figure out if this is an issue.
-  if (make_partition)
+  if (sweeper.partition.size () <= 1)
+    sweeper.partition.clear ();
+  else
     sweeper.partition.push_back (0);
 
   LOG (sweeper.backbone, "initialized backbone candidates");
@@ -1252,7 +1251,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
       auto end_src = src;
       while (assert (end_src != end), *end_src != 0)
         end_src++;
-      unsigned size = &end_src - &src;
+      unsigned size = end_src - src;
       assert (size > 1);
       auto q = dst;
       for (auto p = src; p != end_src; p++) {
