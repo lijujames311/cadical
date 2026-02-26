@@ -170,6 +170,8 @@ void Internal::block_schedule (Blocker &blocker) {
       continue;
     if (c->redundant)
       continue;
+    if (c->reason)
+      continue;
 
     for (const auto &lit : *c) {
       assert (active (lit));
