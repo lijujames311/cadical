@@ -446,6 +446,8 @@ void Internal::elimfast () {
     return;
   }
 
+  if (!protected_reasons) protect_reasons ();
+
   stats.elimfastphases++;
   PHASE ("fastelim-phase", stats.elimfastphases,
          "starting at most %d elimination rounds", opts.fastelimrounds);
@@ -540,6 +542,9 @@ void Internal::elimfast () {
 
   if (deleted_binary_clause)
     delete_garbage_clauses ();
+
+  unprotect_reasons ();
+  
   init_watches ();
   connect_watches ();
 
