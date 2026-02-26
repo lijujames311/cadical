@@ -127,6 +127,26 @@ void Internal::protect_reasons () {
 #endif
   }
   LOG ("protected %zd reason clauses referenced on trail", count);
+  if (opts.ppassumptions == 2) {
+#ifdef LOGGING
+    count = 0;
+#endif
+    for (auto &ctx : ctx_stack) {
+      if (ctx.is_empty_level() || !ctx.reason || ctx.reason->reason) continue;
+      if (ctx.reason->garbage) {
+        //assert (flags(ctx.activator).fixed());
+        ctx.reason = 0;
+        continue;
+      } else {
+        ctx.reason->reason = true;
+        LOG(ctx.reason, "additionally protecting reason of activator literal %d",ctx.act_elit);
+#ifdef LOGGING
+      count++;
+#endif
+      }
+    }
+    LOG ("additionally protected %zd activator reason clauses", count);
+  }
   protected_reasons = true;
 }
 
@@ -161,6 +181,22 @@ void Internal::unprotect_reasons () {
 #endif
   }
   LOG ("unprotected %zd reason clauses referenced on trail", count);
+  if (opts.ppassumptions == 2) {
+#ifdef LOGGING
+    count = 0;
+#endif
+    for (auto ctx : ctx_stack) {
+      LOG("checking ctx %p",(void*)&ctx);
+      if (ctx.is_empty_level() || !ctx.reason || ctx.reason->garbage || !ctx.reason->reason) continue;
+      assert(ctx.act_elit);
+      LOG(ctx.reason, "additionally unprotecting reason of activator literal %d",ctx.act_elit);
+      ctx.reason->reason = false;
+#ifdef LOGGING
+      count++;
+#endif
+    }
+    LOG ("additionally unprotected %zd activator reason clauses", count);
+  }
   protected_reasons = false;
 }
 
@@ -265,6 +301,38 @@ void Internal::update_reason_references () {
 #endif
   }
   LOG ("updated %zd assigned reason references", count);
+
+#ifdef LOGGING
+  count = 0;
+#endif
+
+  for (auto &ctx : ctx_stack) {
+    if (ctx.is_empty_level())
+      continue;
+    
+    Clause *c = ctx.reason;
+
+    if (!c)
+      continue;
+
+    if (c->garbage) {
+      ctx.reason = 0;
+      c->reason = false;
+      continue;
+    }
+
+    assert(!c->garbage);
+    //assert (c->reason);
+    if (c->moved) {
+      LOG(c, "additionally updating reason of activator literal %d",ctx.act_elit);
+      Clause *d = c->copy;
+      ctx.reason = d;
+#ifdef LOGGING
+      count++;
+#endif
+    }
+  }
+  LOG ("additionally updated %zd activator reason clauses", count);
 }
 
 /*------------------------------------------------------------------------*/
