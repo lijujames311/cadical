@@ -59,7 +59,7 @@ OPTION( compact,           1,  0,  1,0,1,1, "compact internal variables") \
 OPTION( compactint,      2e3,  1,2e9,0,0,1, "compacting interval") \
 OPTION( compactlim,      1e2,  0,1e3,0,0,1, "inactive limit per mille") \
 OPTION( compactmin,      1e2,  1,2e9,0,0,1, "minimum inactive limit") \
-OPTION( condition,         0,  0,  1,0,1,1, "globally blocked clause elim") \
+OPTION( condition,         0,  0,  0,0,1,1, "globally blocked clause elim") \
 OPTION( conditioneffort, 100,  1,1e5,0,0,1, "relative efficiency per mille") \
 OPTION( conditionint,    1e4,  1,2e9,0,0,1, "initial conflict interval") \
 OPTION( conditionmaxeff, 1e7,  0,2e9,1,0,1, "maximum condition efficiency") \
@@ -74,7 +74,7 @@ OPTION( congruenceite,     1,  0,  1,0,0,1, "extract ITE gates") \
 OPTION( congruencexor,     1,  0,  1,0,0,1, "extract XOR gates") \
 OPTION( congruencexorarity,4,  2, 31,0,0,1, "XOR gate arity limit") \
 OPTION( congruencexorcounts,1, 1,5e6,0,0,1, "XOR gate round") \
-OPTION( cover,             0,  0,  1,0,1,1, "covered clause elimination") \
+OPTION( cover,             0,  0,  0,0,1,1, "covered clause elimination") \
 OPTION( covereffort,       4,  1,1e5,1,0,1, "relative efficiency per mille") \
 OPTION( covermaxclslim,  1e5,  1,2e9,2,0,1, "maximum clause size") \
 OPTION( covermaxeff,     1e8,  0,2e9,1,0,1, "maximum cover efficiency") \
@@ -165,8 +165,7 @@ OPTION( minimizeticks,     1,  0,  1,0,0,1, "increment ticks in minimization") \
 OPTION( modelalllits,      0,  0,  1,0,0,1, "print all literals (including unsed) in the model") \
 OPTION( otfs,              1,  0,  1,0,0,1, "on-the-fly self subsumption") \
 OPTION( phase,             1,  0,  1,0,0,1, "initial phase") \
-OPTION( ppassumptions,     1,  1,  3,0,0,0, "assumption strategy for push (1: assume only top and propagate rest 2: assume all levels 3: assume all levels in reverse order)") \
-OPTION( pppopunit,         0,  0,  1,0,0,0, "strategy for pop (0: do nothing 1: add satisfied activator as unit)") \
+OPTION( ppassumptions,     1,  1,  4,0,0,0, "assumption strategy for push (1: assume only top and propagate rest 2: assume only top but eagerly propagate rest before 3: assume all levels 4: assume all levels in reverse order)") \
 OPTION( pprecycle,         0,  0,  0,0,1,0, "eagerness of recycling for push-pop (0: never)") \
 OPTION( preprocessinit,  2e6,  0,2e9,2,0,1, "initial preprocessing base limit" ) \
 OPTION( preprocesslight,   1,  0,  1,0,1,1, "lightweight preprocessing" ) \
