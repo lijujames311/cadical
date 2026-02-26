@@ -286,7 +286,7 @@ int Internal::forward_true_satisfiable () {
 /*------------------------------------------------------------------------*/
 
 int Internal::backward_false_satisfiable () {
-  LOG ("checking decreasing variable index false assignment");
+  VERBOSE (3, "checking decreasing variable index false assignment");
   assert (!unsat);
   assert (!level);
   stats.lucky.backward.zero++;
@@ -316,7 +316,7 @@ int Internal::backward_false_satisfiable () {
 }
 
 int Internal::backward_true_satisfiable () {
-  LOG ("checking decreasing variable index true assignment");
+  VERBOSE (3, "checking decreasing variable index true assignment");
   assert (!unsat);
   assert (!level);
   stats.lucky.backward.one++;
@@ -499,12 +499,12 @@ int Internal::lucky_phases () {
       stats.lucky.units += units;
 
       if (!res && units)
-        VERBOSE (3, "lucky %" PRId64 "in round %d found %" PRId64 " units", stats.lucky.tried, rounds, units);
+        VERBOSE (3, "lucky-%" PRId64 " in round %d found %" PRId64 " units", stats.lucky.tried, rounds, units);
     } while (units && !res && ++rounds < opts.luckyrounds);
 
   report ('l', !res && !units);
   searching_lucky_phases = false;
-  PHASE ("lucky", stats.lucky.tried, "produced %" PRId64 " units after %d rounds", active_initially - stats.active, rounds);
+  PHASE ("lucky", stats.lucky.tried, " produced %" PRId64 " units after %d rounds", active_initially - stats.active, rounds);
 
   STOP (lucky);
   STOP (search);
