@@ -243,6 +243,23 @@ int Internal::decide () {
       LOG ("deciding assumption %d", lit);
       search_assume_decision (lit);
     }
+    if (!res && opts.ppassumptions == 2 && (size_t) level == assumptions.size () && flags(lit).activator) {
+      for (auto rit = std::next(ctx_stack.rbegin()); rit < ctx_stack.rend(); ++rit ) {
+        const int act_ilit = (*rit).activator;
+        if (act_ilit) {
+          const signed char act_tmp = val (act_ilit);
+          if (act_tmp) continue;
+          // Check if reason is root-level satisfied
+          Clause *c = (*rit).reason;
+          (c && c->size == 2 && !c->garbage);
+          
+          LOG(c,"force search-assign %d at level %d  with reason",act_ilit,level);
+          search_assign (act_ilit, c);
+        }
+      }
+      
+      // search_assign (int lit, Clause *reason);
+    }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
 
     int satisfied_lit = 0;  // The literal satisfying the constrain.
