@@ -624,22 +624,26 @@ void Internal::pop () {
   switch_ctx(ctx_stack.size() - 1);
 
   int activator_elit = ctx_stack[ctx_level].act_elit;//ctx_stack.back().act_elit;
-  if (activator_elit && opts.pppopunit == 1) {
-    //int activator_ilit = ctx_stack[ctx_level].activator;// ctx_stack.back().activator;
-    // Flags &f = flags(activator_ilit);
-    // assert (f.activator);
-    // f.activator = false;
-    // melt(activator_ilit);
-
-    // Do not melt previous activator literals, otherwise restore flush is
-    // not applicable!
-
-    // Clean up + garbage collector calls come here TODO
-    //if (opts.pppopunit == 1) {
+  if (activator_elit) {
     add_deactivator_unit_clause ();
-    //}
+    
+    if (opts.ppassumptions <= 2) {
+      // Find prev active context level and remove the propagating reason
+    int prev_elit = 0;
+    size_t prev_ctx_level = 0;
+    for (auto idx = ctx_level - 1; idx > 0; idx--) {
+      if (!ctx_stack[idx].is_empty_level()) {
+        prev_elit = ctx_stack[idx].act_elit;
+        prev_ctx_level = idx;
+        break;
+      }
+    }
+    if (prev_elit) {
+      LOG ("reset activator chain clause of %d",prev_elit);
+      ctx_stack[prev_ctx_level].reason = 0;
+    }
+    }
   }
-
 
   ctx_stack.resize(ctx_stack.size()-1);
   switch_ctx(ctx_stack.size() - 1);
@@ -677,7 +681,7 @@ void Internal::add_activator_assumptions () {
   switch_ctx (ctx_stack.size() - 1);
   // The assumptions are added through external, so the proofs and checkers
   // also see them without any workaround, but it call internalize on the way
-  if (opts.ppassumptions == 1) {
+  if (opts.ppassumptions <= 2) {
     // Add the current activator literal as an assumption
     int activator_trigger_elit = 0;
     for (auto rit = ctx_stack.rbegin(); rit < ctx_stack.rend(); ++rit ) {
@@ -689,13 +693,13 @@ void Internal::add_activator_assumptions () {
     if (activator_trigger_elit) external->assume(activator_trigger_elit);
   } else {
     // Add all activator literals as an assumptions
-    if (opts.ppassumptions == 2) {
+    if (opts.ppassumptions == 3) {
       for (const auto cl : ctx_stack) {
         const int activator_elit = cl.act_elit;
         if (activator_elit) external->assume(activator_elit);
       }
     } else {
-      assert (opts.ppassumptions == 3);
+      assert (opts.ppassumptions == 4);
       // Assert all activators but in reverse order (top level is first)
       for (auto rit = ctx_stack.rbegin(); rit < ctx_stack.rend(); ++rit ) {
         if ((*rit).activator) {
@@ -749,7 +753,7 @@ void Internal::add_activator_implication () {
   if (!ctx_stack.size())
     return;
 
-  if (opts.ppassumptions != 1)
+  if (opts.ppassumptions > 2)
     return;
 
   assert (ctx_level > 0 &&  ctx_level < ctx_stack.size());
@@ -758,23 +762,36 @@ void Internal::add_activator_implication () {
 
   bool do_checking = (opts.check && (opts.checkwitness || opts.checkfailed));
  
-  if (ctx_level > 1) {
+  const int act_elit = ctx_stack[ctx_level].act_elit;
+  const int act_ilit = external->internalize(act_elit);
+
+  if (ctx_level > 1 && !flags(act_ilit).fixed()) { //TODO: Check that it is fixed satisfied, not falsified!
     // Find the previous active context level
     int prev_elit = 0;
+    size_t prev_ctx_level = 0;
     for (auto idx = ctx_level - 1; idx > 0; idx--) {
       if (!ctx_stack[idx].is_empty_level()) {
         prev_elit = ctx_stack[idx].act_elit;
+        prev_ctx_level = idx;
         break;
       }
     }
     if (prev_elit) {
-      const int act_elit = ctx_stack[ctx_level].act_elit;
-      const int act_ilit = external->internalize(act_elit);
-      // assert (!act_elit && !act_ilit); // Fixed literals are considered here
+      assert (prev_ctx_level);
+
+      
+      const int prev_ilit = external->internalize(prev_elit);
+
+      LOG("act elit: %d act ilit: %d internalize(act_elit): %d",act_elit,ctx_stack[ctx_level].activator,act_ilit);
+      LOG("prev elit: %d prev ilit: %d internalize(prev_elit): %d",prev_elit,ctx_stack[prev_ctx_level].activator,external->internalize(prev_elit));
+
+      assert (act_ilit); 
+      assert (!flags(act_ilit).fixed());
+
       // The current level is not the first active one, we need to add the
       // implication current activator -> prev activator
       
-      original.push_back(external->internalize(prev_elit));
+      original.push_back(prev_ilit);
       original.push_back(-act_ilit);
 
       external->eclause.push_back(prev_elit);
@@ -796,6 +813,14 @@ void Internal::add_activator_implication () {
       }
 
       add_new_original_clause (id);
+
+      if (newest_clause) {
+        LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
+        assert (newest_clause->id == id);
+        ctx_stack[prev_ctx_level].reason = newest_clause;
+      } // else: The clause got simplified, which means the implication became a unit
+        // clause that will take care of itself, so nothing left to add as reason
+
       original.clear ();
       external->eclause.clear();
     }
@@ -803,28 +828,39 @@ void Internal::add_activator_implication () {
 
   if (ctx_stack.size() > 2 && ctx_level < ctx_stack.size() - 1) {
     int next_elit = 0;
+    size_t next_ctx_level = 0;
     for (auto idx = ctx_level + 1; idx < ctx_stack.size(); idx++) {
       if (!ctx_stack[idx].is_empty_level()) {
         next_elit = ctx_stack[idx].act_elit;
+        next_ctx_level = idx;
         break;
       }
     }
     if (next_elit) {
-      const int act_elit = ctx_stack[ctx_level].act_elit;
-      const int act_ilit = external->internalize(act_elit);
-      // assert (!act_elit && !act_ilit); // Fixed literals are considered here
-      // The current level is not the first active one, we need to add the
-      // implication current activator -> prev activator
-      
-      original.push_back(external->internalize(next_elit));
-      original.push_back(-act_ilit);
+      assert(next_ctx_level);
 
-      external->eclause.push_back(next_elit);
-      external->eclause.push_back(-act_elit);
+      // const int act_elit = ctx_stack[ctx_level].act_elit;
+      // const int act_ilit = external->internalize(act_elit);
+      const int next_ilit = external->internalize(next_elit);
+
+      LOG("act elit: %d act ilit: %d internalize(act_elit): %d",act_elit,ctx_stack[ctx_level].activator,act_ilit);
+      LOG("next elit: %d next ilit: %d internalize(next_elit): %d",next_elit,next_ilit,external->internalize(next_elit));
+
+      assert (act_ilit); 
+      
+      
+      // The current level is not the first active one, we need to add the
+      // implication next activator -> current activator
+      
+      original.push_back(-next_ilit);
+      original.push_back(act_ilit);
+
+      external->eclause.push_back(-next_elit);
+      external->eclause.push_back(act_elit);
 
       if (do_checking) {
-        external->original.push_back(next_elit);
-        external->original.push_back(-act_elit);
+        external->original.push_back(-next_elit);
+        external->original.push_back(act_elit);
         external->original.push_back(0);
         // if (lrat) external->ext_flags[abs (elit)] = true;
       }
@@ -838,8 +874,16 @@ void Internal::add_activator_implication () {
       }
 
       add_new_original_clause (id);
+
+      if (newest_clause) {
+        LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
+        assert (newest_clause->id == id);
+        ctx_stack[ctx_level].reason = newest_clause;
+      } // else: The clause got simplified, which means the implication became a unit
+        // clause that will take care of itself, so nothing left to add as reason
+
       original.clear ();
-      external->eclause.clear();
+      external->eclause.clear(); 
     }
   }
 
