@@ -277,7 +277,7 @@ void Internal::add_original_lit (int lit) {
     original.clear ();
     external->eclause.clear();
 
-    if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions == 1 && !unsat) {
+    if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions < 3 && !unsat) {
       add_activator_implication ();
     }
   }
