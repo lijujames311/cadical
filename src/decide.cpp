@@ -251,10 +251,10 @@ int Internal::decide () {
           if (act_tmp) continue;
           // Check if reason is root-level satisfied
           Clause *c = (*rit).reason;
-          (c && c->size == 2 && !c->garbage);
+          assert (c && c->size == 2 && !c->garbage);
           
           LOG(c,"force search-assign %d at level %d  with reason",act_ilit,level);
-          search_assign (act_ilit, c);
+          assign_activator (act_ilit, c);
         }
       }
       

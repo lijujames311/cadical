@@ -168,6 +168,10 @@ inline void Internal::search_assign (int lit, Clause *reason) {
   lrat_chain.clear ();
 }
 
+void Internal::assign_activator (int lit, Clause *reason) {
+  search_assign(lit,reason);
+}
+
 /*------------------------------------------------------------------------*/
 
 // External versions of 'search_assign' which are not inlined.  They either
