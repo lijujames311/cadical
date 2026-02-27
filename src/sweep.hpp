@@ -51,6 +51,7 @@ struct Sweeper {
   std::vector<int> propagate;
   std::vector<int> backbone;
   std::vector<int> partition;
+  std::vector<int> tmp_partition;
   std::vector<bool> prev_units;
   std::vector<int> binaries;
   std::vector<sweep_proof_clause> core[2];

@@ -38,13 +38,6 @@ bool Internal::sweep_flip (int lit) {
   return res;
 }
 
-int Internal::sweep_flip_and_implicant (int lit) {
-  START (sweepimplicant);
-  int res = kitten_flip_and_implicant_for_signed_literal (citten, lit);
-  STOP (sweepimplicant);
-  return res;
-}
-
 void Internal::sweep_set_kitten_ticks_limit (Sweeper &sweeper) {
   uint64_t remaining = 0;
   const uint64_t current = sweeper.current_ticks;
@@ -324,9 +317,9 @@ void Internal::clear_sweeper (Sweeper &sweeper) {
   sweep_set_kitten_ticks_limit (sweeper);
 }
 
-int Internal::sweep_repr (Sweeper &sweeper, int lit) {
+int Internal::sweep_collapse_repr (Sweeper &sweeper, int lit) {
   int res;
-  vector<int> chain;
+  std::vector<int> chain;
   {
     int prev = lit;
     while ((res = sweeper.reprs[prev]) != prev) {
@@ -338,30 +331,30 @@ int Internal::sweep_repr (Sweeper &sweeper, int lit) {
   if (res == lit)
     return res;
   LOG ("sweeping repr[%d] = %d", lit, res);
-  {
-    if (lrat && chain.size () > 1) {
-      vector<int64_t> lrat1;
-      vector<int64_t> lrat2;
-      int last = res;
-      for (auto other = chain.rbegin (); other != chain.rend (); other++) {
-        const int &tmp = *other;
-        lrat1.push_back (sweeper.ids[tmp]);
-        lrat2.push_back (sweeper.ids[-tmp]);
-        if (lrat1.size () > 1) {
-          int64_t old1 = sweeper.ids[tmp];
-          int64_t old2 = sweeper.ids[-tmp];
-          sweeper.ids[tmp] = add_tmp_sweep_binary (lrat1, -tmp, res);
-          sweeper.ids[-tmp] = add_tmp_sweep_binary (lrat2, tmp, -res);
-          delete_tmp_sweep_binary (old1, -tmp, last);
-          delete_tmp_sweep_binary (old2, tmp, -last);
-        }
-        lrat1.clear ();
-        lrat2.clear ();
-        lrat1.push_back (sweeper.ids[tmp]);
-        lrat2.push_back (sweeper.ids[-tmp]);
-        last = tmp;
+  if (lrat && chain.size () > 1) {
+    vector<int64_t> lrat1;
+    vector<int64_t> lrat2;
+    int last = res;
+    for (auto other = chain.rbegin (); other != chain.rend (); other++) {
+      const int &tmp = *other;
+      lrat1.push_back (sweeper.ids[tmp]);
+      lrat2.push_back (sweeper.ids[-tmp]);
+      if (lrat1.size () > 1) {
+        int64_t old1 = sweeper.ids[tmp];
+        int64_t old2 = sweeper.ids[-tmp];
+        sweeper.ids[tmp] = add_tmp_sweep_binary (lrat1, -tmp, res);
+        sweeper.ids[-tmp] = add_tmp_sweep_binary (lrat2, tmp, -res);
+        delete_tmp_sweep_binary (old1, -tmp, last);
+        delete_tmp_sweep_binary (old2, tmp, -last);
       }
+      lrat1.clear ();
+      lrat2.clear ();
+      lrat1.push_back (sweeper.ids[tmp]);
+      lrat2.push_back (sweeper.ids[-tmp]);
+      last = tmp;
     }
+  }
+  {
     const int not_res = -res;
     int next, prev = lit;
     while ((next = sweeper.reprs[prev]) != res) {
@@ -375,11 +368,24 @@ int Internal::sweep_repr (Sweeper &sweeper, int lit) {
   return res;
 }
 
+inline int Internal::sweep_repr (Sweeper &sweeper, int lit) {
+  int res = sweeper.reprs[lit];
+  if (sweeper.reprs[res] != res) {
+    res = sweep_collapse_repr (sweeper, lit);
+  }
+  assert (sweeper.reprs[res] == res);
+  LOG ("sweeping repr[%d] = %d", lit, res);
+  return res;
+}
+
 void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
                                            int lit) {
-  const int repr = sweep_repr (sweeper, lit);
+  assert (sweep_repr (sweeper, lit) == lit);
+  /*
+   const int repr = sweep_repr (sweeper, lit);
   if (repr != lit)
     return;
+    */
   if (val (lit))
     return;
   const int idx = abs (lit);
@@ -408,7 +414,8 @@ void Internal::sweep_add_clause (Sweeper &sweeper, unsigned depth) {
     sweeper.encoded++;
 }
 
-bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
+inline bool Internal::sweep_substitute_clause (Sweeper &sweeper,
+                                               Clause *c) {
   LOG (c, "substituting equivalences and units in");
   assert (!c->garbage);
   assert (sweeper.clause.empty ());
@@ -417,9 +424,9 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
   bool satisfied = false;
   bool different = false;
   // TODO: lrat for this loop.
-  assert (lrat_chain.empty ());
   for (const auto &lit : *c) {
-    if (val (lit) < 0) {
+    const signed char tmp_val = val (lit);
+    if (tmp_val < 0) {
       different = true;
       if (lrat && !flags (lit).seen) {
         flags (lit).seen = true;
@@ -427,8 +434,7 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
         minimize_chain.push_back (unit_id (-lit));
       }
       continue;
-    }
-    if (val (lit) > 0) {
+    } else if (tmp_val > 0) {
       satisfied = true;
       break;
     }
@@ -438,21 +444,22 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
       if (lrat)
         lrat_chain.push_back (sweeper.ids[lit]);
     }
-    if (marked (repr) > 0)
+    const signed char tmp_mark = marked (repr);
+    if (tmp_mark > 0)
       continue;
-    if (marked (repr) < 0) {
+    else if (tmp_mark < 0) {
       satisfied = true;
       break;
     }
-    if (val (repr) < 0) {
+    const signed char tmp_val_repr = val (repr);
+    if (tmp_val_repr < 0) {
       if (lrat && !flags (repr).seen) {
         flags (repr).seen = true;
         analyzed.push_back (repr);
         minimize_chain.push_back (unit_id (-repr));
       }
       continue;
-    }
-    if (val (repr) > 0) {
+    } else if (tmp_val_repr > 0) {
       satisfied = true;
       break;
     }
@@ -471,16 +478,19 @@ bool Internal::sweep_substitute_clause (Sweeper &sweeper, Clause *c) {
     return false;
   }
   if (!different) {
-    assert (lrat_chain.empty ());
+    lrat_chain.clear ();
+    minimize_chain.clear ();
     c->swept = true;
     sweeper.clauses.push_back (c);
     return true;
   }
-  lrat_chain.insert (lrat_chain.end (), minimize_chain.begin (),
-                     minimize_chain.end ());
-  minimize_chain.clear ();
-  reverse (lrat_chain.begin (), lrat_chain.end ());
-  lrat_chain.push_back (c->id);
+  if (lrat) {
+    lrat_chain.insert (lrat_chain.end (), minimize_chain.begin (),
+                       minimize_chain.end ());
+    minimize_chain.clear ();
+    reverse (lrat_chain.begin (), lrat_chain.end ());
+    lrat_chain.push_back (c->id);
+  }
   const unsigned new_size = sweeper.clause.size ();
   if (new_size == 0) {
     LOG (c, "substituted empty clause");
@@ -817,7 +827,7 @@ void Internal::sweep_empty_clause (Sweeper &sweeper) {
 void Internal::sweep_refine_partition (Sweeper &sweeper) {
   LOG ("refining partition");
   vector<int> &old_partition = sweeper.partition;
-  vector<int> new_partition;
+  vector<int> &new_partition = sweeper.tmp_partition;
   auto old_begin = old_partition.begin ();
   const auto old_end = old_partition.end ();
 #ifdef LOGGING
@@ -896,6 +906,7 @@ void Internal::sweep_refine_partition (Sweeper &sweeper) {
     }
   }
   old_partition.swap (new_partition);
+  new_partition.clear ();
   LOG ("refined %u classes into %u", old_classes, new_classes);
 }
 

@@ -1295,6 +1295,7 @@ struct Internal {
   void release_sweeper (Sweeper &sweeper);
   void clear_sweeper (Sweeper &sweeper);
   int sweep_repr (Sweeper &sweeper, int lit);
+  int sweep_collapse_repr (Sweeper &sweeper, int lit);
   void add_literal_to_environment (Sweeper &sweeper, unsigned depth, int);
   void sweep_clause (Sweeper &sweeper, unsigned depth, Clause *);
   void sweep_add_clause (Sweeper &sweeper, unsigned depth);
@@ -1336,7 +1337,6 @@ struct Internal {
   int64_t add_tmp_sweep_binary (std::vector<int64_t> &, int, int);
   bool can_sweep_clause (Clause *c);
   bool sweep_flip (int);
-  int sweep_flip_and_implicant (int);
   bool sweep_extract_fixed (Sweeper &sweeper, int lit);
 
   // factor

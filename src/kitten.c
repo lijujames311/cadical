@@ -1728,7 +1728,7 @@ static bool flip_literal (kitten *kitten, unsigned lit) {
 // this cadical specific clause addition avoids copying clauses multiple
 // times just to convert literals to unsigned representation.
 //
-static unsigned int2u (int lit) {
+static inline unsigned int2u (int lit) {
   assert (lit != 0);
   int idx = abs (lit) - 1;
   return (lit < 0) + 2u * (unsigned) idx;
@@ -2224,7 +2224,7 @@ signed char kitten_value (kitten *kitten, unsigned elit) {
   return kitten->values[ilit];
 }
 
-signed char kitten_fixed (kitten *kitten, unsigned elit) {
+inline signed char kitten_fixed (kitten *kitten, unsigned elit) {
   const unsigned eidx = elit / 2;
   if (eidx >= kitten->evars)
     return 0;
@@ -2247,7 +2247,7 @@ signed char kitten_fixed_signed (kitten *kitten, int elit) {
   return kitten_fixed (kitten, kelit);
 }
 
-bool kitten_flip_literal (kitten *kitten, unsigned elit) {
+inline bool kitten_flip_literal (kitten *kitten, unsigned elit) {
   REQUIRE_STATUS (10);
   const unsigned eidx = elit / 2;
   if (eidx >= kitten->evars)
