@@ -732,10 +732,6 @@ position_type Walker_DDFW::satisfied_maximum_weight_neighbor (const DDFW_Counter
 #endif
         if (!neighbor.satisfied ())
           continue;
-#if 0
-        if (neighbor.weight <= w_0)
-          continue;
-#endif
         if (neighbor.weight >= max_weight)
           max_clause = c.counter_pos, max_weight = neighbor.weight;
       }
@@ -754,10 +750,6 @@ position_type Walker_DDFW::satisfied_maximum_weight_neighbor (const DDFW_Counter
 #endif
         if (!neighbor.satisfied ())
           continue;
-#if 0
-        if (neighbor.weight <= w_0)
-          continue;
-#endif
         if (neighbor.weight >= max_weight)
           max_clause = c.counter_pos, max_weight = neighbor.weight;
       }
@@ -778,6 +770,8 @@ position_type Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
     if (c.weight < w_0)
       continue;
     max_clause = pos;
+    assert (max_clause != invalid_position);
+    break;
   }
   return max_clause;
 }
@@ -967,7 +961,7 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   START (walkwrv);
   int weight_reducing_var = 0;
-  double best_new_satisfied = 0.0;
+  double best_new_satisfied = std::numeric_limits<double>::min ();
   int loop_iterations = 0;
   const bool sideways_opt = (internal->opts.walkddfwstrat < 4);
   if (sideways_opt)
@@ -996,11 +990,14 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
       no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);
     }
   }
+
   for (auto it = vars_in_broken.begin (); it != mid; ++it) {
     const int idx = *it;
     const int lit = internal->val (idx) ? -idx : idx;
     double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
     LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
+    if (flip_gain < 0.0)
+      continue;
     if (flip_gain > best_new_satisfied) {
       best_new_satisfied = flip_gain;
       weight_reducing_var = idx;
@@ -1274,7 +1271,15 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       int weight_reducing_lit = result.first;
       double weight_reduction = result.second;
 
-      if (weight_reducing_lit && weight_reduction > 0.0) {
+      // we observed numerical instability issues that Tassat does not seem to
+      // have with literals being switch back and forth when the the weight was
+      // 0.0006 (so probably 0, but with inprecision accumulating, a non-zero
+      // value). We do not really know why Tassat would me more stable than
+      // CaDiCaL, but this could be due to how we calculate the weight transfer,
+      // with the configurable coefficients. We expect this to be more an issue
+      // for the Tassat strategy than for the others, because it transfers more
+      // weights at once (especially compared to the original ddfw).
+      if (weight_reducing_lit && weight_reduction > 0.1) {
         ++stats.walk.weight_reducing_var;
         LOG ("flipping one literal");
         walker.walk_ddfw_flip_lit (weight_reducing_lit);
