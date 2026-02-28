@@ -74,7 +74,7 @@ struct DDFW_Counter {
     Clause *clause; // pointer to the clause itself
     struct {int lit, other;} binary_clause;
   };
-  float weight;
+  double weight;
   unsigned critical_var; // critical literal if any
   bool binary : 1;
   uint32_t count : 31; // number of true literals
@@ -726,7 +726,7 @@ position_type Walker_DDFW::satisfied_maximum_weight_neighbor (const DDFW_Counter
         (1 + internal->cache_lines (occs (lit).size (), sizeof (Clause *)));
       for (auto c : occs (lit)) {
         assert (c.counter_pos < weight_clause_info.size ());
-        DDFW_Counter neighbor = clause_info (c.counter_pos);
+        const DDFW_Counter &neighbor = clause_info (c.counter_pos);
 #if defined (LOGGING)
         assert (neighbor.always_clause);
 #endif
@@ -744,7 +744,7 @@ position_type Walker_DDFW::satisfied_maximum_weight_neighbor (const DDFW_Counter
         (1 + internal->cache_lines (occs (lit).size (), sizeof (Clause *)));
       for (auto c : occs (lit)) {
         assert (c.counter_pos < weight_clause_info.size ());
-        DDFW_Counter neighbor = clause_info (c.counter_pos);
+        const DDFW_Counter &neighbor = clause_info (c.counter_pos);
 #if defined (LOGGING)
         assert (neighbor.always_clause);
 #endif
@@ -882,8 +882,8 @@ void Walker_DDFW::transfer_weights () {
 
 void Walker_DDFW::update_unsat_weights (position_type pos, double weight_difference) {
   assert (pos < weight_clause_info.size ());
-  assert (!clause_info (pos).count);
   const auto w = clause_info (pos);
+  assert (!w.count);
   if (w.binary) {
     for (auto lit : {w.binary_clause.lit, w.binary_clause.other}) {
       critical_unsat_weight (lit) += weight_difference;
@@ -987,7 +987,7 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
       assert (begin <= it);
     }
     else if (sideways_opt && flip_gain == 0) {
-      no_gain_literals.push_back (internal->val (idx) > 0 ? - idx : idx);
+      no_gain_literals.push_back (lit);
     }
   }
 
@@ -1257,15 +1257,6 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
         walker.check_all();
 #endif
 
-      broken = walker.broken.size ();
-      LOG ("now have %zd broken clauses in total", broken);
-      if (broken < minimum) {
-        minimum = broken;
-        VERBOSE (3, "new phase minimum %zd after %" PRId64 " flips",
-               minimum, flips);
-        walk_ddfw_save_minimum (walker);
-      }
-
       // first check if there is a weight reducing variable
       auto result = walker.find_weight_reducing_variable ();
       int weight_reducing_lit = result.first;
@@ -1286,6 +1277,15 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
         walker.push_flipped (weight_reducing_lit);
         stats.walk.flips++;
         stats.walk.broken += broken;
+        broken = walker.broken.size ();
+        LOG ("now have %zd broken clauses in total", broken);
+        if (broken < minimum) {
+          minimum = broken;
+          VERBOSE (3, "new phase minimum %zd after %" PRId64 " flips",
+                 minimum, flips);
+          walk_ddfw_save_minimum (walker);
+        }
+
         continue;
       }
       // otherwise, do a sideways flip with low probability
@@ -1293,6 +1293,15 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
         double perc = walker.random.generate_double ();
         if (!walker.no_gain_literals.empty () && perc < sideways_percent) {
           walker.do_sideways_jump ();
+          broken = walker.broken.size ();
+          LOG ("now have %zd broken clauses in total", broken);
+          if (broken < minimum) {
+            minimum = broken;
+            VERBOSE (3, "new phase minimum %zd after %" PRId64 " flips",
+                   minimum, flips);
+            walk_ddfw_save_minimum (walker);
+          }
+
           continue;
         }
       }
