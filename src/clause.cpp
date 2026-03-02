@@ -319,8 +319,8 @@ void Internal::mark_garbage (Clause *c) {
 
   assert (!c->garbage);
 
-  if (c->reason)
-    return;
+  // if (c->reason)
+  //   return;
 
   // Delay tracing deletion of binary clauses.  See the discussion above in
   // 'delete_clause' and also in 'propagate'.
