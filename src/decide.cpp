@@ -248,11 +248,30 @@ int Internal::decide () {
         const int act_ilit = (*rit).activator;
         if (act_ilit) {
           const signed char act_tmp = val (act_ilit);
-          if (act_tmp) continue;
+          if (act_tmp) {
+            LOG((*rit).reason,"activator literal is already assigned: %d",act_ilit);
+            (*rit).reason = 0;
+            continue;
+          }
+          assert (!flags(act_ilit).fixed());
           // Check if reason is root-level satisfied
           Clause *c = (*rit).reason;
-          assert (c && c->size == 2 && !c->garbage);
-          
+          if (!c) continue;
+          assert (c && !c->garbage);
+
+          const int tmp = clause_contains_fixed_literal (c);
+          if (tmp > 0) {
+            LOG(c,"reason clause has root level satisfied literal");
+            c->reason = false;
+            mark_garbage (c);
+            (*rit).reason = 0;
+            continue;
+          } else if (tmp < 0) {
+            LOG(c,"reason clause has root level falsified literal");
+            // the other literal is unit falsified, 
+            remove_falsified_literals (c);
+          }
+          assert (c->size == 2);
           LOG(c,"force search-assign %d at level %d  with reason",act_ilit,level);
           assign_activator (act_ilit, c);
         }
