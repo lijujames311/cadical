@@ -131,19 +131,23 @@ void Internal::protect_reasons () {
 #ifdef LOGGING
     count = 0;
 #endif
+    LOG ("checking activator trigger clauses (stack size: %ld)",ctx_stack.size());
     for (auto &ctx : ctx_stack) {
-      if (ctx.is_empty_level() || !ctx.reason || ctx.reason->reason) continue;
-      if (ctx.reason->garbage) {
-        //assert (flags(ctx.activator).fixed());
+      if (ctx.is_empty_level() || !ctx.reason) continue;
+      Clause *c = ctx.reason;
+      const int tmp = clause_contains_fixed_literal (c);
+      if (tmp || c->garbage) {
+        c->reason = false;
+        if (tmp > 0 && !c->garbage) mark_garbage(ctx.reason);
         ctx.reason = 0;
         continue;
-      } else {
-        ctx.reason->reason = true;
-        LOG(ctx.reason, "additionally protecting reason of activator literal %d",ctx.act_elit);
+      }
+      if (c->reason) continue;
+      c->reason = true;
+      LOG(c, "additionally protecting reason of activator literal %d",ctx.act_elit);
 #ifdef LOGGING
       count++;
 #endif
-      }
     }
     LOG ("additionally protected %zd activator reason clauses", count);
   }
@@ -316,8 +320,8 @@ void Internal::update_reason_references () {
       continue;
 
     if (c->garbage) {
-      ctx.reason = 0;
       c->reason = false;
+      ctx.reason = 0;
       continue;
     }
 
