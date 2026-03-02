@@ -787,42 +787,44 @@ void Internal::add_activator_implication () {
 
       assert (act_ilit); 
       assert (!flags(act_ilit).fixed());
+        // The current level is not the first active one, we need to add the
+        // implication current activator -> prev activator
+        // If prev is already fixed, we still need to add this clause, so that
+        // act_ilit can become fixed as well.
+        
+        original.push_back(prev_ilit);
+        original.push_back(-act_ilit);
 
-      // The current level is not the first active one, we need to add the
-      // implication current activator -> prev activator
-      
-      original.push_back(prev_ilit);
-      original.push_back(-act_ilit);
+        external->eclause.push_back(prev_elit);
+        external->eclause.push_back(-act_elit);
 
-      external->eclause.push_back(prev_elit);
-      external->eclause.push_back(-act_elit);
+        if (do_checking) {
+          external->original.push_back(prev_elit);
+          external->original.push_back(-act_elit);
+          external->original.push_back(0);
+          // if (lrat) external->ext_flags[abs (elit)] = true;
+        }
 
-      if (do_checking) {
-        external->original.push_back(prev_elit);
-        external->original.push_back(-act_elit);
-        external->original.push_back(0);
-        // if (lrat) external->ext_flags[abs (elit)] = true;
-      }
+        LOG(original,"add new activator trigger binary clause to root context level");
 
-      LOG(original,"add new activator trigger binary clause to root context level");
+        const int64_t id = original_id < reserved_ids ? ++original_id : ++clause_id;
+        if (proof) {
+          assert (!original.size () || !external->eclause.empty ());
+          proof->add_external_original_clause (id, false, external->eclause);
+        }
 
-      const int64_t id = original_id < reserved_ids ? ++original_id : ++clause_id;
-      if (proof) {
-        assert (!original.size () || !external->eclause.empty ());
-        proof->add_external_original_clause (id, false, external->eclause);
-      }
+        add_new_original_clause (id);
 
-      add_new_original_clause (id);
+        if (newest_clause) {
+          LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
+          assert (newest_clause->id == id);
+          ctx_stack[prev_ctx_level].reason = newest_clause;
+        } // else: The clause got simplified, which means the implication became a unit
+          // clause that will take care of itself, so nothing left to add as reason
 
-      if (newest_clause) {
-        LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
-        assert (newest_clause->id == id);
-        ctx_stack[prev_ctx_level].reason = newest_clause;
-      } // else: The clause got simplified, which means the implication became a unit
-        // clause that will take care of itself, so nothing left to add as reason
-
-      original.clear ();
-      external->eclause.clear();
+        original.clear ();
+        external->eclause.clear();
+    
     }
   }
 
