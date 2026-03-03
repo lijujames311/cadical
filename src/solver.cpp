@@ -1159,6 +1159,7 @@ void Solver::reset_observed_vars () {
 void Solver::push () {
   TRACE ("push");
   REQUIRE_VALID_STATE ();
+  transition_to_steady_state ();
   internal->push ();
   LOG_API_CALL_END ("push");
 }
@@ -1166,6 +1167,7 @@ void Solver::push () {
 void Solver::pop () {
   TRACE ("pop");
   REQUIRE_VALID_STATE ();
+  transition_to_steady_state ();
   REQUIRE (internal->ctx_stack.size() > 1, "can not pop from an empty context stack");
   internal->pop ();
   LOG_API_CALL_END ("pop");
@@ -1174,6 +1176,7 @@ void Solver::pop () {
 void Solver::switch_ctx (int new_level) {
   TRACE ("switch", new_level);
   REQUIRE_VALID_STATE ();
+  transition_to_steady_state ();
   REQUIRE (new_level >= 0,
            "the target context level of switch must be non-negative.");
   REQUIRE ((size_t)new_level < internal->ctx_stack.size(),
@@ -1181,6 +1184,13 @@ void Solver::switch_ctx (int new_level) {
            "the maximum context level");
   internal->switch_ctx (new_level);
   LOG_API_CALL_END ("switch", new_level);
+}
+
+int Solver::max_ctx_level () const {
+  TRACE ("maxctx");
+  const int max_level = internal->ctx_stack.size() - 1;
+  LOG_API_CALL_END ("maxctx", max_level);
+  return max_level;
 }
 
 /*===== PUSH/POP END =====================================================*/
