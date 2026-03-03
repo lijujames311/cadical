@@ -27,7 +27,7 @@ Internal::Internal ()
       propagated2 (0), propergated (0), best_assigned (0),
       target_assigned (0), no_conflict_until (0),
       randomized_deciding (false), citten (nullptr), num_assigned (0),
-      ctx_level(0), proof (0), opts (this),
+      ctx_level(0), popped_clauses(0), proof (0), opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
 #endif
@@ -154,35 +154,35 @@ void Internal::enlarge (int new_max_var) {
   enlarge_zero (marks, new_vsize);
 }
 
-void Internal::init_and_declare_vars (int new_max_var) {
-  if (new_max_var <= max_var)
-    return;
-  // New variables can be created that can invoke enlarge anytime (via calls
-  // during ipasir-up call-backs), thus assuming (!level) is not correct
-  LOG ("initializing %d internal variables from %d to %d",
-       new_max_var - max_var, max_var + 1, new_max_var);
-  if ((size_t) new_max_var >= vsize)
-    enlarge (new_max_var);
-#ifndef NDEBUG
-  for (int64_t i = -new_max_var; i < -max_var; i++)
-    assert (!vals[i]);
-  for (unsigned i = max_var + 1; i <= (unsigned) new_max_var; i++)
-    assert (!vals[i]), assert (!btab[i]), assert (!gtab[i]);
-  for (uint64_t i = 2 * ((uint64_t) max_var + 1);
-       i <= 2 * (uint64_t) new_max_var + 1; i++)
-    assert (ptab[i] == -1);
-#endif
-  assert (!btab[0]);
-  int old_max_var = max_var;
-  max_var = new_max_var;
-  init_queue (old_max_var, new_max_var);
-  init_scores (old_max_var, new_max_var);
-  int initialized = new_max_var - old_max_var;
-  stats.vars += initialized;
-  stats.unused += initialized;
-  stats.inactive += initialized;
-  LOG ("finished initializing %d internal variables", initialized);
-}
+// void Internal::init_and_declare_vars (int new_max_var) {
+//   if (new_max_var <= max_var)
+//     return;
+//   // New variables can be created that can invoke enlarge anytime (via calls
+//   // during ipasir-up call-backs), thus assuming (!level) is not correct
+//   LOG ("initializing %d internal variables from %d to %d",
+//        new_max_var - max_var, max_var + 1, new_max_var);
+//   if ((size_t) new_max_var >= vsize)
+//     enlarge (new_max_var);
+// #ifndef NDEBUG
+//   for (int64_t i = -new_max_var; i < -max_var; i++)
+//     assert (!vals[i]);
+//   for (unsigned i = max_var + 1; i <= (unsigned) new_max_var; i++)
+//     assert (!vals[i]), assert (!btab[i]), assert (!gtab[i]);
+//   for (uint64_t i = 2 * ((uint64_t) max_var + 1);
+//        i <= 2 * (uint64_t) new_max_var + 1; i++)
+//     assert (ptab[i] == -1);
+// #endif
+//   assert (!btab[0]);
+//   int old_max_var = max_var;
+//   max_var = new_max_var;
+//   init_queue (old_max_var, new_max_var);
+//   init_scores (old_max_var, new_max_var);
+//   int initialized = new_max_var - old_max_var;
+//   stats.vars += initialized;
+//   stats.unused += initialized;
+//   stats.inactive += initialized;
+//   LOG ("finished initializing %d internal variables", initialized);
+// }
 
 void Internal::reserve_vars (int new_min_vsize) {
   if ((size_t)new_min_vsize < vsize)
@@ -277,6 +277,9 @@ void Internal::add_original_lit (int lit) {
     original.clear ();
     external->eclause.clear();
 
+    if (newest_clause) {
+      ctx_stack[ctx_level].stack_size++;
+    }
     if (new_ctx_level_started && ctx_stack.size() > 1 && opts.ppassumptions < 3 && !unsat) {
       add_activator_implication ();
     }
