@@ -283,6 +283,7 @@ struct Internal {
   vector<Level> control;    // 'level + 1 == control.size ()'
   vector<CtxLevel> ctx_stack; // ctx_level + 1 == ctx_stack.size()
   size_t ctx_level;         // current context level (max 'ctx_stack.size () - 1')
+  size_t popped_clauses;    // Number of popped clauses since last gc
   vector<Clause *> clauses; // ordered collection of all clauses
   Averages averages;        // glue, size, jump moving averages
   Delay delay[2];           // Delay certain functions
@@ -334,13 +335,6 @@ struct Internal {
   ~Internal ();
 
   /*----------------------------------------------------------------------*/
-
-  // Internal delegates and helpers for corresponding functions in
-  // 'External' and 'Solver'.  The 'init_vars' function initializes
-  // variables up to and including the requested variable index.
-  //
-  void init_and_declare_vars (int new_max_var);
-
   // Enlarge the external to internal data structures up to the index without
   // activating any literal.
   void reserve_vars (int new_max_var);
@@ -874,6 +868,7 @@ struct Internal {
   void push ();
   void pop ();
   void switch_ctx (int new_ctx_level);
+  int max_ctx_level () const;
   bool init_ctx ();
   void add_activator_assumptions ();
   void add_deactivator_unit_clause ();
