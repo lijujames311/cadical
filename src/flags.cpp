@@ -23,6 +23,25 @@ void Internal::mark_fixed (int lit) {
   Flags &f = flags (lit);
   if (f.status == Flags::DECLARED)
     mark_active (lit);
+  if (opts.ppassumptions < 3 && lit < 0 && f.activator) {
+    Clause* tmp;
+    // Find the stack level whose reason clause just got satisfied
+    bool found = false;
+    for (auto idx = 1; idx < ctx_stack.size(); idx++) {
+      if (!ctx_stack[idx].is_empty_level() && ctx_stack[idx].reason) {
+        tmp = ctx_stack[idx].reason;
+        assert(tmp->size >= 2);
+        if (tmp->garbage || tmp->literals[0] == lit || tmp->literals[1] == lit) {
+          LOG(tmp,"activator reason clause is root level satisfied for context level %d and with activator %d",idx,ctx_stack[idx].act_elit);
+          tmp->reason = false;
+          ctx_stack[idx].reason = 0;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) LOG("no relevant activator reason clause was found.");
+  }
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::FIXED;
   LOG ("fixed %d", abs (lit));
