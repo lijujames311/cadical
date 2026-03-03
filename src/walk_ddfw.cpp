@@ -694,7 +694,7 @@ void Walker_DDFW::break_clauses (int lit) {
 void Walker_DDFW::walk_ddfw_flip_lit (int lit) {
   START (walkflip);
   internal->require_mode (internal->WALK);
-  LOG ("flipping assign %d", lit);
+  LOG ("flipping assign %s", LOGLIT(lit));
   assert (internal->val (lit) < 0);
   assert (internal->active (lit));
   const int64_t old = ticks;
@@ -1013,7 +1013,10 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   if (weight_reducing_var && internal->val (weight_reducing_var) > 0)
     weight_reducing_var = -weight_reducing_var;
 
-  LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), best_new_satisfied);
+  if (weight_reducing_var)
+    LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), best_new_satisfied);
+  else
+    LOG ("no literal to flip");
   STOP (walkwrv);
   return make_pair (weight_reducing_var, best_new_satisfied);
 }
@@ -1291,6 +1294,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       if (sideways_opt) {
         double perc = walker.random.generate_double ();
         if (!walker.no_gain_literals.empty () && perc < sideways_percent) {
+          LOG ("sideways flip");
           walker.do_sideways_jump ();
           broken = walker.broken.size ();
           LOG ("now have %zd broken clauses in total", broken);
