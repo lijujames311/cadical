@@ -620,13 +620,16 @@ void Internal::push () {
 }
 
 void Internal::pop () {
+  if (level)
+    backtrack ();
   assert (ctx_stack.size() > 1); // ensured in Solver::pop ()
   switch_ctx(ctx_stack.size() - 1);
 
   int activator_elit = ctx_stack[ctx_level].act_elit;//ctx_stack.back().act_elit;
   if (activator_elit) {
+    popped_clauses += ctx_stack[ctx_level].stack_size;
     add_deactivator_unit_clause ();
-    
+
     if (opts.ppassumptions <= 2) {
       // Find prev active context level and remove the propagating reason
     int prev_elit = 0;
@@ -642,6 +645,26 @@ void Internal::pop () {
       LOG ("reset activator chain clause of %d",prev_elit);
       ctx_stack[prev_ctx_level].reason = 0;
     }
+    }
+  }
+  //pprecycle: "eagerness of additional recycling after pop (0: no 1: based on nof popped clauses 2: always)"
+
+
+  // The always options is just "almost" always because arenaing is not playing well
+  // when all clauses are removed in certain corner cases
+  if (!unsat &&
+     ((opts.pprecycle == 2 && popped_clauses > ctx_stack.size())||
+      (opts.pprecycle == 1 && popped_clauses > 5000))) {
+    
+    if (propagated < trail.size ()) {
+      if (!propagate ()) {
+        LOG ("propagating units after elimination results in empty clause");
+        learn_empty_clause ();
+      } 
+    }
+    if (!unsat) {
+      if (!internal->imports.empty()) internal->activating_all_new_imported_literals ();
+      compact ();
     }
   }
 
@@ -720,6 +743,9 @@ void Internal::add_deactivator_unit_clause () {
   if (!unit_elit || !unit_ilit)
     return;
 
+  if (flags(unit_ilit).fixed())
+    return;
+
   original.push_back (unit_ilit);  
   external->eclause.push_back(unit_elit);
 
@@ -745,8 +771,13 @@ void Internal::add_deactivator_unit_clause () {
 
 void Internal::switch_ctx (int new_ctx_level) {
   assert (new_ctx_level >= 0 && (size_t)new_ctx_level < ctx_stack.size()); //ensured in Solver::switch
+  if (ctx_level == (size_t)new_ctx_level) return;
   LOG ("switching context level from %ld to %d",ctx_level,new_ctx_level);
   ctx_level = new_ctx_level;
+}
+
+int Internal::max_ctx_level () const {
+  return ctx_stack.size() - 1;
 }
 
 void Internal::add_activator_implication () {
@@ -814,11 +845,13 @@ void Internal::add_activator_implication () {
         }
 
         add_new_original_clause (id);
+        
 
         if (newest_clause) {
           LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
           assert (newest_clause->id == id);
           ctx_stack[prev_ctx_level].reason = newest_clause;
+          ctx_stack[ctx_level].stack_size++;
         } // else: The clause got simplified, which means the implication became a unit
           // clause that will take care of itself, so nothing left to add as reason
 
@@ -876,11 +909,13 @@ void Internal::add_activator_implication () {
       }
 
       add_new_original_clause (id);
+      
 
       if (newest_clause) {
         LOG (newest_clause, "new activator reason clause %p", (void *) newest_clause);
         assert (newest_clause->id == id);
         ctx_stack[ctx_level].reason = newest_clause;
+        ctx_stack[next_ctx_level].stack_size++;
       } // else: The clause got simplified, which means the implication became a unit
         // clause that will take care of itself, so nothing left to add as reason
 
