@@ -190,7 +190,6 @@ void Internal::unprotect_reasons () {
     count = 0;
 #endif
     for (auto ctx : ctx_stack) {
-      LOG("checking ctx %p",(void*)&ctx);
       if (ctx.is_empty_level() || !ctx.reason || ctx.reason->garbage || !ctx.reason->reason) continue;
       assert(ctx.act_elit);
       LOG(ctx.reason, "additionally unprotecting reason of activator literal %d",ctx.act_elit);
@@ -415,7 +414,7 @@ void Internal::copy_non_garbage_clauses () {
   (void) moved_clauses, (void) collected_clauses, (void) collected_bytes;
   // Prepare 'to' space of size 'moved_bytes'.
   //
-  arena.prepare (moved_bytes);
+  if (moved_bytes) arena.prepare (moved_bytes);
 
   // Keep clauses in arena in the same order.
   //
@@ -451,10 +450,12 @@ void Internal::copy_non_garbage_clauses () {
     // Our version uses saved phases too.
 
     for (int sign = -1; sign <= 1; sign += 2)
-      for (auto idx : vars)
+      for (auto idx : vars) {
+        LOG ("localize idx %d via watches of %d (likely_phase %d)",idx,sign * likely_phase (idx),likely_phase (idx));
         for (const auto &w : watches (sign * likely_phase (idx)))
           if (!w.clause->moved && !w.clause->collect ())
             copy_clause (w.clause);
+      }
 
   } else {
 
@@ -503,7 +504,7 @@ void Internal::copy_non_garbage_clauses () {
 
   // Release 'from' space completely and then swap 'to' with 'from'.
   //
-  arena.swap ();
+  if (moved_bytes) arena.swap ();
 
   PHASE ("collect", stats.collections,
          "collected %zd bytes %.0f%% of %zd garbage clauses",
@@ -607,6 +608,8 @@ void Internal::garbage_collection () {
   START (collect);
   report ('G', 1);
   stats.collections++;
+  assert (popped_clauses < 5000);
+  popped_clauses = 0;
   mark_satisfied_clauses_as_garbage ();
   if (!protected_reasons)
     protect_reasons ();
