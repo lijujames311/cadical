@@ -84,7 +84,9 @@ void External::resize (int new_max_var) {
   }
   assert (internal->i2e.size () == (size_t)internal->max_var + 1);
   assert (eidx == (size_t) new_max_var + 1);
+  int new_vars = new_max_var - max_var;
   max_var = new_max_var;
+  internal->stats.variables_original += new_vars;
 }
 
 void External::init (int new_max_var, bool extension) {
@@ -347,9 +349,17 @@ bool External::failed_constraint () {
 void External::phase (int elit) {
   assert (elit);
   assert (elit != INT_MIN);
-  reset_extended ();
+  // this test is a bit stupid, it is triggereing an assertion, but we could
+  // simply add thos to the other if...
+  if (std::abs(elit) > max_var) {
+    reset_extended ();
+  }
   const int ilit = internalize (elit);
-  internal->activating_all_new_imported_literals ();
+  if (!internal->imports.empty()) {
+    if (extended)
+      reset_extended ();
+    internal->activating_all_new_imported_literals ();
+  }
   internal->phase (ilit);
 }
 
@@ -1021,6 +1031,7 @@ void External::copy_flags (External &other) const {
     Flags &other_flags = other_ftab[abs (other_ilit)];
     this_flags.copy (other_flags);
   }
+  internal->external->ervars = other.ervars;
 }
 
 /*------------------------------------------------------------------------*/
