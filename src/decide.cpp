@@ -243,7 +243,8 @@ int Internal::decide () {
       LOG ("deciding assumption %d", lit);
       search_assume_decision (lit);
     }
-    if (!res && opts.ppassumptions == 2 && (size_t) level == assumptions.size () && flags(lit).activator) {
+    if  ((!res && (size_t) level == assumptions.size () && opts.ppassumptions == 2 && !opts.pppreference && flags(lit).activator)
+      || (!res && level == 1 && opts.ppassumptions == 2 && opts.pppreference &&  flags(lit).activator)) {
       for (auto rit = std::next(ctx_stack.rbegin()); rit < ctx_stack.rend(); ++rit ) {
         const int act_ilit = (*rit).activator;
         if (act_ilit) {
@@ -276,8 +277,6 @@ int Internal::decide () {
           assign_activator (act_ilit, c);
         }
       }
-      
-      // search_assign (int lit, Clause *reason);
     }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
 

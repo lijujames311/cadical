@@ -166,7 +166,8 @@ OPTION( modelalllits,      0,  0,  1,0,0,1, "print all literals (including unsed
 OPTION( otfs,              1,  0,  1,0,0,1, "on-the-fly self subsumption") \
 OPTION( phase,             1,  0,  1,0,0,1, "initial phase") \
 OPTION( ppassumptions,     1,  1,  4,0,0,0, "assumption strategy for push (1: assume only top and propagate rest 2: assume only top but eagerly propagate rest before 3: assume all levels 4: assume all levels in reverse order)") \
-OPTION( pprecycle,         0,  0,  2,0,0,0, "eagerness of additional recycling after pop (0: no 1: based on nof popped clauses 2: always)") \
+OPTION( pppreference,      0,  0,  1,0,0,0, "prefer activator assumptions over other assumptions") \
+OPTION( pprecycle,         0,  0,  2,0,0,0, "eagerness of additional recycling after pop (0: no 1: based on nof popped clauses 2: almost always)") \
 OPTION( preprocessinit,  2e6,  0,2e9,2,0,1, "initial preprocessing base limit" ) \
 OPTION( preprocesslight,   1,  0,  1,0,1,1, "lightweight preprocessing" ) \
 OPTION( probe,             1,  0,  1,0,1,1, "failed literal probing" ) \

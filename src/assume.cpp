@@ -647,11 +647,9 @@ void Internal::pop () {
     }
     }
   }
-  //pprecycle: "eagerness of additional recycling after pop (0: no 1: based on nof popped clauses 2: always)"
-
-
-  // The always options is just "almost" always because arenaing is not playing well
-  // when all clauses are removed in certain corner cases
+  
+  // The always options is just "almost" always because arenaing for an
+  // empty formula is not supported (yet, TODO)
   if (!unsat &&
      ((opts.pprecycle == 2 && popped_clauses > ctx_stack.size())||
       (opts.pprecycle == 1 && popped_clauses > 5000))) {
@@ -700,7 +698,7 @@ bool Internal::init_ctx () {
 void Internal::add_activator_assumptions () {
   if (!ctx_stack.size())
     return;
-  
+
   switch_ctx (ctx_stack.size() - 1);
   // The assumptions are added through external, so the proofs and checkers
   // also see them without any workaround, but it call internalize on the way
@@ -713,13 +711,36 @@ void Internal::add_activator_assumptions () {
         break;
       }
     }
-    if (activator_trigger_elit) external->assume(activator_trigger_elit);
+    if (activator_trigger_elit) {
+      size_t prev_size = external->assumptions.size();
+      external->assume(activator_trigger_elit);
+      if (prev_size && opts.pppreference) {
+        // The user can not assume activator literals
+        assert (external->assumptions.size() == prev_size + 1);
+        swap (external->assumptions[0], external->assumptions[prev_size]);
+        // Internal assumptions size might be smaller, since duplicate
+        // user assumptions are counted only once
+        const size_t internal_size = assumptions.size();
+        assert (internal_size > 1);
+        swap (assumptions[0], assumptions[internal_size-1]);
+      }
+    }
   } else {
+    size_t activator_count = 0;
+    const size_t external_prev_size = external->assumptions.size();
+    const size_t internal_prev_size = assumptions.size();
     // Add all activator literals as an assumptions
     if (opts.ppassumptions == 3) {
       for (const auto cl : ctx_stack) {
         const int activator_elit = cl.act_elit;
-        if (activator_elit) external->assume(activator_elit);
+        if (activator_elit) {
+          external->assume(activator_elit);
+          activator_count++;
+        }
+      }
+      if (activator_count && external_prev_size && opts.pppreference) {
+        std::rotate(external->assumptions.begin(), external->assumptions.begin() + external_prev_size, external->assumptions.end());
+        std::rotate(assumptions.begin(), assumptions.begin() + internal_prev_size, assumptions.end());
       }
     } else {
       assert (opts.ppassumptions == 4);
@@ -727,7 +748,12 @@ void Internal::add_activator_assumptions () {
       for (auto rit = ctx_stack.rbegin(); rit < ctx_stack.rend(); ++rit ) {
         if ((*rit).activator) {
           external->assume((*rit).act_elit);
+          activator_count++;
         }
+      }
+      if (activator_count && external_prev_size && opts.pppreference) {
+        std::rotate(external->assumptions.begin(), external->assumptions.begin() + external_prev_size, external->assumptions.end());
+        std::rotate(assumptions.begin(), assumptions.begin() + internal_prev_size, assumptions.end());
       }
     }
   } 
