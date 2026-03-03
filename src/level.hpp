@@ -34,6 +34,8 @@ struct CtxLevel {
   
   Clause *reason = 0; // The clause that propagates the activator literal
 
+  size_t stack_size = 0;
+  
   CtxLevel (int elit) : act_elit(elit) {};
   CtxLevel () {};
 
