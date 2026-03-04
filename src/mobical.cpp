@@ -1658,8 +1658,10 @@ struct ConnectCall : public Call {
   void execute (Solver *&s, ExtendMap &extendmap) {
     // clean up if there was already one mock propagator
     MockPropagator *prev_pointer = 0;
-    if (mobical.mock_pointer)
+    if (mobical.mock_pointer) {
       prev_pointer = mobical.mock_pointer;
+      s->disconnect_external_propagator ();
+    }
 #ifdef LOGGING
     mobical.mock_pointer =
         new MockPropagator (s, &extendmap, mobical.add_set_log_to_true);
