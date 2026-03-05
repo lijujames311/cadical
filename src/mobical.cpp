@@ -272,8 +272,13 @@ struct Shared {
 };
 
 struct ExtendMap {
+  // do we need to declare variable before using them?
+  bool factor_check = true;
+  // mapping of from literals of the trace to CaDiCaL's external literals
   vector<int> map;
 
+  // either return the external literal from CaDiCaL, create one if
+  // `declare_new_var` is one, or return any literal.
   int map_arg (Solver *s, int arg, bool declare_new_var = true) {
     const int abs_arg = abs (arg);
     const int sign = arg > 0 ? 1 : -1;
@@ -287,8 +292,10 @@ struct ExtendMap {
       return map[abs_arg] * sign;
     }
     if (declare_new_var) {
-      map[abs_arg] = s->vars () + 1;
-      //printf("%d -> %d\n", abs_arg, map[abs_arg]);
+      if (factor_check)
+        map[abs_arg] = s->declare_one_more_variable();
+      else
+       map[abs_arg] = s->vars () + 1;
       return map[abs_arg] * sign;
     }
     const int max_var = s->vars ();
@@ -296,6 +303,7 @@ struct ExtendMap {
     return sign * (max_var + diff);
   }
 
+  // resize the internal map.
   void extend_map_to (int arg) {
     if (map.empty ())
       map.push_back (0); // 0 is always mapped to 0
@@ -311,6 +319,10 @@ struct ExtendMap {
   // declare_more_variable API calls.
   //
   // Does not do anything if diff == 0.
+  //
+  // Important: this mimics the `declare_more_variable`, but does not call
+  // `declare_more_variable`. It is the only place in this class where we use
+  // our internal knowledge of the API.
   void extend_map_by (Solver *&s, int diff) {
     assert (diff >= 0);
     if (map.empty ())
@@ -318,11 +330,9 @@ struct ExtendMap {
     if (!diff)
       return;
     const int max_var = s->vars ();
-    //printf("adding %d new vars, starting from %d\n", diff, max_var + 1);
     map.reserve (max_var + diff);
     for (int i = 1; i <= diff; i++)
       map.push_back (max_var + i);
-    //printf ("current size = %zd, last: %d\n", map.size (), map.back ());
   }
 
 };
@@ -1484,7 +1494,6 @@ struct InitCall : public Call {
   InitCall () : Call (INIT) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
     s = new Solver ();
-    s->set ("factorcheck", 0);
     assert (extendmap.map.empty ());
     (void) (extendmap);
   }
@@ -1579,6 +1588,8 @@ struct DeclareMoreVariablesCall : public Call {
   void execute (Solver *&s, ExtendMap &extendmap) {
     extend_map_by (s, extendmap, arg);
     int i = s->declare_more_variables (arg);
+    // check that our mapping from trace literals to external literals matchs
+    // the `declare_more_variables` result.
     assert (!arg || i == s->vars ());
     assert (!arg || extendmap.map.back () == i);
   }
@@ -1615,7 +1626,8 @@ struct SetCall : public Call {
   SetCall (const char *o, int v) : Call (SET, 0, 0, o, v) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
     s->set (name, val);
-    (void) (extendmap);
+    if (!strcmp (name, "factorcheck"))
+      extendmap.factor_check = val;
   }
   void print (ostream &o) { o << "set " << name << ' ' << val << endl; }
   Call *copy () { return new SetCall (name, val); }
@@ -1626,7 +1638,6 @@ struct ConfigureCall : public Call {
   ConfigureCall (const char *o) : Call (CONFIGURE, 0, 0, o) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
     s->configure (name);
-    s->set ("factorcheck", false);
     (void) (extendmap);
   }
   void print (ostream &o) { o << "configure " << name << endl; }
@@ -2530,8 +2541,6 @@ bool Trace::ignored_option (const char *name) {
   if (!strcmp (name, "checkfrozen"))
     return true;
   if (!strcmp (name, "terminateint"))
-    return true;
-  if (!strcmp (name, "factorcheck"))
     return true;
   return false;
 }
