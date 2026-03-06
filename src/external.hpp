@@ -70,7 +70,7 @@ struct External {
   size_t vsize; // Allocated external size.
 
   vector<bool> vals; // Current external (extended) assignment.
-  std::unordered_map<int, int> e2i;   // External 'idx' to internal 'lit'.
+  std::unordered_map<ELit, Lit> e2i;   // External 'idx' to internal 'lit'.
 
   vector<int> assumptions; // External assumptions.
   vector<int> constraint;  // External constraint. Terminated by zero.
@@ -180,8 +180,8 @@ struct External {
     return eidx > max_var || !ervars[eidx];
   }
 
-  inline int internal_lit (int elit) const {
-    return find_or_default (e2i, elit, 0);
+  inline Lit internal_lit (ELit elit) const {
+    return find_or_default (e2i, elit, Lit ());
   }
   /*----------------------------------------------------------------------*/
 
@@ -285,11 +285,11 @@ struct External {
   void resize (int new_max_var); // Reserves up-to 'new_max_var'.
 
   int internalize (
-      int,
+      ELit,
       bool extension = false); // Translate external to internal literal.
 
   /*----------------------------------------------------------------------*/
-  int declare_var (int new_var, bool extension);
+  Lit declare_var (ELit new_var, bool extension);
   /*----------------------------------------------------------------------*/
 
   // According to the CaDiCaL API contract (as well as IPASIR) we have to
@@ -439,7 +439,7 @@ struct External {
 
   void check_solution_on_learned_clause ();
   void check_solution_on_shrunken_clause (Clause *);
-  void check_solution_on_learned_unit_clause (int unit);
+  void check_solution_on_learned_unit_clause (Lit unit);
   void check_no_solution_after_learning_empty_clause ();
 
   void check_learned_empty_clause () {
@@ -447,7 +447,7 @@ struct External {
       check_no_solution_after_learning_empty_clause ();
   }
 
-  void check_learned_unit_clause (int unit) {
+  void check_learned_unit_clause (Lit unit) {
     if (solution)
       check_solution_on_learned_unit_clause (unit);
   }

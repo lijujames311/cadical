@@ -38,7 +38,7 @@ void Internal::learn_empty_clause () {
   lrat_chain.clear ();
 }
 
-void Internal::learn_unit_clause (int lit) {
+void Internal::learn_unit_clause (Lit lit) {
   assert (!unsat);
   LOG ("learned unit clause %d, stored at position %d", lit, vlit (lit));
   external->check_learned_unit_clause (lit);
@@ -59,7 +59,7 @@ void Internal::learn_unit_clause (int lit) {
 // 'bumped' time stamp is updated accordingly.  It is used to determine
 // whether the 'queue.assigned' pointer has to be moved in 'unassign'.
 
-void Internal::bump_queue (int lit) {
+void Internal::bump_queue (Lit lit) {
   assert (opts.bump);
   const int idx = vidx (lit);
   if (!links[idx].next)
@@ -112,29 +112,29 @@ void Internal::rescale_variable_scores () {
          stats.conflicts);
 }
 
-void Internal::bump_variable_score (int lit) {
+void Internal::bump_variable_score (Lit lit) {
   assert (opts.bump);
   int idx = vidx (lit);
-  double old_score = score (idx);
+  double old_score = score (lit);
   assert (!evsids_limit_hit (old_score));
   double new_score = old_score + score_inc;
   if (evsids_limit_hit (new_score)) {
     LOG ("bumping %g score of %d hits EVSIDS score limit", old_score, idx);
     rescale_variable_scores ();
-    old_score = score (idx);
+    old_score = score (lit);
     assert (!evsids_limit_hit (old_score));
     new_score = old_score + score_inc;
   }
   assert (!evsids_limit_hit (new_score));
   LOG ("new %g score of %d", new_score, idx);
-  score (idx) = new_score;
+  score (lit) = new_score;
   if (scores.contains (idx))
     scores.update (idx);
 }
 
 // Important variables recently used in conflict analysis are 'bumped',
 
-void Internal::bump_variable (int lit) {
+void Internal::bump_variable (Lit lit) {
   if (use_scores ())
     bump_variable_score (lit);
   else
@@ -167,13 +167,13 @@ struct analyze_bumped_rank {
   Internal *internal;
   analyze_bumped_rank (Internal *i) : internal (i) {}
   typedef uint64_t Type;
-  Type operator() (const int &a) const { return internal->bumped (a); }
+  Type operator() (const Lit &a) const { return internal->bumped (a); }
 };
 
 struct analyze_bumped_smaller {
   Internal *internal;
   analyze_bumped_smaller (Internal *i) : internal (i) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     const auto s = analyze_bumped_rank (internal) (a);
     const auto t = analyze_bumped_rank (internal) (b);
     return s < t;
@@ -260,7 +260,7 @@ void Internal::bump_clause2 (Clause *c) { bump_clause (c); }
 // minimization.  The number of seen levels is the glucose level (also
 // called 'glue', or 'LBD').
 
-inline void Internal::analyze_literal (int lit, int &open,
+inline void Internal::analyze_literal (Lit lit, int &open,
                                        int &resolvent_size,
                                        int &antecedent_size) {
   assert (lit);
@@ -323,7 +323,7 @@ inline void Internal::analyze_literal (int lit, int &open,
     open++;
 }
 
-inline void Internal::analyze_reason (int lit, Clause *reason, int &open,
+inline void Internal::analyze_reason (Lit lit, Clause *reason, int &open,
                                       int &resolvent_size,
                                       int &antecedent_size) {
   assert (reason);
@@ -349,7 +349,7 @@ inline void Internal::analyze_reason (int lit, Clause *reason, int &open,
 // limit, by switching between 'LRB' and 'VSIDS' in an interval of initially
 // 30 million propagations, which then is increased geometrically by 10%.
 
-inline bool Internal::bump_also_reason_literal (int lit) {
+inline bool Internal::bump_also_reason_literal (Lit lit) {
   assert (lit);
   assert (val (lit) < 0);
   Flags &f = flags (lit);
@@ -366,7 +366,7 @@ inline bool Internal::bump_also_reason_literal (int lit) {
 
 // We experimented with deeper reason bumping without much success though.
 
-inline void Internal::bump_also_reason_literals (int lit, int depth_limit,
+inline void Internal::bump_also_reason_literals (Lit lit, int depth_limit,
                                                  size_t analyzed_limit) {
   assert (lit);
   assert (depth_limit > 0);
@@ -418,7 +418,7 @@ inline void Internal::bump_also_all_reason_literals () {
   if (analyzed.size () > analyzed_limit) {
     LOG ("not bumping reason side literals as limit exhausted");
     for (size_t i = saved_analyzed; i != analyzed.size (); i++) {
-      const int lit = analyzed[i];
+      const Lit lit = analyzed[i];
       Flags &f = flags (lit);
       assert (f.seen);
       f.seen = false;
@@ -488,7 +488,7 @@ struct analyze_trail_negative_rank {
   Internal *internal;
   analyze_trail_negative_rank (Internal *s) : internal (s) {}
   typedef uint64_t Type;
-  Type operator() (int a) {
+  Type operator() (Lit a) {
     Var &v = internal->var (a);
     uint64_t res = v.level;
     res <<= 32;
@@ -500,7 +500,7 @@ struct analyze_trail_negative_rank {
 struct analyze_trail_larger {
   Internal *internal;
   analyze_trail_larger (Internal *s) : internal (s) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     return analyze_trail_negative_rank (internal) (a) <
            analyze_trail_negative_rank (internal) (b);
   }
@@ -555,7 +555,7 @@ Clause *Internal::new_driving_clause (const int glue, int &jump) {
 // determine the OTFS level for OTFS. Unlike the find_conflict_level, we do
 // not have to fix the clause
 
-inline int Internal::otfs_find_backtrack_level (int &forced) {
+inline int Internal::otfs_find_backtrack_level (Lit &forced) {
   assert (opts.otfs);
   int res = 0;
 
@@ -579,14 +579,14 @@ inline int Internal::otfs_find_backtrack_level (int &forced) {
 // (forcing 'forced') if the number 'count' of literals in conflict assigned
 // at the conflict level is exactly one.
 
-inline int Internal::find_conflict_level (int &forced) {
+inline int Internal::find_conflict_level (Lit &forced) {
 
   assert (conflict);
   assert (opts.chrono || opts.otfs || external_prop);
 
   int res = 0, count = 0;
 
-  forced = 0;
+  forced = Lit ();
 
   for (const auto &lit : *conflict) {
     const int tmp = var (lit).level;
@@ -604,20 +604,20 @@ inline int Internal::find_conflict_level (int &forced) {
   LOG ("%d literals on actual conflict level %d", count, res);
 
   const int size = conflict->size;
-  int *lits = conflict->literals;
+  Lit *lits = conflict->literals;
 
   // Move the two highest level literals to the front.
   //
   for (int i = 0; i < 2; i++) {
 
-    const int lit = lits[i];
+    const Lit lit = lits[i];
 
     int highest_position = i;
-    int highest_literal = lit;
+    Lit highest_literal = lit;
     int highest_level = var (highest_literal).level;
 
     for (int j = i + 1; j < size; j++) {
-      const int other = lits[j];
+      const Lit other = lits[j];
       const int tmp = var (other).level;
       if (highest_level >= tmp)
         continue;
@@ -649,7 +649,7 @@ inline int Internal::find_conflict_level (int &forced) {
   // then we can reuse the conflict clause as driving clause for 'forced'.
   //
   if (count != 1)
-    forced = 0;
+    forced = Lit ();
 
   return res;
 }
@@ -687,7 +687,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
 
     if (use_scores ()) {
       for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
-        const int idx = abs (trail[i]);
+        const int idx = vidx (trail[i]);
         if (best_idx && !score_smaller (this) (best_idx, idx))
           continue;
         best_idx = idx;
@@ -696,7 +696,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       LOG ("best variable score %g", score (best_idx));
     } else {
       for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
-        const int idx = abs (trail[i]);
+        const int idx = vidx (trail[i]);
         if (best_idx && bumped (best_idx) >= bumped (idx))
           continue;
         best_idx = idx;
@@ -777,26 +777,26 @@ void Internal::eagerly_subsume_recently_learned_clauses (Clause *c) {
 
 /*------------------------------------------------------------------------*/
 
-Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
+Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
   assert (new_conflict);
   assert (new_conflict->size > 2);
   LOG (new_conflict, "applying OTFS on lit %d", uip);
-  auto sorted = std::vector<int> ();
+  auto sorted = std::vector<Lit> ();
   sorted.reserve (new_conflict->size);
   assert (sorted.empty ());
   ++stats.otfs.strengthened;
 
-  int *lits = new_conflict->literals;
+  Lit *lits = new_conflict->literals;
 
   assert (lits[0] == uip || lits[1] == uip);
-  const int other_init = lits[0] ^ lits[1] ^ uip;
+  const Lit other_init = lits[0] ^ lits[1] ^ uip;
 
   assert (mini_chain.empty ());
 
   const int old_size = new_conflict->size;
   int new_size = 0;
   for (int i = 0; i < old_size; ++i) {
-    const int other = lits[i];
+    const Lit other = lits[i];
     sorted.push_back (other);
     if (var (other).level)
       lits[new_size++] = other;
@@ -806,7 +806,7 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
 
   assert (lits[0] == uip || lits[1] == uip);
   assert (new_size >= 2);
-  const int other = lits[0] ^ lits[1] ^ uip;
+  const Lit other = lits[0] ^ lits[1] ^ uip;
   lits[0] = other;
   lits[1] = lits[--new_size];
   LOG (new_conflict, "putting uip at pos 1");
@@ -837,7 +837,7 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
     int highest_pos = 0;
     int highest_level = 0;
     for (int i = 1; i < new_size; i++) {
-      const unsigned other = lits[i];
+      const Lit other = lits[i];
       assert (val (other) < 0);
       const int level = var (other).level;
       assert (level);
@@ -896,8 +896,8 @@ inline void Internal::otfs_subsume_clause (Clause *subsuming,
 
 // Candidate clause 'c' is strengthened by removing 'lit' and units.
 //
-void Internal::otfs_strengthen_clause (Clause *c, int lit, int new_size,
-                                       const std::vector<int> &old) {
+void Internal::otfs_strengthen_clause (Clause *c, Lit lit, int new_size,
+                                       const std::vector<Lit> &old) {
   stats.strengthened++;
   assert (c->size > 2);
   (void) shrink_clause (c, new_size);

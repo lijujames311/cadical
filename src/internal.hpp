@@ -221,7 +221,7 @@ struct Internal {
   signed char *vals;            // assignment [-max_var,max_var]
   vector<signed char> marks;    // signed marks [1,max_var]
   vector<unsigned> frozentab;   // frozen counters [1,max_var]
-  vector<int> i2e;              // maps internal 'idx' to external 'lit'
+  vector<ELit> i2e;              // maps internal 'idx' to external 'lit'
   vector<unsigned> relevanttab; // Reference counts for observed variables.
   Queue queue;                  // variable move to front decision queue
   Links links;                  // table of links for decision queue
@@ -229,7 +229,7 @@ struct Internal {
   ScoreSchedule scores;         // score based decision priority queue
   vector<double> stab;          // table of variable scores [1,max_var]
   vector<Var> vtab;             // variable table [1,max_var]
-  vector<int> parents;          // parent literals during probing
+  vector<Lit> parents;          // parent literals during probing
   vector<Flags> ftab;           // variable and literal flags
   vector<int64_t> btab;         // enqueue time stamps for queue
   vector<int64_t> gtab;         // time stamp table to recompute glue
@@ -259,28 +259,28 @@ struct Internal {
   size_t best_assigned;      // best maximum assigned ever
   size_t target_assigned;    // maximum assigned without conflict
   size_t no_conflict_until;  // largest trail prefix without conflict
-  vector<int> trail;         // currently assigned literals
-  vector<int> clause;        // simplified in parsing & learning
-  vector<int> assumptions;   // assumed literals
-  vector<int> constraint;    // literals of the constraint
-  vector<int> original;      // original added literals
+  vector<Lit> trail;         // currently assigned literals
+  vector<Lit> clause;        // simplified in parsing & learning
+  vector<Lit> assumptions;   // assumed literals
+  vector<Lit> constraint;    // literals of the constraint
+  vector<Lit> original;      // original added literals
   vector<int> levels;        // decision levels in learned clause
-  vector<int> analyzed;      // analyzed literals in 'analyze'
-  vector<int> unit_analyzed; // to avoid duplicate units in lrat_chain
+  vector<Lit> analyzed;      // analyzed literals in 'analyze'
+  vector<Lit> unit_analyzed; // to avoid duplicate units in lrat_chain
   vector<int> sign_marked;   // literals skipped in 'decompose'
   vector<int> minimized;     // removable or poison in 'minimize'
   vector<int> shrinkable;    // removable or poison in 'shrink'
   Reap reap;                 // radix heap for shrink
 
-  vector<int> sweep_schedule; // remember sweep varibles to reschedule
+  vector<Lit> sweep_schedule; // remember sweep varibles to reschedule
   uint64_t randomized_deciding;
-  vector <int> imports;      // impported literals (ordered by order of appearance)
+  vector <Lit> imports;      // impported literals (ordered by order of appearance)
 
   kitten *citten;
 
   size_t num_assigned; // check for satisfied
 
-  vector<int> probes;       // remaining scheduled probes
+  vector<Lit> probes;       // remaining scheduled probes
   vector<Level> control;    // 'level + 1 == control.size ()'
   vector<Clause *> clauses; // ordered collection of all clauses
   Averages averages;        // glue, size, jump moving averages
@@ -338,7 +338,7 @@ struct Internal {
   void reserve_vars (int new_max_var);
 
   void activating_all_new_imported_literals ();
-  void declare_variable (int);
+  void declare_variable (Lit);
 
   void init_enqueue (int idx);
   void init_queue (int old_max_var, int new_max_var);
@@ -346,7 +346,7 @@ struct Internal {
 
   void init_scores (int old_max_var, int new_max_var);
 
-  void add_original_lit (int lit);
+  void add_original_lit (Lit lit);
 
   // only able to restore irredundant clause
   void finish_added_clause_with_id (int64_t id, bool restore = false);
@@ -361,7 +361,7 @@ struct Internal {
 
   // A variable is 'active' if it is not eliminated nor fixed.
   //
-  bool active (int lit) { return flags (lit).active (); }
+  bool active (Lit lit) { return flags (lit).active (); }
 
   int active () const {
     int res = stats.active;
@@ -397,11 +397,10 @@ struct Internal {
 
   // Unsigned literals (abs) with checks.
   //
-  int vidx (int lit) const {
-    int idx;
-    assert (lit);
-    assert (lit != INT_MIN);
-    idx = abs (lit);
+  int vidx (Lit lit) const {
+    int idx = lit.var ();
+    assert (idx);
+    assert (lit != Lit (INT_MIN));
     assert (idx <= max_var);
     return idx;
   }
@@ -410,15 +409,15 @@ struct Internal {
   // arrays by literals.  The idea is to keep the elements in such an array
   // for both the positive and negated version of a literal close together.
   //
-  unsigned vlit (int lit) const {
-    return (lit < 0) + 2u * (unsigned) vidx (lit);
+  unsigned vlit (Lit lit) const {
+    return (lit < Lit (0)) + 2u * (unsigned) vidx (lit);
   }
 
-  int u2i (unsigned u) {
+  Lit u2i (unsigned u) {
     assert (u > 1);
     assert (u <= INT32_MAX);
-    int res = (int)u / 2;
-    assert (res <= max_var);
+    Lit res = Lit ((int)u / 2);
+    assert (res.var () <= max_var);
     if (u & 1)
       res = -res;
     return res;
@@ -433,12 +432,12 @@ struct Internal {
     return res;
   }
 
-  unsigned lit2citten (int lit) {
+  unsigned lit2citten (Lit lit) {
     int idx = vidx (lit) - 1;
-    return (lit < 0) + 2u * (unsigned) idx;
+    return (lit < Lit (0)) + 2u * (unsigned) idx;
   }
 
-  int64_t unit_id (int lit) const {
+  int64_t unit_id (Lit lit) const {
     assert (lrat || frat);
     assert (val (lit) > 0);
     const unsigned uidx = vlit (lit);
@@ -456,14 +455,16 @@ struct Internal {
 
   // Helper functions to access variable and literal data.
   //
-  Var &var (int lit) { return vtab[vidx (lit)]; }
-  Link &link (int lit) { return links[vidx (lit)]; }
-  Flags &flags (int lit) { return ftab[vidx (lit)]; }
-  int64_t &bumped (int lit) { return btab[vidx (lit)]; }
-  int &propfixed (int lit) { return ptab[vlit (lit)]; }
-  double &score (int lit) { return stab[vidx (lit)]; }
+  Var &var (Lit lit) { return vtab[vidx (lit)]; }
+  Link &link (Lit lit) { return links[vidx (lit)]; }
+  Flags &flags (Lit lit) { return ftab[vidx (lit)]; }
+  int64_t &bumped (Lit lit) { return btab[vidx (lit)]; }
+  int64_t &bumped (int idx) { return btab[vidx (Lit (idx))]; }
+  int &propfixed (Lit lit) { return ptab[vlit (lit)]; }
+  double &score (Lit lit) { return stab[vidx (lit)]; }
 
-  const Flags &flags (int lit) const { return ftab[vidx (lit)]; }
+  const Flags &flags (Lit lit) const { return ftab[vidx (lit)]; }
+  const int64_t &bumped (Lit lit) const { return btab[vidx (lit)]; }
 
   bool occurring () const { return !otab.empty (); }
   bool watching () const { return !wtab.empty (); }
@@ -475,33 +476,33 @@ struct Internal {
   // document the invariant.
   int get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
 
-  Bins &bins (int lit) { return big[vlit (lit)]; }
-  Occs &occs (int lit) { return otab[vlit (lit)]; }
-  int64_t &noccs (int lit) { return ntab[vlit (lit)]; }
-  Watches &watches (int lit) { return wtab[vlit (lit)]; }
+  Bins &bins (Lit lit) { return big[vlit (lit)]; }
+  Occs &occs (Lit lit) { return otab[vlit (lit)]; }
+  int64_t &noccs (Lit lit) { return ntab[vlit (lit)]; }
+  Watches &watches (Lit lit) { return wtab[vlit (lit)]; }
 
   // Variable bumping through exponential VSIDS (EVSIDS) as in MiniSAT.
   //
   bool use_scores () const { return opts.score && stable; }
-  void bump_variable_score (int lit);
+  void bump_variable_score (Lit lit);
   void bump_variable_score_inc ();
   void rescale_variable_scores ();
 
   // Marking variables with a sign (positive or negative).
   //
-  signed char marked (int lit) const {
+  signed char marked (Lit lit) const {
     signed char res = marks[vidx (lit)];
-    if (lit < 0)
+    if (lit.is_negated())
       res = -res;
     return res;
   }
-  void mark (int lit) {
+  void mark (Lit lit) {
     assert (!marked (lit));
     marks[vidx (lit)] = sign (lit);
     assert (marked (lit) > 0);
     assert (marked (-lit) < 0);
   }
-  void unmark (int lit) {
+  void unmark (Lit lit) {
     marks[vidx (lit)] = 0;
     assert (!marked (lit));
   }
@@ -509,13 +510,13 @@ struct Internal {
   // Use only bits 6 and 7 to store the sign or zero.  The remaining
   // bits can be used as additional flags.
   //
-  signed char marked67 (int lit) const {
+  signed char marked67 (Lit lit) const {
     signed char res = marks[vidx (lit)] >> 6;
     if (lit < 0)
       res = -res;
     return res;
   }
-  void mark67 (int lit) {
+  void mark67 (Lit lit) {
     signed char &m = marks[vidx (lit)];
     const signed char mask = 0x3f;
 #ifndef NDEBUG
@@ -528,7 +529,7 @@ struct Internal {
     assert (marked67 (lit) > 0);
     assert (marked67 (-lit) < 0);
   }
-  void unmark67 (int lit) {
+  void unmark67 (Lit lit) {
     signed char &m = marks[vidx (lit)];
     const signed char mask = 0x3f;
 #ifndef NDEBUG
@@ -538,7 +539,7 @@ struct Internal {
     assert ((m & mask) == bits);
   }
 
-  void unmark (vector<int> &lits) {
+  void unmark (vector<Lit> &lits) {
     for (const auto &lit : lits)
       unmark (lit);
   }
@@ -547,17 +548,17 @@ struct Internal {
   // (unsigned) marking bits.  Currently we only use the least significant
   // bit in 'condition' to mark variables in the conditional part.
   //
-  bool getbit (int lit, int bit) const {
+  bool getbit (Lit lit, int bit) const {
     assert (0 <= bit), assert (bit < 6);
     return marks[vidx (lit)] & (1 << bit);
   }
-  void setbit (int lit, int bit) {
+  void setbit (Lit lit, int bit) {
     assert (0 <= bit), assert (bit < 6);
     assert (!getbit (lit, bit));
     marks[vidx (lit)] |= (1 << bit);
     assert (getbit (lit, bit));
   }
-  void unsetbit (int lit, int bit) {
+  void unsetbit (Lit lit, int bit) {
     assert (0 <= bit), assert (bit < 6);
     assert (getbit (lit, bit));
     marks[vidx (lit)] &= ~(1 << bit);
@@ -566,23 +567,23 @@ struct Internal {
 
   // Marking individual literals.
   //
-  bool marked2 (int lit) const {
+  bool marked2 (Lit lit) const {
     unsigned res = marks[vidx (lit)];
     assert (res <= 3);
     unsigned bit = bign (lit);
     return (res & bit) != 0;
   }
-  void mark2 (int lit) {
+  void mark2 (Lit lit) {
     marks[vidx (lit)] |= bign (lit);
     assert (marked2 (lit));
   }
 
   // marks bits 1,2,3 and 4,5,6 depending on fact and sign of lit
   //
-  bool getfact (int lit, int fact) const {
+  bool getfact (Lit lit, int fact) const {
     assert (fact == 1 || fact == 2 || fact == 4);
     int res = marks[vidx (lit)];
-    if (lit < 0) {
+    if (lit.is_negated ()) {
       res >>= 3;
     } else {
       res &= 7;
@@ -591,7 +592,7 @@ struct Internal {
     return res & fact;
   }
 
-  void markfact (int lit, int fact) {
+  void markfact (Lit lit, int fact) {
     assert (fact == 1 || fact == 2 || fact == 4);
     assert (!getfact (lit, fact));
 #ifndef NDEBUG
@@ -610,7 +611,7 @@ struct Internal {
 #endif
   }
 
-  void unmarkfact (int lit, int fact) {
+  void unmarkfact (Lit lit, int fact) {
     assert (fact == 1 || fact == 2 || fact == 4);
     assert (getfact (lit, fact));
     int res = marks[vidx (lit)];
@@ -634,7 +635,7 @@ struct Internal {
   // Watch literal 'lit' in clause with blocking literal 'blit'.
   // Inlined here, since it occurs in the tight inner loop of 'propagate'.
   //
-  inline void watch_literal (int lit, int blit, Clause *c) {
+  inline void watch_literal (Lit lit, Lit blit, Clause *c) {
     assert (lit != blit);
     Watches &ws = watches (lit);
     ws.push_back (Watch (blit, c));
@@ -645,7 +646,7 @@ struct Internal {
   // Watch literal 'lit' in clause with blocking literal 'blit'.
   // Inlined here, since it occurs in the tight inner loop of 'propagate'.
   //
-  inline void watch_binary_literal (int lit, int blit, Clause *c) {
+  inline void watch_binary_literal (Lit lit, Lit blit, Clause *c) {
     assert (lit != blit);
     Watches &ws = watches (lit);
     ws.push_back (Watch (true, blit, c));
@@ -656,15 +657,15 @@ struct Internal {
   // of a clause and during connecting back all watches after preprocessing.
   //
   inline void watch_clause (Clause *c) {
-    const int l0 = c->literals[0];
-    const int l1 = c->literals[1];
+    const Lit l0 = c->literals[0];
+    const Lit l1 = c->literals[1];
     watch_literal (l0, l1, c);
     watch_literal (l1, l0, c);
   }
 
   inline void unwatch_clause (Clause *c) {
-    const int l0 = c->literals[0];
-    const int l1 = c->literals[1];
+    const Lit l0 = c->literals[0];
+    const Lit l1 = c->literals[1];
     remove_watch (watches (l0), c);
     remove_watch (watches (l1), c);
   }
@@ -682,17 +683,17 @@ struct Internal {
     LOG ("queue unassigned now %d bumped %" PRId64 "", idx, btab[idx]);
   }
 
-  void bump_queue (int idx);
+  void bump_queue (Lit idx);
 
   // Mark (active) variables as eliminated, substituted, pure or fixed,
   // which turns them into inactive variables.
   //
-  void mark_declared (int);
-  void mark_eliminated (int);
-  void mark_substituted (int);
-  void mark_active (int);
-  void mark_fixed (int);
-  void mark_pure (int);
+  void mark_declared (Lit);
+  void mark_eliminated (Lit);
+  void mark_substituted (Lit);
+  void mark_active (Lit);
+  void mark_fixed (Lit);
+  void mark_pure (Lit);
 
   // Managing clauses in 'clause.cpp'.  Without explicit 'Clause' argument
   // these functions work on the global temporary 'clause'.
@@ -738,15 +739,15 @@ struct Internal {
 
   // Forward reasoning through propagation in 'propagate.cpp'.
   //
-  int assignment_level (int lit, Clause *);
-  void build_chain_for_units (int lit, Clause *reason, bool forced);
+  int assignment_level (Lit lit, Clause *);
+  void build_chain_for_units (Lit lit, Clause *reason, bool forced);
   void build_chain_for_empty ();
-  void search_assign (int lit, Clause *);
-  void search_assign_driving (int lit, Clause *reason);
-  void search_assign_external (int lit);
-  void search_assume_decision (int decision);
+  void search_assign (Lit lit, Clause *);
+  void search_assign_driving (Lit lit, Clause *reason);
+  void search_assign_external (Lit lit);
+  void search_assume_decision (Lit decision);
   static Clause *decision_reason;
-  void assign_unit (int lit);
+  void assign_unit (Lit lit);
   int64_t cache_lines (size_t bytes) { return (bytes + 127) / 128; }
   int64_t cache_lines (size_t n, size_t bytes) {
     return cache_lines (n * bytes);
@@ -782,14 +783,14 @@ struct Internal {
   //
   bool minimize_literal (int lit, int depth = 0);
   void minimize_clause ();
-  void calculate_minimize_chain (int lit, std::vector<int> &stack);
+  void calculate_minimize_chain (Lit lit, std::vector<int> &stack);
 
   // Learning from conflicts in 'analyze.cc'.
   //
   void learn_empty_clause ();
-  void learn_unit_clause (int lit);
+  void learn_unit_clause (Lit lit);
 
-  void bump_variable (int lit);
+  void bump_variable (Lit lit);
   void bump_variables ();
   int recompute_glue (Clause *);
   void bump_clause (Clause *);
@@ -798,22 +799,22 @@ struct Internal {
   void clear_analyzed_literals ();
   void clear_analyzed_levels ();
   void clear_minimized_literals ();
-  bool bump_also_reason_literal (int lit);
-  void bump_also_reason_literals (int lit, int depth_limit,
+  bool bump_also_reason_literal (Lit lit);
+  void bump_also_reason_literals (Lit lit, int depth_limit,
                                   size_t size_limit);
   void bump_also_all_reason_literals ();
-  void analyze_literal (int lit, int &open, int &resolvent_size,
+  void analyze_literal (Lit lit, int &open, int &resolvent_size,
                         int &antecedent_size);
-  void analyze_reason (int lit, Clause *, int &open, int &resolvent_size,
+  void analyze_reason (Lit lit, Clause *, int &open, int &resolvent_size,
                        int &antecedent_size);
   Clause *new_driving_clause (const int glue, int &jump);
-  int find_conflict_level (int &forced);
+  int find_conflict_level (Lit &forced);
   int determine_actual_backtrack_level (int jump);
-  void otfs_strengthen_clause (Clause *, int, int,
-                               const std::vector<int> &);
+  void otfs_strengthen_clause (Clause *, Lit, int,
+                               const std::vector<Lit> &);
   void otfs_subsume_clause (Clause *subsuming, Clause *subsumed);
-  int otfs_find_backtrack_level (int &forced);
-  Clause *on_the_fly_strengthen (Clause *conflict, int lit);
+  int otfs_find_backtrack_level (Lit &forced);
+  Clause *on_the_fly_strengthen (Clause *conflict, Lit lit);
   void update_decision_rate_average ();
   void lazy_external_propagator_out_of_order_clause (int &);
   void analyze ();
@@ -823,13 +824,13 @@ struct Internal {
   //
   bool external_propagate ();
   bool external_check_solution ();
-  void add_external_clause (int propagated_lit = 0,
+  void add_external_clause (Lit propagated_lit = Lit (0),
                             bool no_backtrack = false);
-  Clause *learn_external_reason_clause (int lit, int falsified_elit = 0,
+  Clause *learn_external_reason_clause (Lit lit, int falsified_elit = 0,
                                         bool no_backtrack = false);
-  Clause *wrapped_learn_external_reason_clause (int lit);
+  Clause *wrapped_learn_external_reason_clause (Lit lit);
   void explain_external_propagations ();
-  void explain_reason (int lit, Clause *, int &open);
+  void explain_reason (Lit lit, Clause *, int &open);
   void move_literals_to_watch ();
   void handle_external_clause (Clause *);
   void notify_assignments ();
@@ -840,8 +841,8 @@ struct Internal {
   bool ask_external_clause ();
   void add_observed_var (int ilit);
   void remove_observed_var (int ilit);
-  bool observed (int ilit) const;
-  bool is_decision (int ilit);
+  bool observed (Lit ilit) const;
+  bool is_decision (Lit ilit);
   void check_watched_literal_invariants ();
   void set_changed_val ();
   void renotify_trail_after_ilb ();
@@ -858,8 +859,8 @@ struct Internal {
   void mark_garbage_external_forgettable (int64_t id);
   bool is_external_forgettable (int64_t id);
 #ifndef NDEBUG
-  bool get_merged_literals (std::vector<int> &);
-  void get_all_fixed_literals (std::vector<int> &);
+  bool get_merged_literals (std::vector<Lit> &);
+  void get_all_fixed_literals (std::vector<Lit> &);
 #endif
 
   void recompute_tier ();
@@ -900,9 +901,9 @@ struct Internal {
   //
   int unlucky (int res);
   int lucky_decide_assumptions ();
-  void lucky_search_assign (int lit, Clause *reason);
-  bool lucky_propagate_discrepency (int);
-  void lucky_assume_decision (int);
+  void lucky_search_assign (Lit lit, Clause *reason);
+  bool lucky_propagate_discrepency (Lit);
+  void lucky_assume_decision (Lit);
   int trivially_false_satisfiable ();
   int trivially_true_satisfiable ();
   template<class Iterator>
@@ -944,8 +945,8 @@ struct Internal {
   void remove_falsified_literals (Clause *);
   void mark_satisfied_clauses_as_garbage ();
   void copy_clause (Clause *);
-  void flush_watches (int lit, Watches &);
-  size_t flush_occs (int lit);
+  void flush_watches (Lit lit, Watches &);
+  size_t flush_occs (Lit lit);
   void flush_all_occs_and_watches ();
   void update_reason_references ();
   void copy_non_garbage_clauses ();
@@ -980,7 +981,7 @@ struct Internal {
 
   // Regular forward subsumption checking in 'subsume.cpp'.
   //
-  void strengthen_clause (Clause *, int);
+  void strengthen_clause (Clause *, Lit);
   void subsume_clause (Clause *subsuming, Clause *subsumed);
   int subsume_check (Clause *subsuming, Clause *subsumed);
   int try_to_subsume_clause (Clause *, vector<Clause *> &shrunken);
@@ -990,11 +991,11 @@ struct Internal {
 
   // Covered clause elimination of large clauses.
   //
-  void covered_literal_addition (int lit, Coveror &);
-  void asymmetric_literal_addition (int lit, Coveror &);
-  void cover_push_extension (int lit, Coveror &);
-  bool cover_propagate_asymmetric (int lit, Clause *ignore, Coveror &);
-  bool cover_propagate_covered (int lit, Coveror &);
+  void covered_literal_addition (Lit lit, Coveror &);
+  void asymmetric_literal_addition (Lit lit, Coveror &);
+  void cover_push_extension (Lit lit, Coveror &);
+  bool cover_propagate_asymmetric (Lit lit, Clause *ignore, Coveror &);
+  bool cover_propagate_covered (Lit lit, Coveror &);
   bool cover_clause (Clause *c, Coveror &);
   int64_t cover_round ();
   bool cover ();
@@ -1013,15 +1014,15 @@ struct Internal {
   void vivify_sort_watched (Clause *c);
   bool vivify_instantiate (
       const std::vector<int> &, Clause *,
-      std::vector<std::tuple<int, Clause *, bool>> &lrat_stack,
+      std::vector<std::tuple<Lit, Clause *, bool>> &lrat_stack,
       int64_t &ticks);
   void vivify_analyze_redundant (Vivifier &, Clause *start, bool &);
-  void vivify_build_lrat (int, Clause *,
-                          std::vector<std::tuple<int, Clause *, bool>> &);
-  void vivify_chain_for_units (int lit, Clause *reason);
+  void vivify_build_lrat (Lit, Clause *,
+                          std::vector<std::tuple<Lit, Clause *, bool>> &);
+  void vivify_chain_for_units (Lit lit, Clause *reason);
   void vivify_strengthen (Clause *candidate, int64_t &);
-  void vivify_assign (int lit, Clause *);
-  void vivify_assume (int lit);
+  void vivify_assign (Lit lit, Clause *);
+  void vivify_assume (Lit lit);
   bool vivify_propagate (int64_t &);
   void vivify_deduce (Clause *candidate, Clause *conflct, int implied,
                       Clause **, bool &);
@@ -1047,23 +1048,23 @@ struct Internal {
 
   // backbone computation
   //
-  void backbone_decision (int lit);
+  void backbone_decision (Lit lit);
   bool backbone_propagate (int64_t &);
   void backbone_propagate2 (int64_t &);
   unsigned compute_backbone ();
   void backbone_unit_reassign (
-      int lit); // only for reassigning already derived clauses!
+      Lit lit); // only for reassigning already derived clauses!
   void backbone_unit_assign (
-      int lit); // only for reassigning already derived clauses!
-  void backbone_assign_any (int lit, Clause *reason);
-  void backbone_assign (int lit, Clause *reason);
+      Lit lit); // only for reassigning already derived clauses!
+  void backbone_assign_any (Lit lit, Clause *reason);
+  void backbone_assign (Lit lit, Clause *reason);
   void backbone_lrat_for_units (int lit, Clause *c);
-  unsigned compute_backbone_round (std::vector<int> &candidates,
-                                   std::vector<int> &units,
+  unsigned compute_backbone_round (std::vector<Lit> &candidates,
+                                   std::vector<Lit> &units,
                                    const int64_t ticks_limit,
                                    int64_t &ticks, unsigned inconsistent);
-  void schedule_backbone_cands (std::vector<int> &candidates);
-  void keep_backbone_candidates (const std::vector<int> &candidates);
+  void schedule_backbone_cands (std::vector<Lit> &candidates);
+  void keep_backbone_candidates (const std::vector<Lit> &candidates);
   int backbone_analyze (Clause *, int64_t &);
   void binary_clauses_backbone ();
 
@@ -1094,7 +1095,7 @@ struct Internal {
   // A similar technique is used to reduce the effort in hyper ternary
   // resolution to focus on variables in new ternary clauses.
   //
-  void mark_subsume (int lit) {
+  void mark_subsume (Lit lit) {
     Flags &f = flags (lit);
     if (f.subsume)
       return;
@@ -1102,7 +1103,7 @@ struct Internal {
     stats.mark.subsume++;
     f.subsume = true;
   }
-  void mark_ternary (int lit) {
+  void mark_ternary (Lit lit) {
     Flags &f = flags (lit);
     if (f.ternary)
       return;
@@ -1110,7 +1111,7 @@ struct Internal {
     stats.mark.ternary++;
     f.ternary = true;
   }
-  void mark_factor (int lit) {
+  void mark_factor (Lit lit) {
     Flags &f = flags (lit);
     const unsigned bit = bign (lit);
     if (f.factor & bit)
@@ -1131,7 +1132,7 @@ struct Internal {
   // clause elimination it is better to have a more precise signed version,
   // which allows to independently mark positive and negative literals.
   //
-  void mark_elim (int lit) {
+  void mark_elim (Lit lit) {
     Flags &f = flags (lit);
     if (f.elim)
       return;
@@ -1139,7 +1140,7 @@ struct Internal {
     stats.mark.elim++;
     f.elim = true;
   }
-  void mark_block (int lit) {
+  void mark_block (Lit lit) {
     Flags &f = flags (lit);
     const unsigned bit = bign (lit);
     if (f.block & bit)
@@ -1148,7 +1149,7 @@ struct Internal {
     stats.mark.block++;
     f.block |= bit;
   }
-  void mark_removed (int lit) {
+  void mark_removed (Lit lit) {
     mark_elim (lit);
     mark_block (-lit);
   }
@@ -1622,34 +1623,33 @@ struct Internal {
   // substantially faster than negating the result if the argument is
   // negative.  We also avoid taking the absolute value.
   //
-  signed char val (int lit) const {
-    assert (-max_var <= lit);
+  signed char val (Lit lit) const {
+    assert (-max_var <= lit.var ());
     assert (lit);
     assert (lit <= max_var);
-    return vals[lit];
+    return vals[lit.lit ()];
   }
 
   // As suggested by Matt Ginsberg it might be useful to factor-out a common
   // setter function for setting and resetting the value of a literal.
   //
-  void set_val (int lit, signed char val) {
+  void set_val (Lit lit, signed char val) {
     assert (-1 <= val);
     assert (val <= 1);
-    assert (-max_var <= lit);
+    assert (-max_var <= lit.var ());
     assert (lit);
     assert (lit <= max_var);
-    vals[lit] = val;
-    vals[-lit] = -val;
+    vals[lit.var ()] = val;
+    vals[(-lit).var ()] = -val;
   }
 
   // As 'val' but restricted to the root-level value of a literal.
   // It is not that time critical and also needs to check the decision level
   // of the variable anyhow.
   //
-  int fixed (int lit) {
-    assert (-max_var <= lit);
+  int fixed (Lit lit) {
     assert (lit);
-    assert (lit <= max_var);
+    assert (lit.var () <= max_var);
     const int idx = vidx (lit);
     int res = vals[idx];
     if (res && vtab[idx].level)
@@ -1661,9 +1661,9 @@ struct Internal {
 
   // Map back an internal literal to an external.
   //
-  int externalize (int lit) {
-    assert (lit != INT_MIN);
-    const int idx = abs (lit);
+  int externalize (Lit lit) {
+    assert (lit.valid ());
+    const int idx = vidx (lit);
     assert (idx);
     assert (idx <= max_var);
     int res = i2e[idx];
@@ -1674,7 +1674,7 @@ struct Internal {
 
   // Explicit freezing and melting of variables.
   //
-  void freeze (int lit) {
+  void freeze (Lit lit) {
     int idx = vidx (lit);
     if ((size_t) idx >= frozentab.size ()) {
       size_t new_vsize = vsize ? 2 * vsize : 1 + (size_t) max_var;
@@ -1689,7 +1689,7 @@ struct Internal {
     } else
       LOG ("variable %d remains frozen forever", idx);
   }
-  void melt (int lit) {
+  void melt (Lit lit) {
     int idx = vidx (lit);
     if ((size_t)idx < frozentab.size ()) {
       LOG ("variable %d completely molten", idx);
@@ -1876,10 +1876,10 @@ inline bool score_smaller::operator() (unsigned a, unsigned b) {
 
 // Implemented here for keeping it all inline (requires Internal::fixed).
 
-inline int External::fixed (int elit) const {
+inline int External::fixed (ELit elit) const {
   assert (elit);
-  assert (elit != INT_MIN);
-  int eidx = abs (elit);
+  assert (elit.valid ());
+  int eidx = elit.var ();
   if (eidx > max_var)
     return 0;
   int ilit = internal_lit (eidx);

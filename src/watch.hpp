@@ -31,11 +31,11 @@ struct Clause;
 struct Watch {
 
   Clause *clause;
-  int blit;
+  Lit blit;
   int size;
 
-  Watch (int b, Clause *c) : clause (c), blit (b), size (c->size) {}
-  Watch (bool, int b, Clause *c) : clause (c), blit (b), size (2) {
+  Watch (Lit b, Clause *c) : clause (c), blit (b), size (c->size) {}
+  Watch (bool, Lit b, Clause *c) : clause (c), blit (b), size (2) {
     assert (c->size == 2);
   }
   Watch () {}
@@ -61,7 +61,7 @@ inline void remove_watch (Watches &ws, Clause *clause) {
 }
 
 // search for the clause and updates the size marked in the watch lists
-inline void update_watch_size (Watches &ws, int blit, Clause *conflict) {
+inline void update_watch_size (Watches &ws, Lit blit, Clause *conflict) {
   bool found = false;
   const int size = conflict->size;
   for (Watch &w : ws) {

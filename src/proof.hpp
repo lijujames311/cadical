@@ -1,6 +1,7 @@
 #ifndef _proof_h_INCLUDED
 #define _proof_h_INCLUDED
 
+#include "literals.hpp"
 #include "tracer.hpp"
 #include <stdint.h>
 
@@ -78,7 +79,7 @@ public:
   // Add derived (such as learned) clauses to the proof.
   //
   void add_derived_empty_clause (int64_t, const std::vector<int64_t> &);
-  void add_derived_unit_clause (int64_t, int unit,
+  void add_derived_unit_clause (int64_t, Lit unit,
                                 const std::vector<int64_t> &);
   void add_derived_clause (Clause *c, const std::vector<int64_t> &);
   void add_derived_clause (int64_t, bool, const std::vector<int> &,
@@ -114,7 +115,7 @@ public:
   //
   void flush_clause (Clause *); // remove falsified literals
   void strengthen_clause (Clause *, int, const std::vector<int64_t> &);
-  void otfs_strengthen_clause (Clause *, const std::vector<int> &,
+  void otfs_strengthen_clause (Clause *, const std::vector<Lit> &,
                                const std::vector<int64_t> &);
 
   void flush ();

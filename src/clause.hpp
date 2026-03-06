@@ -2,6 +2,7 @@
 #define _clause_hpp_INCLUDED
 
 #include "util.hpp"
+#include "literals.hpp"
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
@@ -10,8 +11,8 @@ namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
 
-typedef int *literal_iterator;
-typedef const int *const_literal_iterator;
+typedef Lit *literal_iterator;
+typedef const Lit *const_literal_iterator;
 
 /*------------------------------------------------------------------------*/
 
@@ -119,9 +120,9 @@ struct Clause {
   // that would in turn produce a warning.
 
 #ifndef NFLEXIBLE
-  int literals[];
+  Lit literals[];
 #else
-  int literals[2];
+  Lit literals[2];
 #endif
 
   // Supports simple range based for loops over clauses.
@@ -178,9 +179,9 @@ struct clause_smaller_size {
 // 'opts.logsort' in 'logging.cpp').
 
 struct clause_lit_less_than {
-  bool operator() (int a, int b) const {
+  bool operator() (Lit a, Lit b) const {
     using namespace std;
-    int s = abs (a), t = abs (b);
+    int s = a.var(), t = b.var ();
     return s < t || (s == t && a < b);
   }
 };

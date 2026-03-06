@@ -3,7 +3,7 @@
 
 namespace CaDiCaL {
 
-void Internal::mark_declared (int lit) {
+void Internal::mark_declared (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::UNUSED);
   f.status = Flags::DECLARED;
@@ -12,7 +12,7 @@ void Internal::mark_declared (int lit) {
   LOG ("declaring new %d (max_var: %d, unused: %" PRId64 ", active: %" PRId64 ")", lit, max_var, stats.unused, stats.active);
 }
 
-void Internal::mark_fixed (int lit) {
+void Internal::mark_fixed (Lit lit) {
   if (external->fixed_listener) {
     int elit = externalize (lit);
     assert (elit);

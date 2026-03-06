@@ -31,25 +31,26 @@ void External::enlarge (int new_max_var) {
   vsize = new_vsize;
 }
 
-int External::declare_var (int new_var, bool extension) {
-  int ilit = internal_lit (new_var);
-  if (!ilit) {
+Lit External::declare_var (ELit new_var, bool extension) {
+  assert (new_var.lit > 0);
+  Lit ilit = internal_lit (new_var);
+  if (!ilit ()) {
     if (!internal->opts.varkeepname)
-      ilit = internal->max_var+1;
+      ilit = Lit (internal->max_var+1);
     else {
       ilit = new_var;
-      if (internal->i2e.size () > (size_t)ilit && internal->i2e[ilit]) {
+      if (internal->i2e.size () > (size_t)ilit.lit && internal->i2e[ilit.var ()]) {
         LOG ("the slot is already used by %d, giving the next available name", internal->i2e[ilit]);
-        ilit = internal->max_var+1;
+        ilit = Lit (internal->max_var+1);
       }
     }
-    if (internal->i2e.size () <= (size_t)ilit) {
-      reserve_at_least (internal->i2e, ilit + 1);
-      internal->i2e.resize (ilit + 1);
+    if (internal->i2e.size () <= (size_t)ilit.lit) {
+      reserve_at_least (internal->i2e, ilit.var () + 1);
+      internal->i2e.resize (ilit.var () + 1);
     }
     LOG ("new mapping external %d to internal %d", new_var, ilit);
     e2i[new_var] = ilit;
-    internal->i2e[ilit] = new_var;
+    internal->i2e[ilit.var ()] = new_var;
     internal->declare_variable (ilit);
     assert (internal->max_var >= ilit);
   }
@@ -144,8 +145,8 @@ void External::reset_limits () { internal->reset_limits (); }
 // we can set a flag that it is an extension variable.
 // This is then used in the API contracts, that extension variables are
 // never part of the input
-int External::internalize (int elit, bool extension) {
-  int ilit;
+int External::internalize (ELit elit, bool extension) {
+  Lit ilit;
   if (elit) {
     assert (elit != INT_MIN);
     const int eidx = abs (elit);

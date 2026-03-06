@@ -200,8 +200,8 @@ void Internal::reserve_vars (int new_min_vsize) {
   vsize = new_vsize;
 }
 
-void Internal::add_original_lit (int lit) {
-  assert (abs (lit) <= max_var);
+void Internal::add_original_lit (Lit lit) {
+  assert (lit.var () <= max_var);
   if (lit) {
     original.push_back (lit);
   } else {
@@ -1296,13 +1296,14 @@ bool Internal::traverse_clauses (ClauseIterator &it) {
   return true;
 }
 
-void Internal::declare_variable (int ilit) {
-  reserve_vars (ilit);
-  assert ((size_t)ilit < vsize);
-  if (ilit >= max_var) {
-    stats.unused += (ilit - max_var);
-    stats.inactive += (ilit - max_var);
-    max_var = ilit;
+void Internal::declare_variable (Lit ilit) {
+  assert (ilit.lit >= 0);
+  reserve_vars (ilit.var ());
+  assert ((size_t)ilit.var () < vsize);
+  if (ilit >= Lit (max_var)) {
+    stats.unused += (ilit.var () - max_var);
+    stats.inactive += (ilit.var () - max_var);
+    max_var = ilit.var ();
   }
   Flags &f = internal->flags (ilit);
   if (f.declared())
@@ -1325,26 +1326,25 @@ void Internal::activating_all_new_imported_literals () {
     std::sort (begin (imports), end (imports), [&] (int l, int o) {return i2e[vidx(l)] < i2e[vidx (o)];});
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
-  auto max_it = std::max_element(imports.begin(), imports.end(),
-      [](int a, int b) { return abs(a) < abs(b); });
+  auto max_it = std::max_element(imports.begin(), imports.end(), std::less{});
   assert (max_it != imports.end ());
   int new_max_var = vidx(*max_it);
   enlarge (new_max_var);
 
   for (auto lit : imports) {
     int idx = vidx (lit);
-    auto &f = flags (idx);
+    auto &f = flags (lit);
     // the user asked for it but did not put the literal in any
     // clause, we still should declare it (for future use by the user)
     if (f.unused ())
-      mark_declared (idx);
+      mark_declared (lit);
     // for units, we do have to enqueue (in case we backtracked and already added it)
     if (f.fixed ()) {
       continue;
     }
 
     if (f.declared ())
-      mark_active (idx);
+      mark_active (lit);
     // otherwise, reactivating literal
     init_enqueue (idx);
 
@@ -1370,9 +1370,9 @@ void Internal::activating_all_new_imported_literals () {
     }
   }
   for (auto v : vars) {
-    assert (flags (v).unused () || internal->val (v) ||
+    assert (flags (Lit (v)).unused () || internal->val (Lit (v)) ||
             scores.contains (v));
-    if (flags (v).unused ())
+    if (flags (Lit (v)).unused ())
       assert (!scores.contains (v));
   }
   check_queue ();
