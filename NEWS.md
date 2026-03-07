@@ -3,7 +3,14 @@ Version 3.0.X
 
 User Facing Changes:
 
-- Major rework of literal import. The option `reverse` was renamed `varprioritizefirst`.
+- Major rework of literal import, making it lazy everywhere.
+   + The option `reverse` was renamed `varprioritizefirst`.
+
+   + The function `resize ()` does not declare the variables anymore, it only
+     reserves the space (to make allocation more efficient). They are only
+     declared if you use them (either by adding them or by some other API
+     operation like observe ()). This means that the behavior does not change
+     anymore by calling resize with more variables than expected.
 
 - For models, CaDiCaL now outputs only the literals that are present
   in the problem. Use `modelalllits` to get all literals.
