@@ -614,6 +614,10 @@ public:
   //   require (READY)
   //   ensure (STEADY)
   //
+  // or
+  //
+  //   require (SOLVING)
+  //   ensure (SOLVING)
   void resize (int min_max_var);
 
   // Increase the maximum variable index by a number of new variables.
@@ -627,6 +631,10 @@ public:
   //   require (READY)
   //   ensure (STEADY)
   //
+  // or
+  //
+  //   require (SOLVING)
+  //   ensure (SOLVING)
   int declare_more_variables (int number_of_additional_new_vars);
 
   // Returns the next fresh variable that was not used internally.

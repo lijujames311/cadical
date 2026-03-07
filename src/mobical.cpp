@@ -1390,13 +1390,13 @@ struct Call {
     IMPLIED_LITERALS = shift (41),
     RESET_ASSUMPTIONS = shift (42),
 
-    RESIZE_DIFFERENCE = shift (  43 ),
+    RESERVE = shift (  43 ),
 
     // clang-format on
 
     ALWAYS = VARS | ACTIVE | REDUNDANT | IRREDUNDANT | FREEZE | FROZEN |
              MELT | LIMIT | OPTIMIZE | DUMP | STATS | RESIZE | FIXED |
-             PHASE | RESIZE_DIFFERENCE
+             PHASE | RESERVE
 #ifdef MOBICAL_MEMORY
              | MAXALLOC | LEAKALLOC
 #endif
@@ -3970,7 +3970,7 @@ static bool is_basic (Call *c) {
   case Call::REDUNDANT:
   case Call::IRREDUNDANT:
   case Call::RESIZE:
-  case Call::RESIZE_DIFFERENCE:
+  case Call::RESERVE:
   case Call::VAL:
   case Call::FLIP:
   case Call::FLIPPABLE:

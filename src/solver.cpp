@@ -478,28 +478,27 @@ int Solver::vars () const {
 
 void Solver::resize (int min_max_var) {
   TRACE ("resize", min_max_var);
-  REQUIRE_VALID_STATE ();
+  REQUIRE_VALID_OR_SOLVING_STATE ();
+  if (state () != SOLVING)
+    transition_to_steady_state ();
+  external->reset_extended ();
   if (min_max_var <= external->max_var) {
     LOG ("do nothing");
   } else {
-    if (state () != SOLVING)
-      transition_to_steady_state ();
-    external->reset_extended ();
-    external->init (min_max_var);
+    external->reserve (min_max_var);
   }
   LOG_API_CALL_END ("resize", min_max_var);
 }
 
 int Solver::declare_more_variables (int number_of_vars) {
   TRACE ("declare_more_variables", number_of_vars);
-  REQUIRE_VALID_STATE ();
   REQUIRE_VALID_OR_SOLVING_STATE ();
   if (state () != SOLVING)
     transition_to_steady_state ();
   external->reset_extended ();
   int new_max_var = external->max_var + number_of_vars;
   if (number_of_vars)
-    external->init (new_max_var);
+    external->reserve (new_max_var);
   LOG_API_CALL_END ("declare_more_variables", number_of_vars);
   return new_max_var;
 }

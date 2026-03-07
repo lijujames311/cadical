@@ -21,9 +21,7 @@ External::~External () {
 }
 
 void External::enlarge (int new_max_var) {
-
   assert (!extended);
-
   size_t new_vsize = vsize ? 2 * vsize : 1 + (size_t) new_max_var;
   while (new_vsize <= (size_t) new_max_var)
     new_vsize *= 2;
@@ -58,7 +56,7 @@ int External::declare_var (int new_var, bool extension) {
   return e2i[new_var];
 }
 
-void External::resize (int new_max_var) {
+void External::reserve (int new_max_var) {
   assert (max_var < new_max_var);
   internal->reserve_vars (new_max_var);
   reserve_at_least (ext_units, 2 * new_max_var + 2);
@@ -84,9 +82,7 @@ void External::resize (int new_max_var) {
   }
   assert (internal->i2e.size () == (size_t)internal->max_var + 1);
   assert (eidx == (size_t) new_max_var + 1);
-  int new_vars = new_max_var - max_var;
   max_var = new_max_var;
-  internal->stats.variables_original += new_vars;
 }
 
 void External::init (int new_max_var, bool extension) {
@@ -99,7 +95,7 @@ void External::init (int new_max_var, bool extension) {
   }
   int new_vars = new_max_var - max_var;
   LOG ("initialized %d external variables", new_vars);
-  resize (new_max_var);
+  reserve (new_max_var);
 
   declare_var (new_max_var, extension);
   if (extension)
