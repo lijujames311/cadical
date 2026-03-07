@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <queue>
 #include <string>
 #include <sys/types.h>
@@ -14,6 +15,7 @@
 
 #include "clause.hpp"
 #include "inttypes.hpp"
+#include "hash.hpp"
 #include "util.hpp"
 #include "watch.hpp"
 
@@ -413,6 +415,7 @@ struct Gate {
     my_dummy_optional neg_lhs_id;
   } *lrat_reasons;
   int lhs;
+  size_t hash;
   Gate_Type tag;
   bool garbage : 1;
   bool indexed : 1;
@@ -507,9 +510,10 @@ struct GateEqualTo {
       return false;
     if (lhs->arity () != rhs->arity ())
       return false;
-    for (int i = 0; i < rhs->arity (); ++i)
+    for (int i = 0; i < rhs->arity (); ++i) {
       if (lhs->rhs[i] != rhs->rhs[i])
         return false;
+    }
     return true;
   }
 };
@@ -560,7 +564,7 @@ struct Closure {
   std::vector<std::pair<size_t, size_t>> offsetsize;
   bool full_watching = false;
   std::array<uint64_t, 16> nonces; // for better hashing
-  typedef unordered_set<Gate *, Hash, GateEqualTo> GatesTable;
+  typedef hash<Gate *, Hash, GateEqualTo, std::equal_to<Gate*>> GatesTable;
 
   vector<signed char> marks; // marking structure
   // remember the ids and the literal. 2 and 4 are

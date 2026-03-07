@@ -11,7 +11,7 @@
 namespace CaDiCaL {
 
 Closure::Closure (Internal *i)
-    : internal (i), table (128, Hash (nonces))
+    : internal (i), table (Hash (nonces)) // 128, Hash (nonces)
 #ifdef LOGGING
       ,
       fresh_id (internal->clause_id)
@@ -25,6 +25,7 @@ Closure::Closure (Internal *i)
 char &Closure::lazy_propagated (int lit) {
   return lazy_propagated_idx[internal->vidx (lit)];
 }
+
 std::string special_gate_str (int8_t f) {
   switch (f) {
   case NORMAL:
@@ -2534,9 +2535,9 @@ void Closure::update_and_gate (Gate *g, GatesTable::iterator it, int src,
       assert (g->indexed);
       assert (it != table.end ());
       LOG (g, "removing from table");
+      assert (*it == g);
       (void) table.erase (it);
       LOG (g, "inserting gate into table");
-      assert (table.count (g) == 0);
       table.insert (g);
       g->indexed = true;
       garbage = false;
@@ -2778,6 +2779,7 @@ Gate *Closure::find_gate_lits (const vector<int> &rhs, Gate_Type typ,
     auto git = table.find (dummy_search_gate);
     if (git != std::end (table))
       h = *git;
+    assert (h != (Gate*)1);
     assert (!except || h != except);
   } else {
     const auto &its = table.equal_range (dummy_search_gate);
@@ -2835,19 +2837,33 @@ Gate *Closure::find_gate_lits (const_literal_iterator begin, const_literal_itera
       h = *git;
     assert (!except || h != except);
   } else {
+    auto it = table.find (dummy_search_gate, except);
+    if (it != table.end())
+      h = *it;
+#if 0
+    // standard C++ version
     const auto &its = table.equal_range (dummy_search_gate);
     for (auto it = its.first; it != its.second; ++it) {
-      LOG ((*it), "checking gate in the table");
+      if (*it == table.removed.second)
+        continue;
+      if (*it == except)
+        continue;
+      if (it == table.end()) {
+        it = table.begin ();
+        assert (it <= its.second);
+        continue;
+      }
+      assert (*it);
       assert (*it != dummy_search_gate);
       assert ((*it)->tag == typ);
       assert ((*it)->size == size);
-      if (*it == except)
-        continue;
+      LOG ((*it), "checking gate in the table");
       for (int i = 0; i < size; ++i)
        assert ((*it)->rhs[i] == dummy_search_gate->rhs[i]);
       h = *it;
       break;
     }
+#endif
   }
 
   if (h) {
@@ -4449,6 +4465,7 @@ void Closure::rewrite_and_gate (Gate *g, int dst, int src, LRAT_ID id1,
   assert (g->indexed);
   GatesTable::iterator git = (g->indexed ? table.find (g) : end (table));
   assert (!g->indexed || git != table.end ());
+  assert (*git == g);
   int clashing = 0, falsifies = 0;
   unsigned dst_count = 0, not_dst_count = 0;
   auto q = begin (*g);
@@ -4901,13 +4918,6 @@ size_t Closure::propagate_units_and_equivalences () {
         }
       }
     }
-    for (Gate *g : table) {
-      if (g->garbage)
-        continue;
-      if (g->tag == Gate_Type::And_Gate) {
-        // assert (find_and_lits(g->arity, g->rhs));
-      }
-    }
   }
 #endif
   STOP (congruencemerge);
@@ -4930,6 +4940,10 @@ std::string string_of_gate (Gate_Type t) {
 void Closure::reset_closure () {
   scheduled.clear ();
   for (Gate *g : table) {
+    if (!g)
+      continue;
+    if (g == table.removed.second)
+      continue;
     assert (g->indexed);
     LOG (g, "deleting");
     if (!g->garbage)
@@ -6674,6 +6688,7 @@ void Closure::simplify_ite_gate (Gate *g) {
       assert (g->indexed);
       auto git = g->indexed ? table.find (g) : end (table);
       assert (!g->indexed || git != end (table));
+      assert (*git == g);
       if (v_then > 0) {
         g->lhs = -lhs;
         rhs[0] = -cond;
