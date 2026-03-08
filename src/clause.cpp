@@ -142,6 +142,8 @@ Clause *Internal::new_clause (bool red, int glue) {
   if (likely_to_be_kept_clause (c))
     mark_added (c);
 
+  if (!c->redundant)
+    update_last_irredundant(c);
   return c;
 }
 
@@ -244,6 +246,7 @@ size_t Internal::shrink_clause (Clause *c, int new_size) {
 
 // Makes a redundant clause irredundant and update the statistics
 void Internal::make_irredundant (Clause *subsuming) {
+  check_last_irredundant();
   assert (subsuming->redundant);
   assert (!subsuming->garbage);
   LOG ("turning redundant subsuming clause into irredundant clause");
@@ -257,6 +260,8 @@ void Internal::make_irredundant (Clause *subsuming) {
   stats.current.redundant--;
   assert (stats.added.redundant > 0);
   stats.added.redundant--;
+  update_last_irredundant(subsuming);
+  check_last_irredundant();
   // ... and keep 'stats.added.total'.
 }
 
