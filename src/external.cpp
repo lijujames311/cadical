@@ -53,6 +53,7 @@ int External::declare_var (int new_var, bool extension) {
   }
 
   (void)extension;
+  ++internal->stats.variables_original;
   return e2i[new_var];
 }
 
