@@ -3,14 +3,8 @@ Version 3.0.X
 
 User Facing Changes:
 
-- Major rework of literal import, making it lazy everywhere.
-   + The option `reverse` was renamed `varprioritizefirst`.
-
-   + The function `resize ()` does not declare the variables anymore, it only
-     reserves the space (to make allocation more efficient). They are only
-     declared if you use them (either by adding them or by some other API
-     operation like observe ()). This means that the behavior does not change
-     anymore by calling resize with more variables than expected.
+- Major rework of literal import, making it lazy everywhere. Unused variables
+  are not created anymore.
 
 - For models, CaDiCaL now outputs only the literals that are present
   in the problem. Use `modelalllits` to get all literals.
@@ -38,6 +32,23 @@ New and Improved Techniques:
 - Equivalent literals substitution (`decompose`) now also works on frozen
   literals: those literals are replaced (but are kept obviously via binary
   clauses).
+
+- Major rework of literal import:
+
+   + The option `reverse` was renamed `varprioritizefirst`.
+
+   + The function `resize ()` does not declare the variables anymore, it only
+     reserves the space (to make allocations more efficient). The variables are
+     only declared if you use them (either by adding them or by some other API
+     operation like observe ()). This means that the behavior does not change
+     anymore by calling resize with more variables than expected.
+
+   + Variable names do not have to kept anymore internally. There are 2 options
+     controlling the behavior: (i) `varindexorder` uses the order given by the
+     input with potentially a different name and (ii) `varkeepname` attempts to
+     keep the names given by the input (mostly useful for debugging). The order
+     of decision is controlled by `varprioritizefirst` (first imported variable
+     = first decision).
 
 Version 3.0.0
 -------------
