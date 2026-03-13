@@ -33,15 +33,17 @@ int External::declare_var (int new_var, bool extension) {
   int ilit = internal_lit (new_var);
   if (!ilit) {
     if (!internal->opts.varkeepname)
-      ilit = internal->max_var+1;
+      ilit = internal->max_var + 1;
     else {
       ilit = new_var;
-      if (internal->i2e.size () > (size_t)ilit && internal->i2e[ilit]) {
-        LOG ("the slot is already used by %d, giving the next available name", internal->i2e[ilit]);
-        ilit = internal->max_var+1;
+      if (internal->i2e.size () > (size_t) ilit && internal->i2e[ilit]) {
+        LOG ("the slot is already used by %d, giving the next available "
+             "name",
+             internal->i2e[ilit]);
+        ilit = internal->max_var + 1;
       }
     }
-    if (internal->i2e.size () <= (size_t)ilit) {
+    if (internal->i2e.size () <= (size_t) ilit) {
       reserve_at_least (internal->i2e, ilit + 1);
       internal->i2e.resize (ilit + 1);
     }
@@ -52,7 +54,7 @@ int External::declare_var (int new_var, bool extension) {
     assert (internal->max_var >= ilit);
   }
 
-  (void)extension;
+  (void) extension;
   ++internal->stats.variables_original;
   return e2i[new_var];
 }
@@ -74,14 +76,13 @@ void External::reserve (int new_max_var) {
     internal->i2e.push_back (0);
   }
   unsigned eidx;
-  for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var;
-       eidx++) {
+  for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var; eidx++) {
     ext_units.push_back (0);
     ext_units.push_back (0);
     ext_flags.push_back (0);
     ervars.push_back (0);
   }
-  assert (internal->i2e.size () == (size_t)internal->max_var + 1);
+  assert (internal->i2e.size () == (size_t) internal->max_var + 1);
   assert (eidx == (size_t) new_max_var + 1);
   max_var = new_max_var;
 }
@@ -89,7 +90,8 @@ void External::reserve (int new_max_var) {
 void External::init (int new_max_var, bool extension) {
   assert (!extended);
   LOG ("%d external variables from %d", new_max_var, max_var);
-  assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
+  assert (!max_var ||
+          internal->i2e.size () == (size_t) internal->max_var + 1);
   if (new_max_var <= max_var) {
     declare_var (new_max_var, extension);
     return;
@@ -182,9 +184,14 @@ int External::internalize (int elit, bool extension) {
     Flags &f = internal->flags (ilit);
     if (f.status == Flags::UNUSED)
       internal->declare_variable (ilit);
-    else if (f.status != Flags::DECLARED && f.status != Flags::ACTIVE && f.status != Flags::FIXED) {
+    else if (f.status != Flags::DECLARED && f.status != Flags::ACTIVE &&
+             f.status != Flags::FIXED) {
       internal->reactivate (ilit);
     }
+    f.factored = extension;
+    assert (!extension || f.elim);
+    if (extension)
+      f.elim = false;
     if (!marked (tainted, elit) && marked (witness, -elit)) {
       assert (!internal->opts.checkfrozen);
       LOG ("marking tainted %d", elit);
@@ -202,8 +209,8 @@ void External::add (int elit) {
     REQUIRE (is_valid_input ((int) elit),
              "extension variable '%d' defined by the solver internally "
              "(all user variables have to be declared explicitly "
-	     "if 'factor' is enabled)", // TODO only reason?
-             (int) abs(elit));
+             "if 'factor' is enabled)", // TODO only reason?
+             (int) abs (elit));
   reset_extended ();
 
   bool forgettable = false;
@@ -346,13 +353,13 @@ bool External::failed_constraint () {
 void External::phase (int elit) {
   assert (elit);
   assert (elit != INT_MIN);
-  // this test is a bit stupid, it is triggereing an assertion, but we we could
-  // simply add thos to the other if...
-  if (std::abs(elit) > max_var) {
+  // this test is a bit stupid, it is triggereing an assertion, but we we
+  // could simply add thos to the other if...
+  if (std::abs (elit) > max_var) {
     reset_extended ();
   }
   const int ilit = internalize (elit);
-  if (!internal->imports.empty()) {
+  if (!internal->imports.empty ()) {
     if (extended)
       reset_extended ();
     internal->activating_all_new_imported_literals ();

@@ -22,16 +22,18 @@ struct Flags { // Variable flags.
   bool subsume : 1; // added since last 'subsume' round (*)
   bool ternary : 1; // added in ternary clause since last 'ternary' (*)
   bool sweep : 1;
+  bool factored : 1; // extension variable introduced by factor.
 
-  unsigned char
-      marked_signed : 2; // generate correct LRAT chains in decompose
+  unsigned char marked_signed
+      : 2; // generate correct LRAT chains in decompose
   unsigned char factor : 2;
 
   // These literal flags are used by blocked clause elimination ('block').
   //
   unsigned char block : 2; // removed since last 'block' round (*)
   unsigned char skip : 2;  // skip this literal as blocking literal
-  bool backbone1, backbone0;
+  bool backbone1 : 1;
+  bool backbone0 : 1;
   // Bits for handling assumptions.
   //
   unsigned char assumed : 2;
@@ -55,7 +57,7 @@ struct Flags { // Variable flags.
   //
   Flags () {
     seen = keep = poison = removable = shrinkable = added = sweep =
-        backbone1 = backbone0 = false;
+        factored = backbone1 = backbone0 = false;
     subsume = elim = ternary = true;
     block = 3u;
     skip = assumed = failed = marked_signed = factor = 0;

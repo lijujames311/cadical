@@ -109,7 +109,9 @@ void Internal::elim_update_removed_lit (Eliminator &eliminator, int lit) {
     return;
   if (frozen (lit))
     return;
-  int64_t &score = noccs (lit);
+  if (!opts.elimfactor && flags (lit).factored)
+    return;
+  uint64_t &score = noccs (lit);
   assert (score > 0);
   score--;
   const int idx = abs (lit);
@@ -843,6 +845,8 @@ int Internal::elim_round (bool &completed, bool &deleted_binary_clause) {
     if (frozen (idx))
       continue;
     if (!flags (idx).elim)
+      continue;
+    if (!opts.elimfactor && flags (idx).factored)
       continue;
     LOG ("scheduling %d for elimination initially", idx);
     schedule.push_back (idx);

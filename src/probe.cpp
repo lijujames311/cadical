@@ -20,7 +20,8 @@ bool Internal::inprobing () {
     return false;
   if (preprocessing)
     assert (lim.preprocessing);
-  if (stats.inprobingphases && last.inprobe.reductions == stats.reductions)
+  if (opts.reduce && stats.inprobingphases &&
+      last.inprobe.reductions == stats.reductions)
     return false;
   return lim.inprobe <= stats.conflicts;
 }
@@ -677,7 +678,7 @@ void Internal::generate_probes () {
     if (propfixed (probe) >= stats.all.fixed)
       continue;
 
-    LOG ("scheduling probe %d negated occs %" PRId64 "", probe,
+    LOG ("scheduling probe %d negated occs %" PRIu64 "", probe,
          noccs (-probe));
     probes.push_back (probe);
   }
@@ -949,6 +950,7 @@ void CaDiCaL::Internal::inprobe (bool update_limits) {
     (void) vivify (); // resets watches
     transred ();      // builds big.
     binary_clauses_backbone ();
+    mark_duplicated_binary_clauses_as_garbage ();
     factor (); // resets watches, partial occurrence list
   }
 
@@ -978,6 +980,7 @@ void CaDiCaL::Internal::inprobe (bool update_limits) {
 
   const int64_t delta =
       25 * (int64_t) opts.inprobeint * log10 (stats.inprobingphases + 9);
+  assert (delta > 0);
   lim.inprobe = stats.conflicts + delta;
 
   PHASE ("probe-phase", stats.inprobingphases,

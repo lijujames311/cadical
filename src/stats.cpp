@@ -266,6 +266,15 @@ void Stats::print (Internal *internal) {
   if (all || stats.factored) {
     PRT ("factored:        %15" PRId64 "   %10.2f %%  of variables",
          stats.factored, percent (stats.factored, internal->max_var));
+    PRT ("  ands:          %15" PRId64 "   %10.2f %%  of factored",
+         stats.factored_and, percent (stats.factored_and, stats.factored));
+    PRT ("  xors:          %15" PRId64 "   %10.2f %%  of factored",
+         stats.factored_xor, percent (stats.factored_xor, stats.factored));
+    PRT ("  ites:          %15" PRId64 "   %10.2f %%  of factored",
+         stats.factored_ite, percent (stats.factored_ite, stats.factored));
+    PRT ("  eliminated:    %15" PRId64 "   %10.2f %%  of factored",
+         stats.factored_eliminated,
+         percent (stats.factored_eliminated, stats.factored));
     PRT ("  factor:        %15" PRId64 "   %10.2f    conflict interval",
          stats.factor, relative (stats.conflicts, stats.factor));
     PRT ("  cls factored:  %15" PRId64 "   %10.2f    per factored",
@@ -276,6 +285,10 @@ void Stats::print (Internal *internal) {
     PRT ("  cls unfactored:%15" PRId64 "   %10.2f    per factored",
          stats.clauses_unfactored,
          relative (stats.clauses_unfactored, factored));
+    PRT ("  cls redundant: %15" PRId64 "   %10.2f %%  of unfactored",
+         stats.clauses_unfactored_redundant,
+         percent (stats.clauses_unfactored_redundant,
+                  stats.clauses_unfactored));
     PRT ("  lits unfactored:%14" PRId64 "   %10.2f    per factored",
          stats.literals_unfactored,
          relative (stats.literals_unfactored, factored));
@@ -916,7 +929,7 @@ void LratChecker::print_stats () {
        stats.original, percent (stats.original, stats.added));
   MSG ("derived:         %15" PRId64 "   %10.2f %%  of all clauses",
        stats.derived, percent (stats.derived, stats.added));
-  MSG ("rat:         %15" PRId64 "   %10.2f %%  of derived clauses",
+  MSG ("rat:             %15" PRId64 "   %10.2f %%  of derived clauses",
        stats.rat, percent (stats.rat, stats.derived));
   MSG ("deleted:         %15" PRId64 "   %10.2f %%  of all clauses",
        stats.deleted, percent (stats.deleted, stats.added));

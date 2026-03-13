@@ -97,6 +97,7 @@ OPTION( elimdefcores,      1,  1,100,0,0,1, "number of unsat cores") \
 OPTION( elimdefticks,    2e5,  0,2e9,1,0,1, "kitten ticks limit") \
 OPTION( elimeffort,      1e3,  1,1e5,1,0,1, "relative efficiency per mille") \
 OPTION( elimequivs,        1,  0,  1,0,0,1, "find equivalence gates") \
+OPTION( elimfactor,        1,  0,  1,0,0,1, "eliminate extension variables introduced by factor") \
 OPTION( elimint,         2e3,  1,2e9,0,0,1, "elimination interval") \
 OPTION( elimites,          1,  0,  1,0,0,1, "find if-then-else gates") \
 OPTION( elimlimited,       1,  0,  1,0,0,1, "limit resolutions") \
@@ -121,17 +122,28 @@ OPTION( exteagerreasons,   1,  0,  1,0,0,1, "eagerly ask for all reasons (0: onl
 OPTION( exteagerrecalc,    1,  0,  1,0,0,1, "after eagerly asking for reasons recalculate all levels (0: trust the external tool)") \
 OPTION( externallrat,      0,  0,  1,0,0,1, "external lrat") \
 OPTION( factor,            1,  0,  1,0,1,1, "bounded variable addition") \
-OPTION( factorcandrounds,  2,  0,2e9,0,0,1, "candidates reduction rounds") \
+OPTION( factorbound,       1,  0, 10,0,0,1, "required reduction of clauses") \
+OPTION( factorboundelim,   0,  0,  1,0,0,1, "add maximal elimbound to factorbound (instead of current)") \
+OPTION( factorbumpheap,    1,  0,  2,0,0,1, "score extension variables in heap [0: low as in kissat (do nothing), 1: based on definition, 2: high]") \
+OPTION( factorbumpqueue,   1,  0,  2,0,0,1, "score extension variables in queue [0: low as in kissat, 1: based on definition, 2: high (do nothing)]") \
+OPTION( factorcandrounds,  2,  0,2e9,0,0,1, "candidates reduction rounds (is skipped with factorxor)") \
 OPTION( factorcheck,       1,  0,  2,0,0,1, "API checks that variables have been declared (1 = only with factor on, 2 = always)") \
 OPTION( factordelay,       4,  0, 12,0,0,1, "delay bounded variable addition between eliminations") \
-OPTION( factoreffort,     50,  0,1e6,0,0,1, "relative effort per mille") \
+OPTION( factoreffort,     75,  0,1e6,0,0,1, "relative effort per mille") \
+OPTION( factorelim,        1,  0,  1,0,0,1, "immediately mark factored variables as elimination candidates (0=delay)") \
 OPTION( factoriniticks,  300,  1,1e6,0,0,1, "initial effort in millions") \
-OPTION( factorsize,        5,  2,2e9,0,0,1, "clause size limit") \
+OPTION( factorredundant,   2,  0,  3,0,0,1, "apply factor to redundant clauses (1=binary, 2=all, 3=only)") \
+OPTION( factorschedule,    0,  0,  3,0,0,1, "schedule (0=occs, 1=queue, 2=heap, 3=idx)") \
+OPTION( factorsize,       20,  2,2e9,0,0,1, "clause size limit") \
 OPTION( factorthresh,      7,  0,100,1,0,1, "delay if ticks smaller thresh*clauses") \
-OPTION( factorunbump,      1,  0,  1,0,1,1, "extension variable with lowest importance [1: as in kissat]") \
+OPTION( factorxor,         1,  0,  2,0,0,1, "factor eliminated xor (and ite) gates (needs factorsize > 2)") \
+OPTION( factorxorite,      1,  0,  2,0,0,1, "factor eliminated ite gates (2 = no xors)") \
+OPTION( factorxorrand,     1,  0,  1,0,0,1, "random tiebreak for factor xorx") \
+OPTION( factorxorsave,     1,  0,  1,0,0,1, "factor save work by only considering literals once") \
 OPTION( fastelim,          1,  0,  1,0,1,1, "fast BVE during preprocessing") \
 OPTION( fastelimbound,     8,  1,1e3,1,0,1, "fast BVE bound during preprocessing") \
 OPTION( fastelimclslim,  1e2,  2,2e9,2,0,1, "fast BVE resolvent size limit") \
+OPTION( fastelimfactor,    1,  0,  1,0,0,1, "eliminate extension variables introduced by factor") \
 OPTION( fastelimocclim,  100,  1,2e9,2,0,1, "fast BVE occurence limit during preprocessing") \
 OPTION( fastelimrounds,    4,  1,512,1,0,1, "number of fastelim rounds") \
 OPTION( flush,             0,  0,  1,0,1,1, "flush redundant clauses") \

@@ -17,17 +17,17 @@ Internal::Internal ()
       private_steps (false), rephased (0), vsize (0), max_var (0),
       clause_id (0), original_id (0), reserved_ids (0), conflict_id (0),
       saved_decisions (0), concluded (false), lrat (false), frat (false),
-      new_binary_since_dedup (true),
-      level (0), vals (0), score_inc (1.0), scores (this), conflict (0),
-      ignore (0), external_reason (&external_reason_clause),
-      newest_clause (0), force_no_backtrack (false),
-      from_propagator (false), ext_clause_forgettable (false), unsat_constraint (false),
+      new_binary_since_dedup (true), level (0), vals (0), score_inc (1.0),
+      scores (this), conflict (0), ignore (0),
+      external_reason (&external_reason_clause), newest_clause (0),
+      force_no_backtrack (false), from_propagator (false),
+      ext_clause_forgettable (false), unsat_constraint (false),
       marked_failed (true), sweep_incomplete (false),
-      earliest_changed_val (0), notified (0), probe_reason (0), propagated (0),
-      propagated2 (0), propergated (0), best_assigned (0),
+      earliest_changed_val (0), notified (0), probe_reason (0),
+      propagated (0), propagated2 (0), propergated (0), best_assigned (0),
       target_assigned (0), no_conflict_until (0),
-      randomized_deciding (false), citten (nullptr), num_assigned (0), proof (0),
-      opts (this),
+      randomized_deciding (false), citten (nullptr), num_assigned (0),
+      proof (0), opts (this),
 #ifndef QUIET
       profiles (this), force_phase_messages (false),
 #endif
@@ -115,13 +115,13 @@ void Internal::enlarge_vals (size_t new_vsize) {
 }
 
 /*------------------------------------------------------------------------*/
-// This function enlarges all data structures. You should use it only if you add
-// many literals at once. Otherwise, use `reserve_vars` followed by importing
-// all variables.
+// This function enlarges all data structures. You should use it only if you
+// add many literals at once. Otherwise, use `reserve_vars` followed by
+// importing all variables.
 //
-// Remark: for the first literal we cannot distinguish between not watching and
-// watching. Therefore, we resize the watch lists, because we are watching
-// anyway.
+// Remark: for the first literal we cannot distinguish between not watching
+// and watching. Therefore, we resize the watch lists, because we are
+// watching anyway.
 void Internal::enlarge (int new_max_var) {
   // New variables can be created that can invoke enlarge anytime (via calls
   // during ipasir-up call-backs), thus assuming (!level) is not correct
@@ -132,7 +132,7 @@ void Internal::enlarge (int new_max_var) {
   // Ordered in the size of allocated memory (larger block first).
   if (lrat || frat)
     enlarge_zero (unit_clauses_idx, 2 * new_vsize);
-  if (!vsize || watching())
+  if (!vsize || watching ())
     enlarge_init (wtab, 2 * new_vsize, {});
   if (!otab.empty ())
     enlarge_init (otab, 2 * new_vsize, Occs ());
@@ -159,22 +159,22 @@ void Internal::enlarge (int new_max_var) {
   enlarge_zero (marks, new_vsize);
 }
 
-// This function enlarges enough to do backtracking (without updating the phases
-// only!) and (if needed) watched and occurrence table, but it does not enlarge
-// everything. This is done later when importing all variables. It does enlarge
-// watch lists (only if you watching) and occurrence lists (only if you are
-// having occs).
+// This function enlarges enough to do backtracking (without updating the
+// phases only!) and (if needed) watched and occurrence table, but it does
+// not enlarge everything. This is done later when importing all variables.
+// It does enlarge watch lists (only if you watching) and occurrence lists
+// (only if you are having occs).
 //
-// Remark: for the first literal we cannot distinguish between not watching and
-// watching. Therefore, we resize the watch lists, because we are watching
-// anyway.
+// Remark: for the first literal we cannot distinguish between not watching
+// and watching. Therefore, we resize the watch lists, because we are
+// watching anyway.
 void Internal::reserve_vars (int new_min_vsize) {
-  if ((size_t)new_min_vsize < vsize)
+  if ((size_t) new_min_vsize < vsize)
     return;
 #ifdef LOGGING
   int new_vars = new_min_vsize - max_var;
 #endif
-  size_t new_vsize = vsize ? 2*vsize : 1 + (size_t) max_var;
+  size_t new_vsize = vsize ? 2 * vsize : 1 + (size_t) max_var;
   while (new_vsize <= (size_t) new_min_vsize)
     new_vsize *= 2;
   if (lrat || frat)
@@ -196,7 +196,8 @@ void Internal::reserve_vars (int new_min_vsize) {
     enlarge_init (otab, 2 * new_vsize, Occs ());
   if (!ntab.empty ())
     enlarge_zero (ntab, 2 * new_vsize);
-  LOG ("reserving %d new internal variables, reserved so far: %d", new_vars, max_var);
+  LOG ("reserving %d new internal variables, reserved so far: %d", new_vars,
+       max_var);
   vsize = new_vsize;
 }
 
@@ -364,7 +365,7 @@ int Internal::cdcl_loop_with_inprocessing () {
 }
 
 int Internal::propagate_assumptions () {
-  activating_all_new_imported_literals();
+  activating_all_new_imported_literals ();
   if (proof)
     proof->solve_query ();
   if (opts.ilb) {
@@ -504,7 +505,8 @@ void Internal::init_preprocessing_limits () {
   if (incremental)
     mode = "keeping";
   else {
-    double delta = stats.added.irredundant ? log10 (stats.added.irredundant) : 100;
+    double delta =
+        stats.added.irredundant ? log10 (stats.added.irredundant) : 100;
     delta = delta * delta;
     lim.inprobe = stats.conflicts + opts.inprobeint * delta;
     mode = "initial";
@@ -737,6 +739,8 @@ bool Internal::preprocess_round (int round, bool &triggered) {
          " clauses",
          round, before.vars, before.clauses);
   int old_elimbound = lim.elimbound;
+  int old_eliminated = stats.all.eliminated;
+
   if (opts.inprobing)
     inprobe (false);
   if (opts.elim)
@@ -756,9 +760,11 @@ bool Internal::preprocess_round (int round, bool &triggered) {
   report ('P');
   if (unsat)
     return false;
-  if (after.vars < before.vars)
+  if (after.vars != before.vars)
     return true;
   if (old_elimbound < lim.elimbound)
+    return true;
+  if (old_eliminated < stats.all.eliminated)
     return true;
   return false;
 }
@@ -797,13 +803,16 @@ void Internal::preprocess_quickly (bool always, bool &triggered) {
   if (sweep ())
     decompose ();
 
-  if (opts.factor)
-    factor ();
+  mark_duplicated_binary_clauses_as_garbage ();
+
+  factor ();
+
+  elimfast ();
 
   if (opts.fastelim)
     elimfast ();
-    // if (opts.condition)
-    // condition (false);
+  // if (opts.condition)
+  // condition (false);
 #ifndef QUIET
   after.vars = active ();
   after.clauses = stats.current.irredundant;
@@ -824,7 +833,7 @@ int Internal::preprocess (bool always) {
   bool preprecessing_triggered = false;
 
   if (opts.deduplicateallinit && !stats.deduplicatedinitrounds)
-    deduplicate_all_clauses();
+    deduplicate_all_clauses ();
   preprocess_quickly (always, preprecessing_triggered);
   for (int i = 0; i < lim.preprocessing; i++)
     if (!preprocess_round (i, preprecessing_triggered))
@@ -1298,17 +1307,17 @@ bool Internal::traverse_clauses (ClauseIterator &it) {
 
 void Internal::declare_variable (int ilit) {
   reserve_vars (ilit);
-  assert ((size_t)ilit < vsize);
+  assert ((size_t) ilit < vsize);
   if (ilit >= max_var) {
     stats.unused += (ilit - max_var);
     stats.inactive += (ilit - max_var);
     max_var = ilit;
   }
   Flags &f = internal->flags (ilit);
-  if (f.declared())
+  if (f.declared ())
     return;
 
-  LOG ("declaring %s", LOGLIT(ilit));
+  LOG ("declaring %s", LOGLIT (ilit));
   mark_declared (ilit);
   imports.push_back (ilit);
 }
@@ -1322,13 +1331,16 @@ void Internal::activating_all_new_imported_literals () {
   if (imports.empty ())
     return;
   if (opts.varindexorder)
-    std::sort (begin (imports), end (imports), [&] (int l, int o) {return i2e[vidx(l)] < i2e[vidx (o)];});
+    std::sort (begin (imports), end (imports), [&] (int l, int o) {
+      return i2e[vidx (l)] < i2e[vidx (o)];
+    });
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
-  auto max_it = std::max_element(imports.begin(), imports.end(),
-      [](int a, int b) { return abs(a) < abs(b); });
+  auto max_it =
+      std::max_element (imports.begin (), imports.end (),
+                        [] (int a, int b) { return abs (a) < abs (b); });
   assert (max_it != imports.end ());
-  int new_max_var = vidx(*max_it);
+  int new_max_var = vidx (*max_it);
   enlarge (new_max_var);
 
   for (auto lit : imports) {
@@ -1338,7 +1350,8 @@ void Internal::activating_all_new_imported_literals () {
     // clause, we still should declare it (for future use by the user)
     if (f.unused ())
       mark_declared (idx);
-    // for units, we do have to enqueue (in case we backtracked and already added it)
+    // for units, we do have to enqueue (in case we backtracked and already
+    // added it)
     if (f.fixed ()) {
       continue;
     }
@@ -1348,13 +1361,13 @@ void Internal::activating_all_new_imported_literals () {
     // otherwise, reactivating literal
     init_enqueue (idx);
 
-    // due to propagation and backtracking, the literal might have already been
-    // added
+    // due to propagation and backtracking, the literal might have already
+    // been added
     if (!scores.contains (idx)) {
       LOG ("pushing %s to the scores", LOGLIT (idx));
       scores.push_back (idx);
     }
-    assert (scores.contains(idx));
+    assert (scores.contains (idx));
     assert (f.active () || f.fixed ());
   }
 
@@ -1366,7 +1379,8 @@ void Internal::activating_all_new_imported_literals () {
     if (c->garbage)
       continue;
     for (auto lit : *c) {
-      assert (flags (lit).active() || flags (lit).fixed() || flags (lit).eliminated());
+      assert (flags (lit).active () || flags (lit).fixed () ||
+              flags (lit).eliminated ());
     }
   }
   for (auto v : vars) {

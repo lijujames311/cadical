@@ -342,6 +342,8 @@ int Internal::elimfast_round (bool &completed,
       continue;
     if (!flags (idx).elim)
       continue;
+    if (!opts.fastelimfactor && flags (idx).factored)
+      continue;
     LOG ("scheduling %d for elimination initially", idx);
     schedule.push_back (idx);
   }
@@ -437,6 +439,8 @@ int Internal::elimfast_round (bool &completed,
 
 void Internal::elimfast () {
 
+  if (!opts.fastelim)
+    return;
   if (unsat)
     return;
   if (level)

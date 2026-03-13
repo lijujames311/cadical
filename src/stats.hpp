@@ -210,11 +210,16 @@ struct Stats {
 
   int64_t factor = 0;
   int64_t factored = 0;
+  int64_t factored_and = 0;
+  int64_t factored_xor = 0;
+  int64_t factored_ite = 0;
+  int64_t factored_eliminated = 0;
   int64_t factor_added = 0;
   int64_t variables_extension = 0;
   int64_t variables_original = 0;
   int64_t literals_factored = 0;
   int64_t clauses_unfactored = 0;
+  int64_t clauses_unfactored_redundant = 0;
   int64_t literals_unfactored = 0;
 
   int64_t elimotfstr =

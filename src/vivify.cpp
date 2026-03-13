@@ -3,19 +3,19 @@
 #include "internal.hpp"
 #include "limit.hpp"
 #include "logging.hpp"
+#include "message.hpp"
 #include "profile.hpp"
 #include "radix.hpp"
 #include "util.hpp"
 #include "watch.hpp"
-#include "message.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cinttypes>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cinttypes>
 #include <limits>
 #include <tuple>
 #include <vector>
@@ -156,7 +156,7 @@ inline void Internal::vivify_assign (int lit, Clause *reason) {
   assert (!vals[idx]);
   assert (!flags (idx).eliminated () || !reason);
   Var &v = var (idx);
-  v.level = level;               // required to reuse decisions
+  v.level = level;             // required to reuse decisions
   v.trail = get_trail_size (); // used in 'vivify_better_watch'
   assert ((int) num_assigned < max_var);
   num_assigned++;
@@ -297,7 +297,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
       break;
   }
   const size_t delta = propagated2 - before;
-  stats.propagations.vivify += static_cast<int64_t>(delta);
+  stats.propagations.vivify += static_cast<int64_t> (delta);
   if (conflict)
     LOG (conflict, "conflict");
   STOP (propagate);
@@ -317,8 +317,8 @@ struct vivify_more_noccs {
   vivify_more_noccs (Internal *i) : internal (i) {}
 
   bool operator() (int a, int b) {
-    const int64_t n = internal->noccs (a);
-    const int64_t m = internal->noccs (b);
+    const uint64_t n = internal->noccs (a);
+    const uint64_t m = internal->noccs (b);
     if (n > m)
       return true; // larger occurrences / score first
     if (n < m)
@@ -328,6 +328,8 @@ struct vivify_more_noccs {
     return abs (a) < abs (b); // smaller index first
   }
 };
+
+// assumes noccs fits in 32 bit.
 
 struct vivify_more_noccs_kissat {
 
@@ -575,8 +577,8 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
                                Clause **subsuming,
                                const Clause *const candidate, int implied,
                                bool &redundant) {
-  const auto &t = &trail; // normal trail, so next_trail is wrong
-  int i = get_trail_size ();     // Start at end-of-trail.
+  const auto &t = &trail;    // normal trail, so next_trail is wrong
+  int i = get_trail_size (); // Start at end-of-trail.
   Clause *reason = start;
   assert (reason);
   assert (!trail.empty ());
@@ -1060,7 +1062,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
 
     stats.vivifydecs++;
     vivify_assume (-lit);
-    LOG ("negated decision %d score %" PRId64 "", lit, noccs (lit));
+    LOG ("negated decision %d score %" PRIu64 "", lit, noccs (lit));
 
     if (!vivify_propagate (ticks)) {
       break; // hot-spot
@@ -1291,9 +1293,9 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
           goto CONTINUE_WITH_NEXT_LITERAL;
       }
       {
-        const int64_t lit_count = internal->noccs (lit);
+        const uint64_t lit_count = internal->noccs (lit);
         assert (lit_count);
-        LOG ("checking literal %s with %" PRId64 " occurrences",
+        LOG ("checking literal %s with %" PRIu64 " occurrences",
              LOGLIT (lit), lit_count);
         if (lit_count <= best_count)
           continue;
@@ -1313,7 +1315,7 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
   }
   return ref;
 }
-}
+} // namespace
 /*------------------------------------------------------------------------*/
 inline void
 Internal::vivify_prioritize_leftovers (char tag, size_t prioritized,
@@ -1380,7 +1382,7 @@ void Internal::vivify_initialize (Vivifier &vivifier, int64_t &ticks) {
     // numbers. See the example above (search for '@1').
     //
     const int shift = 12 - c->size;
-    const int64_t score = shift < 1 ? 1 : (1l << shift); // @4
+    const uint64_t score = shift < 1 ? 1 : (1l << shift); // @4
     for (const auto lit : *c) {
       noccs (lit) += score;
     }
@@ -1499,7 +1501,7 @@ struct vivify_inversesize_smaller {
   }
 };
 
-}
+} // namespace
 
 /*------------------------------------------------------------------------*/
 // There are two modes of vivification, one using all clauses and one
@@ -1578,7 +1580,7 @@ void Internal::vivify_round (Vivifier &vivifier, int64_t ticks_limit) {
   int64_t strengthened = stats.vivifystrs;
   int64_t units = stats.vivifyunits;
 
-  auto scheduled = static_cast <int64_t>(schedule.size ());
+  auto scheduled = static_cast<int64_t> (schedule.size ());
   stats.vivifysched += scheduled;
 
   PHASE ("vivify", stats.vivifications,
@@ -1617,7 +1619,8 @@ void Internal::vivify_round (Vivifier &vivifier, int64_t ticks_limit) {
     backtrack_without_updating_phases ();
 
   if (!unsat) {
-    const auto still_need_to_be_vivified = static_cast<int64_t>(schedule.size ());
+    const auto still_need_to_be_vivified =
+        static_cast<int64_t> (schedule.size ());
 #if 0
     // in the current round we have new_clauses_to_vivify @ leftovers from previous round There are
     // now two possibilities: (i) we consider all clauses as leftovers, or (ii) only the leftovers
