@@ -1225,10 +1225,6 @@ void Internal::schedule_factorization (Factoring &factoring) {
 void Internal::adjust_scores_and_phases_of_fresh_variables (
     Factoring &factoring) {
   activating_all_new_imported_literals ();
-  if (!opts.factorunbump) {
-    factoring.fresh.clear ();
-    return;
-  }
   if (factoring.fresh.empty ())
     return;
 
