@@ -172,8 +172,8 @@ static const int num_reports = // as compile time constant
 //
 //    - red: rephasing
 //
-// - green: problem transformation (or scheduled with it like subsume). In bold:
-// change of the number of variables.
+// - green: problem transformation (or scheduled with it like subsume). In
+// bold: change of the number of variables.
 //
 //    - blue: other inprocessing. Bold blue: finding equivalences
 //
@@ -299,7 +299,7 @@ void Internal::report (char type, int verbose) {
   case '#':
   case 'I':
   case 'F':
-    tout.red();
+    tout.red ();
     break;
   default:
     break;
@@ -315,7 +315,8 @@ void Internal::report (char type, int verbose) {
     fputc (' ', stdout);
     fputs (reports[i].buffer, stdout);
   }
-  if (stable || type == 'L' || type == 'P' || type == ']' || type == ')' || preprocessing)
+  if (stable || type == 'L' || type == 'P' || type == ']' || type == ')' ||
+      preprocessing)
     tout.normal ();
   fputc ('\n', stdout);
   fflush (stdout);

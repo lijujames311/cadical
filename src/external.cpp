@@ -54,8 +54,10 @@ int External::declare_var (int new_var, bool extension) {
     assert (internal->max_var >= ilit);
   }
 
-  (void) extension;
-  ++internal->stats.variables_original;
+  if (extension)
+    internal->stats.variables_extension++;
+  else
+    internal->stats.variables_original++;
   return e2i[new_var];
 }
 
