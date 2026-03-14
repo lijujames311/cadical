@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -36,10 +37,10 @@ void Internal::unmark_clause () {
 // Mark the variables of an irredundant clause to 'have been removed', which
 // will trigger these variables to be considered again in the next bounded
 // variable elimination phase.  This is called from 'mark_garbage' below.
-// Note that 'mark_removed (int lit)' will also mark the blocking flag of
+// Note that 'mark_removed (Lit lit)' will also mark the blocking flag of
 // '-lit' to trigger reconsidering blocking clauses on '-lit'.
 
-void Internal::mark_removed (Clause *c, int except) {
+void Internal::mark_removed (Clause *c, Lit except) {
   LOG (c, "marking removed");
   assert (!c->redundant);
   for (const auto &lit : *c)
@@ -56,7 +57,7 @@ void Internal::mark_removed (Clause *c, int except) {
 // 'ternary' preprocessing reconsider clauses on an added literal as well as
 // trying to block clauses on it.
 
-inline void Internal::mark_added (int lit, int size, bool redundant) {
+inline void Internal::mark_added (Lit lit, int size, bool redundant) {
   mark_subsume (lit);
   if (size == 3)
     mark_ternary (lit);
@@ -217,7 +218,7 @@ size_t Internal::shrink_clause (Clause *c, int new_size) {
   assert (new_size < old_size);
 #ifndef NDEBUG
   for (int i = c->size; i < new_size; i++)
-    c->literals[i] = 0;
+    c->literals[i] = INVALID_LIT;
 #endif
 
   if (c->pos >= new_size)
@@ -361,18 +362,17 @@ void Internal::mark_garbage (Clause *c) {
 // Almost the same function as 'search_assign' except that we do not pretend
 // to learn a new unit clause (which was confusing in log files).
 
-void Internal::assign_original_unit (int64_t id, int lit) {
+void Internal::assign_original_unit (int64_t id, Lit lit) {
   assert (!level || opts.chrono);
   assert (!unsat);
   const int idx = vidx (lit);
   assert (!vals[idx]);
-  assert (!flags (idx).eliminated ());
-  Var &v = var (idx);
+  assert (!flags (lit).eliminated ());
+  Var &v = var (lit);
   v.level = 0;
   v.trail = get_trail_size ();
   v.reason = 0;
-  const signed char tmp = sign (lit);
-  set_val (idx, tmp);
+  set_val (lit, true);
   trail.push_back (lit);
   num_assigned++;
   const unsigned uidx = vlit (lit);
@@ -396,13 +396,13 @@ void Internal::add_new_original_clause (int64_t id) {
 
   if (!from_propagator && level && !opts.ilb) {
     backtrack_without_updating_phases ();
-  } else if (earliest_changed_val) {
+  } else if (earliest_changed_val != INVALID_LIT) {
     assert (val (earliest_changed_val));
     int new_level = var (earliest_changed_val).level - 1;
     assert (new_level >= 0);
     backtrack_without_updating_phases (new_level);
   }
-  assert (!earliest_changed_val);
+  assert (earliest_changed_val != INVALID_LIT);
   LOG (original, "original clause");
   assert (clause.empty ());
   bool skip = false;
@@ -427,8 +427,8 @@ void Internal::add_new_original_clause (int64_t id) {
         if (tmp < 0) {
           LOG ("removing falsified literal %d", lit);
           if (lrat) {
-            int elit = externalize (lit);
-            unsigned eidx = (elit > 0) + 2u * (unsigned) abs (elit);
+            ELit elit = externalize (lit);
+            unsigned eidx = elit.vlit ();
             // the external units are handled somewhere else
             if (!external->ext_units[eidx]) {
               int64_t uid = unit_id (-lit);
@@ -504,10 +504,11 @@ void Internal::add_new_original_clause (int64_t id) {
     } else if (size == 1) {
       if (force_no_backtrack) {
         assert (level);
-        const int idx = vidx (clause[0]);
-        assert (val (clause[0]) >= 0);
-        assert (!flags (idx).eliminated ());
-        Var &v = var (idx);
+        const Lit lit = clause[0];
+        const int idx = vidx (lit);
+        assert (val (lit) >= 0);
+        assert (!flags (lit).eliminated ());
+        Var &v = var (lit);
         assert (val (clause[0]));
         v.level = 0;
         v.reason = 0;
@@ -517,7 +518,7 @@ void Internal::add_new_original_clause (int64_t id) {
           unit_clauses (uidx) = new_id;
         mark_fixed (clause[0]);
       } else {
-        const int lit = clause[0];
+        const Lit lit = clause[0];
         assert (!val (lit) || var (lit).level);
         if (val (lit) < 0)
           backtrack_without_updating_phases (var (lit).level - 1);
@@ -594,13 +595,13 @@ Clause *Internal::new_hyper_ternary_resolved_clause (bool red) {
   return res;
 }
 
-Clause *Internal::new_factor_clause (int witness) {
+Clause *Internal::new_factor_clause (Lit witness) {
   external->check_learned_clause ();
   stats.factor_added++;
   stats.literals_factored += clause.size ();
   Clause *res = new_clause (false, 0);
   if (proof) {
-    if (witness)
+    if (witness != INVALID_LIT)
       proof->add_derived_rat_clause (res, externalize (witness),
                                      lrat_chain);
     else

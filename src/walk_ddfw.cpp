@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -65,6 +66,14 @@ struct DDFW_Tagged {
 #endif
   }
 };
+struct WalkBinaryRepresentation {
+  Lit lit, other;
+  WalkBinaryRepresentation () : lit (), other () {};
+  WalkBinaryRepresentation (const WalkBinaryRepresentation&) = default;
+  WalkBinaryRepresentation (WalkBinaryRepresentation&&) = default;
+  WalkBinaryRepresentation &operator= (const WalkBinaryRepresentation&) = default;
+  WalkBinaryRepresentation &operator= (WalkBinaryRepresentation&&) = default;
+};
 
 // This is the main structure containing all informations about any
 // clause: its weight, the critical variable (if any), the number of
@@ -72,7 +81,7 @@ struct DDFW_Tagged {
 struct DDFW_Counter {
   union {
     Clause *clause; // pointer to the clause itself
-    struct {int lit, other;} binary_clause;
+    struct WalkBinaryRepresentation binary_clause;
   };
   double weight;
   unsigned critical_var; // critical literal if any
@@ -105,18 +114,18 @@ struct DDFW_Counter {
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, position_type p, Clause *d, double w)
-  : clause (d), weight (w), critical_var (0), count (c), pos (p){
+  : clause (d), weight (w), critical_var (INVALID_LIT), count (c), pos (p){
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, Clause *d, double w)
-  :  clause (d), weight (w), critical_var (0), count (c), pos (UINT32_MAX) {
+  :  clause (d), weight (w), critical_var (INVALID_LIT), count (c), pos (UINT32_MAX) {
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, Clause *d, double w, unsigned xor_lits)
   :  clause (d), weight (w), critical_var (xor_lits), count (c), pos (UINT32_MAX) {
     initialize_binary(d);
   }
-  DDFW_Counter () = default;
+  DDFW_Counter () : clause (nullptr), weight (0), critical_var (0), binary (false), count (0), pos (0) {};
   DDFW_Counter (const DDFW_Counter& d) = default;
   DDFW_Counter (DDFW_Counter&& d) = default;
   ~DDFW_Counter () = default;
@@ -140,7 +149,7 @@ struct Walker_DDFW {
   vector<DDFW_Tagged> broken; // currently unsatisfied clauses
   std::vector<double> var_critical_sat_weights;
   std::vector<double> var_unsat_weights;
-  std::vector<int>  flips; // remember the flips compared to the last best saved model
+  std::vector<Lit>  flips; // remember the flips compared to the last best saved model
   int best_trail_pos;
   size_t minimum = (size_t)-1;
   std::vector<signed char> best_values; // best model found so far
@@ -152,13 +161,13 @@ struct Walker_DDFW {
 #endif
 
   // variables appearing in a broken clause, called uvars in the paper
-  std::vector<int> vars_in_broken;
+  std::vector<Lit> vars_in_broken;
   std::vector<uint32_t> position_vars_in_broken;
   std::vector<uint32_t> noccs_vars_in_broken;
   size_t last_searched_vars_in_broken;
 
   // for sideways jumps, we remember all the literals that have no impact on the overall cost
-  std::vector<int> no_gain_literals;
+  std::vector<Lit> no_gain_literals;
 
   // the core part: the weights
   std::vector<DDFW_Counter> weight_clause_info;
@@ -170,37 +179,37 @@ struct Walker_DDFW {
   static constexpr double base_weight = 100.0;
 
   using TOccs = std::vector<DDFW_Tagged>;
-  TOccs &occs (int lit) {
+  TOccs &occs (Lit lit) {
     const int idx = internal->vlit (lit);
     assert ((size_t) idx < woccs.size ());
     return woccs[idx];
   }
-  const TOccs &occs (int lit) const {
+  const TOccs &occs (Lit lit) const {
     const int idx = internal->vlit (lit);
     assert ((size_t) idx < woccs.size ());
     return woccs[idx];
   }
-  const double &critical_sat_weight (int lit) const {
+  const double &critical_sat_weight (Lit lit) const {
     assert ((size_t)internal->vidx (lit) < var_critical_sat_weights.size());
     return var_critical_sat_weights[internal->vidx (lit)];
   }
-  double &critical_sat_weight (int lit) {
+  double &critical_sat_weight (Lit lit) {
     assert ((size_t)internal->vidx (lit) < var_critical_sat_weights.size());
     return var_critical_sat_weights[internal->vidx (lit)];
   }
-  const double &critical_unsat_weight (int lit) const {
+  const double &critical_unsat_weight (Lit lit) const {
     assert ((size_t)internal->vidx (lit) < var_unsat_weights.size());
     return var_unsat_weights[internal->vidx (lit)];
   }
-  double &critical_unsat_weight (int lit) {
+  double &critical_unsat_weight (Lit lit) {
     assert ((size_t)internal->vidx (lit) < var_unsat_weights.size());
     return var_unsat_weights[internal->vidx (lit)];
   }
-  const uint32_t &uvar_count (int lit) const {
+  const uint32_t &uvar_count (Lit lit) const {
     assert ((size_t)internal->vidx (lit) < noccs_vars_in_broken.size());
     return noccs_vars_in_broken[internal->vidx (lit)];
   }
-  uint32_t &uvar_count (int lit) {
+  uint32_t &uvar_count (Lit lit) {
     assert ((size_t)internal->vidx (lit) < noccs_vars_in_broken.size());
     return noccs_vars_in_broken[internal->vidx (lit)];
   }
@@ -214,7 +223,7 @@ struct Walker_DDFW {
     assert (pos < weight_clause_info.size ());
     return weight_clause_info[pos];
   }
-  void connect_clause (int lit, Clause *clause, position_type pos) {
+  void connect_clause (Lit lit, Clause *clause, position_type pos) {
     assert (pos < weight_clause_info.size ());
 #ifdef LOGGING
     assert (clause_info (pos).always_clause == clause);
@@ -234,7 +243,7 @@ struct Walker_DDFW {
       connect_clause (lit, clause, pos);
   }
 
-  void add_uvar (int lit) {
+  void add_uvar (Lit lit) {
     const int idx = internal->vidx (lit);
     if (internal->var (lit).level == 1) {
       LOG ("cannot mark %s as uvar", LOGLIT (lit));
@@ -242,13 +251,13 @@ struct Walker_DDFW {
     }
     if (!uvar_count (lit)) {
       position_vars_in_broken[idx] = vars_in_broken.size ();
-      vars_in_broken.push_back(idx);
+      vars_in_broken.push_back(lit.labs ());
     }
     ++uvar_count (lit);
     LOG ("marking %s as uvar, found %d times", LOGLIT (lit), uvar_count (lit));
   }
 
-  void remove_uvar (int lit) {
+  void remove_uvar (Lit lit) {
     if (internal->var (lit).level == 1)
       return;
     assert (uvar_count (lit) >= 1);
@@ -256,9 +265,9 @@ struct Walker_DDFW {
       position_type pos = position_vars_in_broken[internal->vidx (lit)];
       assert (pos < vars_in_broken.size ());
       assert (vars_in_broken[pos] == lit);
-      int idx_replacement = vars_in_broken[pos] = vars_in_broken.back ();
+      Lit idx_replacement = vars_in_broken[pos] = vars_in_broken.back ();
       vars_in_broken.pop_back();
-      position_vars_in_broken[idx_replacement] = pos;
+      position_vars_in_broken[idx_replacement.var ()] = pos;
     }
     --uvar_count (lit);
     LOG ("unmarking %s as uvar once, remaining %d times", LOGLIT (lit), uvar_count (lit));
@@ -266,7 +275,7 @@ struct Walker_DDFW {
 
   // Finds the variable that only reduces the most number of unsatisfied
   // clauses.
-  std::pair<int,double> find_weight_reducing_variable ();
+  std::pair<Lit,double> find_weight_reducing_variable ();
 
   // Finds and flips one literals which does not reduce the number of
   // unsatisfied clauses (but does not make it worse either)
@@ -316,7 +325,7 @@ struct Walker_DDFW {
         assert (broken[c.pos].c == c.always_clause);
       }
       if (count == 1) {
-        sat_weights[internal->vidx (xor_lit)] += c.weight;
+        sat_weights[internal->vidx (Lit (xor_lit))] += c.weight;
       }
       if (!count){
         for (auto lit : *c.always_clause) {
@@ -362,9 +371,9 @@ struct Walker_DDFW {
     if (internal->var (v).level == 1)
       continue;
     assert (count[v] == uvar_count (v));
-    if (count[v]) {
+    if (count[v.var ()]) {
       assert (position_vars_in_broken[v] < vars_in_broken.size ());
-      assert (vars_in_broken[position_vars_in_broken[v]] == v);
+      assert (vars_in_broken[position_vars_in_broken[v.var ()]] == v);
     }
   }
 #endif
@@ -390,24 +399,24 @@ struct Walker_DDFW {
     check_vars_in_broken();
   }
 
-  void make_clause (DDFW_Tagged t, int);
+  void make_clause (DDFW_Tagged t, Lit);
 
   Walker_DDFW (Internal *, int64_t limit);
 
   // for an explanation, please refer to the comment in walk.cpp
 
   // Push the literal on the buffer of flipped literals
-  void push_flipped (int flipped);
+  void push_flipped (Lit flipped);
   // save the best assignment found so far in the flip buffer, if any was found
   void save_walker_trail (bool);
   // export the best model from walk to the main solver
   void save_final_minimum (size_t old_minimum);
 
 
-  void make_clauses_along_occurrences (int lit);
-  void make_clauses (int lit);
-  void break_clauses (int lit);
-  void walk_ddfw_flip_lit (int lit);
+  void make_clauses_along_occurrences (Lit lit);
+  void make_clauses (Lit lit);
+  void break_clauses (Lit lit);
+  void walk_ddfw_flip_lit (Lit lit);
 
   // sets up the occurrence lists, returns false if run out of memory
   inline bool import_clauses (bool &failed);
@@ -428,9 +437,9 @@ Walker_DDFW::Walker_DDFW (Internal *i, int64_t l)
 
 // Add the literal to flip to the queue
 
-void Walker_DDFW::push_flipped (int flipped) {
+void Walker_DDFW::push_flipped (Lit flipped) {
   LOG ("push literal %s on the flips", LOGLIT (flipped));
-  assert (flipped);
+  assert (flipped != INVALID_LIT);
   if (best_trail_pos < 0) {
     LOG ("not pushing flipped %s to already invalid trail",
          LOGLIT (flipped));
@@ -479,10 +488,10 @@ void Walker_DDFW::save_walker_trail (bool keep) {
 
   auto it = begin;
   for (; it != best; ++it) {
-    const int lit = *it;
-    assert (lit);
+    const Lit lit = *it;
+    assert (lit != INVALID_LIT);
     const signed char value = sign (lit);
-    const int idx = std::abs (lit);
+    const int idx = abs (lit);
     best_values[idx] = value;
   }
   if (!keep) {
@@ -538,7 +547,7 @@ void Walker_DDFW::save_final_minimum (size_t old_init_minimum) {
 }
 
 /*------------------------------------------------------------------------*/
-void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
+void Walker_DDFW::make_clause (DDFW_Tagged t, Lit lit) {
   assert (internal->val (lit) > 0);
   assert (t.counter_pos < weight_clause_info.size ());
   DDFW_Counter &d = clause_info (t.counter_pos);
@@ -552,7 +561,7 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
     assert (d.always_clause == t.c);
     assert (d.pos == invalid_position);
     if (old_count == 1) {
-      critical_sat_weight (old_critical) -= d.weight;
+      critical_sat_weight (Lit (old_critical)) -= d.weight;
     }
     return;
   }
@@ -580,14 +589,14 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
   if (d.binary) {
     for (auto l : {d.binary_clause.lit, d.binary_clause.other}) {
       int idx = internal->vidx (l);
-      remove_uvar(idx);
+      remove_uvar(l);
       critical_unsat_weight (l) -= d.weight;
     }
   } else {
     ++ticks;
     for (auto l : *d.clause) {
       int idx = internal->vidx (l);
-      remove_uvar(idx);
+      remove_uvar(l);
       critical_unsat_weight (l) -= d.weight;
     }
   }
@@ -596,7 +605,7 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, int lit) {
   critical_sat_weight (lit) += d.weight;
 }
 
-void Walker_DDFW::make_clauses_along_occurrences (int lit) {
+void Walker_DDFW::make_clauses_along_occurrences (Lit lit) {
   const auto &occs = this->occs (lit);
   LOG ("making clauses with %s along %zu occurrences", LOGLIT (lit),
        occs.size ());
@@ -621,7 +630,7 @@ void Walker_DDFW::make_clauses_along_occurrences (int lit) {
   (void) made;
 }
 
-void Walker_DDFW::make_clauses (int lit) {
+void Walker_DDFW::make_clauses (Lit lit) {
   START (walkflipWL);
   const int64_t old = ticks;
   // In babywalk this work because there are not counter
@@ -633,7 +642,7 @@ void Walker_DDFW::make_clauses (int lit) {
   STOP (walkflipWL);
 }
 
-void Walker_DDFW::break_clauses (int lit) {
+void Walker_DDFW::break_clauses (Lit lit) {
   START (walkflipbroken);
   const int64_t old = ticks;
   LOG ("breaking clauses on %s", LOGLIT (lit));
@@ -659,14 +668,14 @@ void Walker_DDFW::break_clauses (int lit) {
     --d.count;
     // new critical
     if (d.count == 1) {
-      critical_sat_weight(d.critical_var) += d.weight;
+      critical_sat_weight(Lit (d.critical_var)) += d.weight;
       continue;
     }
     // still satisfied
     if (d.count)
       continue;
     LOG (d.always_clause, "new broken clause with weight %f", d.weight);
-    critical_sat_weight(old_critical) -= d.weight;
+    critical_sat_weight(Lit (old_critical)) -= d.weight;
     d.pos = this->broken.size ();
     this->broken.push_back (w);
     if (d.binary) {
@@ -691,7 +700,7 @@ void Walker_DDFW::break_clauses (int lit) {
   STOP (walkflipbroken);
 }
 
-void Walker_DDFW::walk_ddfw_flip_lit (int lit) {
+void Walker_DDFW::walk_ddfw_flip_lit (Lit lit) {
   START (walkflip);
   internal->require_mode (internal->WALK);
   LOG ("flipping assign %s", LOGLIT(lit));
@@ -701,9 +710,7 @@ void Walker_DDFW::walk_ddfw_flip_lit (int lit) {
 
   // First flip the literal value.
   //
-  const signed char tmp = sign (lit);
-  const int idx = abs (lit);
-  internal->set_val (idx, tmp);
+  internal->set_val (lit, true);
   assert (internal->val (lit) > 0);
 
   make_clauses (lit);
@@ -781,7 +788,7 @@ position_type Walker_DDFW::random_satisfied_big_weight_clause (double w_0) {
 void Walker_DDFW::do_sideways_jump () {
   assert (!no_gain_literals.empty ());
   size_t pos = random.pick_int(0, no_gain_literals.size() - 1);
-  int lit = no_gain_literals[pos];
+  Lit lit = no_gain_literals[pos];
   walk_ddfw_flip_lit (lit);
   push_flipped (lit);
   internal->stats.walk.flips++;
@@ -900,7 +907,7 @@ void Walker_DDFW::update_sat_weights (position_type pos, double weight_differenc
   assert (clause_info (pos).count);
   if (clause_info (pos).count != 1)
     return;
-  unsigned var = clause_info (pos).critical_var;
+  Lit var = Lit (clause_info (pos).critical_var);
   critical_sat_weight (var) -= weight_difference;
 }
 
@@ -923,19 +930,19 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 
 #ifndef NDEBUG
   for (auto i : vars) {
-    const signed char tmp = vals[i];
+    const signed char tmp = val (i);
     if (tmp)
-      phases.saved[i] = tmp;
+      phases.saved[i.var ()] = tmp;
   }
 #endif
 
   if (walker.best_trail_pos == -1) {
-    for (auto i : vars) {
-      const signed char tmp = vals[i];
+    for (const auto i : vars) {
+      const signed char tmp = vals[i.var ()];
       if (tmp) {
-        walker.best_values[i] = tmp;
+        walker.best_values[i.var ()] = tmp;
 #ifndef NDEBUG
-        assert (tmp == phases.saved[i]);
+        assert (tmp == phases.saved[i.var ()]);
 #endif
       }
     }
@@ -957,9 +964,9 @@ inline void Internal::walk_ddfw_save_minimum (Walker_DDFW &walker) {
 //
 // Also the only store the literals for sideways jumps (yal-lin and ddfw only),
 // only when the option is activated.
-std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
+std::pair<Lit,double> Walker_DDFW::find_weight_reducing_variable () {
   START (walkwrv);
-  int weight_reducing_var = 0;
+  Lit weight_reducing_var = INVALID_LIT;
   double best_new_satisfied = 0.0;
   int loop_iterations = 0;
   const bool sideways_opt = (internal->opts.walkddfwstrat < 4);
@@ -970,8 +977,8 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   const auto mid = last_searched_vars_in_broken < vars_in_broken.size () ? vars_in_broken.begin () + last_searched_vars_in_broken : vars_in_broken.end ();
 
   for (auto it = mid; it != end; ++it) {
-    const int idx = *it;
-    const int lit = internal->val (idx) > 0 ? -idx : idx;
+    const Lit idx = *it;
+    const Lit lit = internal->val (idx) > 0 ? -idx : idx;
     // number of new satisfied clauses: the old unsat now sat - the new unsat
     // ones (formerly critical sat)
     double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
@@ -992,8 +999,8 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
   }
 
   for (auto it = vars_in_broken.begin (); it != mid; ++it) {
-    const int idx = *it;
-    const int lit = internal->val (idx) > 0 ? -idx : idx;
+    const Lit idx = *it;
+    const Lit lit = internal->val (idx) > 0 ? -idx : idx;
     double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
     LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
     if (flip_gain < 0.0)
@@ -1010,10 +1017,10 @@ std::pair<int,double> Walker_DDFW::find_weight_reducing_variable () {
     }
   }
   ticks += internal->cache_lines (vars_in_broken.size (), sizeof (int)) + loop_iterations / 64;
-  if (weight_reducing_var && internal->val (weight_reducing_var) > 0)
+  if (weight_reducing_var != INVALID_LIT && internal->val (weight_reducing_var) > 0)
     weight_reducing_var = -weight_reducing_var;
 
-  if (weight_reducing_var)
+  if (weight_reducing_var != INVALID_LIT)
     LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), best_new_satisfied);
   else
     LOG ("no literal to flip");
@@ -1045,18 +1052,18 @@ bool Walker_DDFW::import_clauses (bool &failed) {
      bool satisfiable = false; // contains not only assumptions
      unsigned satisfied = 0;        // clause satisfied?
 
-     int *lits = c->literals;
+     Lit *lits = c->literals;
      const int size = c->size;
-     unsigned critical = 0;
+     unsigned critical_var = 0;
 
      // Move to front satisfied literals and determine whether there
      // is at least one (non-assumed) literal that can be flipped.
      //
      for (int i = 0; i < size; i++) {
-       const int lit = lits[i];
+       const Lit lit = lits[i];
        assert (internal->active (lit)); // Due to garbage collection.
        if (internal->val (lit) > 0) {
-         critical ^= internal->vidx (lit);
+         critical_var ^= internal->vidx (lit);
          swap (lits[satisfied], lits[i]);
          if (!satisfied++)
            LOG ("first satisfying literal %d", lit);
@@ -1079,7 +1086,7 @@ bool Walker_DDFW::import_clauses (bool &failed) {
        MSG ("walk cannot go over that many clauses");
        return false;
      }
-     DDFW_Counter cw = DDFW_Counter (satisfied, invalid_position, critical, c, Walker_DDFW::base_weight);
+     DDFW_Counter cw = DDFW_Counter (satisfied, invalid_position, critical_var, c, Walker_DDFW::base_weight);
      LOG ("found %d clauses so far, it has %d satisfied literals", pos, satisfied);
      weight_clause_info.push_back (cw);
 #ifdef LOGGING
@@ -1101,7 +1108,7 @@ bool Walker_DDFW::import_clauses (bool &failed) {
          add_uvar (lit);
        }
      } else if (satisfied == 1) {
-       critical_sat_weight (critical) += cw.weight;
+       critical_sat_weight (Lit (critical_var)) += cw.weight;
 #ifdef LOGGING
        watched++; // to be able to compare the number with walk
 #endif
@@ -1130,7 +1137,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 
   stats.walk.count++;
 
-  std::vector<int> propagated;
+  std::vector<Lit> propagated;
   bool failed = false; // Inconsistent assumptions?
   bool sucessfully_imported = false;
   assert (!private_steps);
@@ -1183,11 +1190,10 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       if (!active (lit))
         continue;
       tmp = sign (lit);
-      const int idx = abs (lit);
       LOG ("initial assign %d to assumption phase", tmp < 0 ? -idx : idx);
-      set_val (idx, tmp);
+      set_val (lit, true);
       assert (level == 1);
-      var (idx).level = 1;
+      var (lit).level = 1;
     }
     if (!failed)
       LOG ("now assigning remaining variables to their decision phase");
@@ -1202,21 +1208,21 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
         LOG ("skipping inactive variable %d", idx);
         continue;
       }
-      if (vals[idx]) {
+      if (val (idx)) {
         assert (var (idx).level == 1);
         LOG ("skipping assumed variable %d", idx);
         continue;
       }
       int tmp = 0;
       if (prev)
-        tmp = phases.prev[idx];
+        tmp = phases.prev[idx.var ()];
       if (!tmp)
         tmp = sign (decide_phase (idx, target));
       assert (tmp == 1 || tmp == -1);
       set_val (idx, tmp);
       assert (level == 2);
       var (idx).level = 2;
-      walker.best_values[idx] = tmp;
+      walker.best_values[idx.var ()] = tmp;
       LOG ("initial assign %d to decision phase", tmp < 0 ? -idx : idx);
     }
 
@@ -1261,7 +1267,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
 
       // first check if there is a weight reducing variable
       auto result = walker.find_weight_reducing_variable ();
-      int weight_reducing_lit = result.first;
+      Lit weight_reducing_lit = result.first;
       double weight_reduction = result.second;
 
       // we observed numerical instability issues that Tassat does not seem to
@@ -1272,7 +1278,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       // with the configurable coefficients. We expect this to be more an issue
       // for the Tassat strategy than for the others, because it transfers more
       // weights at once (especially compared to the original ddfw).
-      if (weight_reducing_lit && weight_reduction > 0.1) {
+      if (weight_reducing_lit != INVALID_LIT && weight_reduction > 0.1) {
         ++stats.walk.weight_reducing_var;
         LOG ("flipping one literal");
         walker.walk_ddfw_flip_lit (weight_reducing_lit);

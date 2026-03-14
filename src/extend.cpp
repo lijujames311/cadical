@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -15,20 +16,20 @@ void External::push_id_on_extension_stack (int64_t id) {
   LOG ("pushing id %" PRIu64 " = %d + %d", id, higher_bits, lower_bits);
 }
 
-void External::push_clause_literal_on_extension_stack (int ilit) {
-  assert (ilit);
-  const int elit = internal->externalize (ilit);
-  assert (elit);
-  extension.push_back (elit);
+void External::push_clause_literal_on_extension_stack (Lit ilit) {
+  assert (ilit != INVALID_LIT);
+  const ELit elit = internal->externalize (ilit);
+  assert (elit != INVALID_ELIT);
+  extension.push_back (elit.signed_representation());
   LOG ("pushing clause literal %d on extension stack (internal %d)", elit,
        ilit);
 }
 
-void External::push_witness_literal_on_extension_stack (int ilit) {
-  assert (ilit);
-  const int elit = internal->externalize (ilit);
-  assert (elit);
-  extension.push_back (elit);
+void External::push_witness_literal_on_extension_stack (Lit ilit) {
+  assert (ilit != INVALID_LIT);
+  const ELit elit = internal->externalize (ilit);
+  assert (elit != INVALID_ELIT);
+  extension.push_back (elit.signed_representation());
   LOG ("pushing witness literal %d on extension stack (internal %d)", elit,
        ilit);
   if (marked (witness, elit))
@@ -54,14 +55,14 @@ void External::push_clause_on_extension_stack (Clause *c) {
     push_clause_literal_on_extension_stack (lit);
 }
 
-void External::push_clause_on_extension_stack (Clause *c, int pivot) {
+void External::push_clause_on_extension_stack (Clause *c, Lit pivot) {
   push_zero_on_extension_stack ();
   push_witness_literal_on_extension_stack (pivot);
   push_clause_on_extension_stack (c);
 }
 
-void External::push_binary_clause_on_extension_stack (int64_t id, int pivot,
-                                                      int other) {
+void External::push_binary_clause_on_extension_stack (int64_t id, Lit pivot,
+                                                      Lit other) {
   internal->stats.weakened++;
   internal->stats.weakenedlen += 2;
   push_zero_on_extension_stack ();
@@ -76,13 +77,13 @@ void External::push_binary_clause_on_extension_stack (int64_t id, int pivot,
 /*------------------------------------------------------------------------*/
 
 void External::push_external_clause_and_witness_on_extension_stack (
-    const vector<int> &c, const vector<int> &w, int64_t id) {
+    const vector<ELit> &c, const vector<ELit> &w, int64_t id) {
   assert (id);
   extension.push_back (0);
   for (const auto &elit : w) {
-    assert (elit != INT_MIN);
-    init (abs (elit));
-    extension.push_back (elit);
+    assert (elit != OTHER_INVALID_ELIT);
+    init (elit);
+    extension.push_back (elit.signed_representation());
     mark (witness, elit);
   }
   extension.push_back (0);
@@ -92,9 +93,9 @@ void External::push_external_clause_and_witness_on_extension_stack (
   extension.push_back (lower_bits);
   extension.push_back (0);
   for (const auto &elit : c) {
-    assert (elit != INT_MIN);
-    init (abs (elit));
-    extension.push_back (elit);
+    assert (elit != OTHER_INVALID_ELIT);
+    init (elit);
+    extension.push_back (elit.signed_representation());
   }
 }
 
@@ -124,8 +125,8 @@ void External::extend () {
   int64_t updated = 0;
 #endif
   for (unsigned i = 1; i <= (unsigned) max_var; i++) {
-    const int ilit = e2i[i];
-    if (!ilit)
+    const Lit ilit = e2i[ELit (i)];
+    if (ilit == INVALID_LIT)
       continue;
     if (i >= vals.size ())
       vals.resize (i + 1, false);
@@ -146,11 +147,12 @@ void External::extend () {
 #endif
   while (i != begin) {
     bool satisfied = false;
-    int lit;
+    int p;
     assert (i != begin);
-    while ((lit = *--i)) {
+    while ((p = *--i)) {
       if (satisfied)
         continue;
+      ELit lit (p);
       if (ival (lit) == lit)
         satisfied = true;
       assert (i != begin);
@@ -169,13 +171,14 @@ void External::extend () {
       while (*--i)
         assert (i != begin);
     else {
-      while ((lit = *--i)) {
-        const int tmp = ival (lit); // not 'signed char'!!!
+      while ((p = *--i)) {
+        ELit lit (p);
+        const ELit tmp = ival (lit); // not 'signed char'!!!
         if (tmp != lit) {
           LOG ("flipping blocking literal %d", lit);
-          assert (lit);
-          assert (lit != INT_MIN);
-          size_t idx = abs (lit);
+          assert (lit != INVALID_ELIT);
+          assert (lit != OTHER_INVALID_ELIT);
+          size_t idx = std::abs (p);
           if (idx >= vals.size ())
             vals.resize (idx + 1, false);
           vals[idx] = !vals[idx];
@@ -204,10 +207,12 @@ bool External::traverse_witnesses_backward (WitnessIterator &it) {
   const auto begin = extension.begin ();
   auto i = extension.end ();
   while (i != begin) {
-    int lit;
-    while ((lit = *--i))
-      clause.push_back (lit);
-    assert (!lit);
+    int p;
+    while ((p = *--i)) {
+      ELit lit (p);
+      clause.push_back (lit.signed_representation());
+    }
+    assert (!p);
     --i;
     const int64_t id =
         ((int64_t) * (i - 1) << 32) + static_cast<int64_t> (*i);
@@ -215,8 +220,10 @@ bool External::traverse_witnesses_backward (WitnessIterator &it) {
     i -= 2;
     assert (!*i);
     assert (i != begin);
-    while ((lit = *--i))
-      witness.push_back (lit);
+    while ((p = *--i)){
+      ELit lit (p);
+      witness.push_back (lit.signed_representation());
+    }
     reverse (clause.begin (), clause.end ());
     reverse (witness.begin (), witness.end ());
     LOG (clause, "traversing clause");
@@ -235,12 +242,12 @@ bool External::traverse_witnesses_forward (WitnessIterator &it) {
   const auto end = extension.end ();
   auto i = extension.begin ();
   if (i != end) {
-    int lit = *i++;
+    ELit lit (*i++);
     do {
-      assert (!lit), (void) lit;
-      while ((lit = *i++))
-        witness.push_back (lit);
-      assert (!lit);
+      assert (lit != INVALID_ELIT), (void) lit;
+      while (lit = ELit (*i), *i++)
+        witness.push_back (lit.signed_representation ());
+      assert (lit != INVALID_ELIT);
       assert (i != end);
       assert (!*i);
       const int64_t id =
@@ -249,8 +256,8 @@ bool External::traverse_witnesses_forward (WitnessIterator &it) {
       i += 3;
       assert (*i);
       assert (i != end);
-      while (i != end && (lit = *i++))
-        clause.push_back (lit);
+      while (i != end && (lit = ELit (*i), *i++))
+        clause.push_back (lit.signed_representation());
       if (!it.witness (clause, witness, id))
         return false;
       clause.clear ();
@@ -272,8 +279,8 @@ void External::conclude_sat () {
   for (int idx = 1; idx <= max_var; idx++) {
     if (ervars[idx])
       continue;
-    const int lit = ival (idx);
-    model.push_back (lit);
+    const ELit lit = ival (ELit (idx));
+    model.push_back (lit.signed_representation());
   }
   internal->proof->conclude_sat (model);
 }

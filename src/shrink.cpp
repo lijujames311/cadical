@@ -27,7 +27,7 @@ void Internal::mark_shrinkable_as_removable (
 #ifndef NDEBUG
   unsigned kept = 0, minireset = 0;
   for (; minimized_start < minimized.size (); ++minimized_start) {
-    const int lit = minimized[minimized_start];
+    const Lit lit = minimized[minimized_start];
     Flags &f = flags (lit);
     const Var &v = var (lit);
     if (v.level == blevel) {
@@ -43,7 +43,7 @@ void Internal::mark_shrinkable_as_removable (
   (void) minimized_start;
 #endif
 
-  for (const int lit : shrinkable) {
+  for (const Lit lit : shrinkable) {
     Flags &f = flags (lit);
     assert (f.shrinkable);
     assert (!f.poison);
@@ -63,7 +63,7 @@ void Internal::mark_shrinkable_as_removable (
   LOG ("marked %zu removable variables", marked);
 }
 
-int inline Internal::shrink_literal (int lit, int blevel,
+int inline Internal::shrink_literal (Lit lit, int blevel,
                                      unsigned max_trail) {
   assert (val (lit) < 0);
 
@@ -118,9 +118,9 @@ int inline Internal::shrink_literal (int lit, int blevel,
 }
 
 unsigned Internal::shrunken_block_uip (
-    int uip, int blevel, std::vector<int>::reverse_iterator &rbegin_block,
-    std::vector<int>::reverse_iterator &rend_block,
-    std::vector<int>::size_type minimized_start, const int uip0) {
+    Lit uip, int blevel, std::vector<Lit>::reverse_iterator &rbegin_block,
+    std::vector<Lit>::reverse_iterator &rend_block,
+    std::vector<Lit>::size_type minimized_start, const Lit uip0) {
   assert (clause[0] == uip0);
 
   LOG ("UIP on level %u, uip: %i (replacing by %i)", blevel, uip, uip0);
@@ -141,7 +141,7 @@ unsigned Internal::shrunken_block_uip (
 
   flags (-uip).keep = true;
   for (auto p = rbegin_block + 1; p != rend_block; ++p) {
-    const int lit = *p;
+    const Lit lit = *p;
     if (lit == -uip0)
       continue;
     *p = uip0;
@@ -155,16 +155,16 @@ unsigned Internal::shrunken_block_uip (
 }
 
 void inline Internal::shrunken_block_no_uip (
-    const std::vector<int>::reverse_iterator &rbegin_block,
-    const std::vector<int>::reverse_iterator &rend_block,
-    unsigned &block_minimized, const int uip0) {
+    const std::vector<Lit>::reverse_iterator &rbegin_block,
+    const std::vector<Lit>::reverse_iterator &rend_block,
+    unsigned &block_minimized, const Lit uip0) {
   STOP (shrink);
   START (minimize);
   assert (rend_block > rbegin_block);
   LOG ("no UIP found, now minimizing");
   for (auto p = rbegin_block; p != rend_block; ++p) {
     assert (p != clause.rend () - 1);
-    const int lit = *p;
+    const Lit lit = *p;
     if (opts.minimize && minimize_literal (-lit)) {
       assert (!flags (lit).keep);
       ++block_minimized;
@@ -179,14 +179,14 @@ void inline Internal::shrunken_block_no_uip (
 }
 
 void Internal::push_literals_of_block (
-    const std::vector<int>::reverse_iterator &rbegin_block,
-    const std::vector<int>::reverse_iterator &rend_block, int blevel,
+    const std::vector<Lit>::reverse_iterator &rbegin_block,
+    const std::vector<Lit>::reverse_iterator &rend_block, int blevel,
     unsigned max_trail) {
   assert (rbegin_block < rend_block);
   for (auto p = rbegin_block; p != rend_block; ++p) {
     assert (p != clause.rend () - 1);
     assert (!flags (*p).keep);
-    const int lit = *p;
+    const Lit lit = *p;
     LOG ("pushing lit %i of blevel %i", lit, var (lit).level);
 #ifndef NDEBUG
     int tmp =
@@ -196,7 +196,7 @@ void Internal::push_literals_of_block (
   }
 }
 
-unsigned inline Internal::shrink_next (int blevel, unsigned &open,
+Lit Internal::shrink_next (int blevel, unsigned &open,
                                        unsigned &max_trail) {
   const auto &t = &trail;
   (void) blevel;
@@ -207,13 +207,13 @@ unsigned inline Internal::shrink_next (int blevel, unsigned &open,
     assert (dist <= max_trail);
     const unsigned pos = max_trail - dist;
     assert (pos < t->size ());
-    const int uip = (*t)[pos];
+    const Lit uip = (*t)[pos];
     assert (val (uip) > 0);
     LOG ("trying to shrink literal %d at trail[%u] and level %d", uip, pos,
          blevel);
     return uip;
   } else {
-    int uip;
+    Lit uip;
 #ifndef NDEBUG
     unsigned init_max_trail = max_trail;
 #endif
@@ -227,7 +227,7 @@ unsigned inline Internal::shrink_next (int blevel, unsigned &open,
   }
 }
 
-unsigned inline Internal::shrink_along_reason (int uip, int blevel,
+unsigned inline Internal::shrink_along_reason (Lit uip, int blevel,
                                                bool resolve_large_clauses,
                                                bool &failed_ptr,
                                                unsigned max_trail) {
@@ -248,7 +248,7 @@ unsigned inline Internal::shrink_along_reason (int uip, int blevel,
   if (resolve_large_clauses || v.reason->size == 2) {
     const Clause &c = *v.reason;
     LOG (v.reason, "resolving with reason");
-    for (int lit : c) {
+    for (Lit lit : c) {
       if (lit == uip)
         continue;
       assert (val (lit) < 0);
@@ -268,10 +268,10 @@ unsigned inline Internal::shrink_along_reason (int uip, int blevel,
 }
 
 unsigned
-Internal::shrink_block (std::vector<int>::reverse_iterator &rbegin_lits,
-                        std::vector<int>::reverse_iterator &rend_block,
+Internal::shrink_block (std::vector<Lit>::reverse_iterator &rbegin_lits,
+                        std::vector<Lit>::reverse_iterator &rend_block,
                         int blevel, unsigned &open,
-                        unsigned &block_minimized, const int uip0,
+                        unsigned &block_minimized, const Lit uip0,
                         unsigned max_trail) {
   assert (shrinkable.empty ());
   assert (blevel <= this->level);
@@ -296,7 +296,7 @@ Internal::shrink_block (std::vector<int>::reverse_iterator &rbegin_lits,
   bool failed = false;
   unsigned block_shrunken = 0;
   std::vector<int>::size_type minimized_start = minimized.size ();
-  int uip = uip0;
+  Lit uip = uip0;
   unsigned max_trail2 = max_trail;
 
   if (!failed) {
@@ -343,7 +343,7 @@ struct shrink_trail_negative_rank {
   Internal *internal;
   shrink_trail_negative_rank (Internal *s) : internal (s) {}
   typedef uint64_t Type;
-  Type operator() (int a) {
+  Type operator() (Lit a) {
     Var &v = internal->var (a);
     uint64_t res = v.level;
     res <<= 32;
@@ -355,7 +355,7 @@ struct shrink_trail_negative_rank {
 struct shrink_trail_larger {
   Internal *internal;
   shrink_trail_larger (Internal *s) : internal (s) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     return shrink_trail_negative_rank (internal) (a) <
            shrink_trail_negative_rank (internal) (b);
   }
@@ -364,9 +364,9 @@ struct shrink_trail_larger {
 // Finds the beginning of the block (rend_block, non-included) ending at
 // rend_block (included). Then tries to shrinks and minimizes literals  the
 // block
-std::vector<int>::reverse_iterator Internal::minimize_and_shrink_block (
-    std::vector<int>::reverse_iterator &rbegin_block,
-    unsigned &total_shrunken, unsigned &total_minimized, const int uip0)
+std::vector<Lit>::reverse_iterator Internal::minimize_and_shrink_block (
+    std::vector<Lit>::reverse_iterator &rbegin_block,
+    unsigned &total_shrunken, unsigned &total_minimized, const Lit uip0)
 
 {
   LOG ("shrinking block");
@@ -376,10 +376,10 @@ std::vector<int>::reverse_iterator Internal::minimize_and_shrink_block (
   unsigned max_trail;
 
   // find begining of block;
-  std::vector<int>::reverse_iterator rend_block;
+  std::vector<Lit>::reverse_iterator rend_block;
   {
     assert (rbegin_block <= clause.rend ());
-    const int lit = *rbegin_block;
+    const Lit lit = *rbegin_block;
     const int idx = vidx (lit);
     blevel = vtab[idx].level;
     max_trail = vtab[idx].trail;
@@ -389,7 +389,7 @@ std::vector<int>::reverse_iterator Internal::minimize_and_shrink_block (
     bool finished;
     do {
       assert (rend_block < clause.rend () - 1);
-      const int lit = *(++rend_block);
+      const Lit lit = *(++rend_block);
       const int idx = vidx (lit);
       finished = (blevel != vtab[idx].level);
       if (!finished && (unsigned) vtab[idx].trail > max_trail)
@@ -436,12 +436,12 @@ void Internal::shrink_and_minimize_clause () {
 
   LOG (clause, "shrink first UIP clause (asserting lit: %i)", clause[0]);
 
-  auto rend_lits = clause.rend () - 1;
-  auto rend_block = clause.rbegin ();
-  const int uip0 = clause[0];
+  std::vector<Lit>::reverse_iterator rend_lits = clause.rend () - 1;
+  std::vector<Lit>::reverse_iterator rend_block = clause.rbegin ();
+  const Lit uip0 = clause[0];
 
   // for direct LRAT we remember how the clause used to look
-  vector<int> old_clause_lrat;
+  vector<Lit> old_clause_lrat;
   assert (minimize_chain.empty ());
   if (lrat)
     for (auto &i : clause)

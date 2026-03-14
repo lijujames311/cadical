@@ -45,8 +45,8 @@ void Internal::factor_mode () {
     if (c->size > size_limit)
       continue;
     if (c->size == 2) {
-      const int lit = c->literals[0];
-      const int other = c->literals[1];
+      const Lit lit = c->literals[0];
+      const Lit other = c->literals[1];
       bincount[vlit (lit)]++;
       bincount[vlit (other)]++;
       occs (lit).push_back (c);
@@ -752,8 +752,8 @@ void Internal::schedule_factorization (Factoring &factoring) {
   for (const auto &idx : vars) {
     if (active (idx)) {
       Flags &f = flags (idx);
-      const int lit = idx;
-      const int not_lit = -lit;
+      const Lit lit = idx;
+      const Lit not_lit = -lit;
       if (f.factor & 1)
         update_factor_candidate (factoring, lit);
       if (f.factor & 2)
@@ -806,7 +806,7 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
   }
 
   // fix the scores with negative numbers
-  int lit = queue.first;
+  Lit lit = queue.first;
   queue.bumped = 0;
   while (lit) {
     btab[lit] = ++queue.bumped;

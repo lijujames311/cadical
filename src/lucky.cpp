@@ -35,7 +35,7 @@ int Internal::unlucky (int res) {
   return res;
 }
 
-inline void Internal::lucky_search_assign (int lit, Clause *reason) {
+inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
   assert (searching_lucky_phases);
   if (level)
     require_mode (SEARCH);
@@ -100,7 +100,7 @@ inline void Internal::lucky_search_assign (int lit, Clause *reason) {
   lrat_chain.clear ();
 }
 
-void Internal::lucky_assume_decision (int lit) {
+void Internal::lucky_assume_decision (Lit lit) {
   require_mode (SEARCH);
   assert (propagated == trail.size ());
   new_trail_level (lit);
@@ -258,7 +258,7 @@ int Internal::lucky_fixed_test (Iterator begin, Iterator end, signed char pol, s
     if (flags (idx).unused ())
       continue;
   START:
-    int lit = idx * pol;
+    Lit lit = idx * pol;
     if (terminated_asynchronously (10))
       return unlucky (-1);
     if (val (idx))
@@ -421,7 +421,7 @@ int Internal::random_lucky_assignment(signed char pol) {
     if (val(idx)) continue;
     if (terminated_asynchronously(10)) return unlucky(-1);
 
-    int lit = idx * pol;
+    Lit lit = idx * pol;
     if (lucky_propagate_discrepency(lit)) {
       if (unsat) return 20;
       else return unlucky(0);

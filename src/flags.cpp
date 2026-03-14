@@ -43,7 +43,7 @@ void Internal::mark_fixed (Lit lit) {
   }
 }
 
-void Internal::mark_eliminated (int lit) {
+void Internal::mark_eliminated (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::ELIMINATED;
@@ -57,7 +57,7 @@ void Internal::mark_eliminated (int lit) {
   assert (f.eliminated ());
 }
 
-void Internal::mark_pure (int lit) {
+void Internal::mark_pure (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::PURE;
@@ -71,7 +71,7 @@ void Internal::mark_pure (int lit) {
   assert (f.pure ());
 }
 
-void Internal::mark_substituted (int lit) {
+void Internal::mark_substituted (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::SUBSTITUTED;
@@ -85,7 +85,7 @@ void Internal::mark_substituted (int lit) {
   assert (f.substituted ());
 }
 
-void Internal::mark_active (int lit) {
+void Internal::mark_active (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::DECLARED);
   f.status = Flags::ACTIVE;
@@ -98,7 +98,7 @@ void Internal::mark_active (int lit) {
   assert (active (lit));
 }
 
-void Internal::reactivate (int lit) {
+void Internal::reactivate (Lit lit) {
   assert (!active (lit));
   Flags &f = flags (lit);
   assert (f.status != Flags::FIXED);

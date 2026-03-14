@@ -203,9 +203,9 @@ Proof::~Proof () { LOG ("PROOF delete"); }
 
 /*------------------------------------------------------------------------*/
 
-inline void Proof::add_literal (int internal_lit) {
-  const int external_lit = internal->externalize (internal_lit);
-  clause.push_back (external_lit);
+inline void Proof::add_literal (Lit internal_lit) {
+  const ELit external_lit = internal->externalize (internal_lit);
+  clause.push_back (external_lit.signed_representation());
 }
 
 inline void Proof::add_literals (Clause *c) {
@@ -213,14 +213,14 @@ inline void Proof::add_literals (Clause *c) {
     add_literal (lit);
 }
 
-inline void Proof::add_literals (const vector<int> &c) {
+inline void Proof::add_literals (const vector<Lit> &c) {
   for (auto const &lit : c)
     add_literal (lit);
 }
 
 /*------------------------------------------------------------------------*/
 
-void Proof::add_original_clause (int64_t id, bool r, const vector<int> &c) {
+void Proof::add_original_clause (int64_t id, bool r, const vector<Lit> &c) {
   LOG (c, "PROOF adding original internal clause");
   add_literals (c);
   clause_id = id;
@@ -229,23 +229,23 @@ void Proof::add_original_clause (int64_t id, bool r, const vector<int> &c) {
 }
 
 void Proof::add_external_original_clause (int64_t id, bool r,
-                                          const vector<int> &c,
+                                          const vector<Lit> &c,
                                           bool restore) {
   // literals of c are already external
   assert (clause.empty ());
   for (auto const &lit : c)
-    clause.push_back (lit);
+    clause.push_back (lit.signed_representation());
   clause_id = id;
   redundant = r;
   add_original_clause (restore);
 }
 
 void Proof::delete_external_original_clause (int64_t id, bool r,
-                                             const vector<int> &c) {
+                                             const vector<Lit> &c) {
   // literals of c are already external
   assert (clause.empty ());
   for (auto const &lit : c)
-    clause.push_back (lit);
+    clause.push_back (lit.signed_representation());
   clause_id = id;
   redundant = r;
   delete_clause ();
@@ -263,7 +263,7 @@ void Proof::add_derived_empty_clause (int64_t id,
   add_derived_clause ();
 }
 
-void Proof::add_derived_unit_clause (int64_t id, int internal_unit,
+void Proof::add_derived_unit_clause (int64_t id, Lit internal_unit,
                                      const vector<int64_t> &chain) {
   LOG ("PROOF adding unit clause %d", internal_unit);
   assert (proof_chain.empty ());
@@ -290,9 +290,9 @@ void Proof::add_derived_clause (Clause *c, const vector<int64_t> &chain) {
   add_derived_clause ();
 }
 
-void Proof::add_derived_rat_clause (Clause *c, int w,
+void Proof::add_derived_rat_clause (Clause *c, ELit w,
                                     const vector<int64_t> &chain) {
-  LOG (c, "PROOF adding to proof derived witness %d", w);
+  LOG (c, "PROOF adding to proof derived witness %d", w.signed_representation ());
   assert (clause.empty ());
   assert (proof_chain.empty ());
   add_literals (c);
@@ -355,12 +355,12 @@ void Proof::add_assumption (int a) {
   add_assumption ();
 }
 
-void Proof::add_constraint (const vector<int> &c) {
+void Proof::add_constraint (const vector<ELit> &c) {
   // literals of c are already external
   assert (clause.empty ());
   assert (proof_chain.empty ());
   for (const auto &lit : c)
-    clause.push_back (lit);
+    clause.push_back (lit.signed_representation());
   add_constraint ();
 }
 
@@ -384,7 +384,7 @@ void Proof::delete_clause (Clause *c) {
   delete_clause (); // Increments 'statistics.deleted'.
 }
 
-void Proof::delete_clause (int64_t id, bool r, const vector<int> &c) {
+void Proof::delete_clause (int64_t id, bool r, const vector<Lit> &c) {
   LOG (c, "PROOF deleting from proof");
   assert (clause.empty ());
   add_literals (c);
@@ -401,7 +401,7 @@ void Proof::weaken_minus (Clause *c) {
   weaken_minus ();
 }
 
-void Proof::weaken_minus (int64_t id, const vector<int> &c) {
+void Proof::weaken_minus (int64_t id, const vector<Lit> &c) {
   LOG (c, "PROOF deleting from proof");
   assert (clause.empty ());
   add_literals (c);
@@ -414,12 +414,12 @@ void Proof::weaken_plus (Clause *c) {
   delete_clause (c); // Increments 'statistics.deleted'.
 }
 
-void Proof::weaken_plus (int64_t id, const vector<int> &c) {
+void Proof::weaken_plus (int64_t id, const vector<Lit> &c) {
   weaken_minus (id, c);
   delete_clause (id, false, c); // Increments 'statistics.deleted'.
 }
 
-void Proof::delete_unit_clause (int64_t id, const int lit) {
+void Proof::delete_unit_clause (int64_t id, const Lit lit) {
   LOG ("PROOF deleting unit from proof %d", lit);
   assert (clause.empty ());
   add_literal (lit);
@@ -436,7 +436,7 @@ void Proof::finalize_clause (Clause *c) {
   finalize_clause ();
 }
 
-void Proof::finalize_clause (int64_t id, const vector<int> &c) {
+void Proof::finalize_clause (int64_t id, const vector<Lit> &c) {
   LOG (c, "PROOF finalizing clause");
   assert (clause.empty ());
   for (const auto &lit : c)
@@ -445,7 +445,7 @@ void Proof::finalize_clause (int64_t id, const vector<int> &c) {
   finalize_clause ();
 }
 
-void Proof::finalize_unit (int64_t id, int lit) {
+void Proof::finalize_unit (int64_t id, Lit lit) {
   LOG ("PROOF finalizing clause %d", lit);
   assert (clause.empty ());
   add_literal (lit);
@@ -453,10 +453,10 @@ void Proof::finalize_unit (int64_t id, int lit) {
   finalize_clause ();
 }
 
-void Proof::finalize_external_unit (int64_t id, int lit) {
+void Proof::finalize_external_unit (int64_t id, ELit lit) {
   LOG ("PROOF finalizing clause %d", lit);
   assert (clause.empty ());
-  clause.push_back (lit);
+  clause.push_back (lit.signed_representation());
   clause_id = id;
   finalize_clause ();
 }
@@ -472,7 +472,7 @@ void Proof::flush_clause (Clause *c) {
   assert (clause.empty ());
   const bool antecedents = (internal->lrat || internal->frat);
   for (int i = 0; i < c->size; i++) {
-    int internal_lit = c->literals[i];
+    Lit internal_lit = c->literals[i];
     if (internal->fixed (internal_lit) < 0) {
       if (antecedents) {
         int64_t id = internal->unit_id (-internal_lit);
@@ -497,12 +497,12 @@ void Proof::flush_clause (Clause *c) {
 // to avoid copying the clause and instead provides tracing of the required
 // 'add' and 'remove' operations.
 
-void Proof::strengthen_clause (Clause *c, int remove,
+void Proof::strengthen_clause (Clause *c, Lit remove,
                                const vector<int64_t> &chain) {
   LOG (c, "PROOF strengthen by removing %d in", remove);
   assert (clause.empty ());
   for (int i = 0; i < c->size; i++) {
-    int internal_lit = c->literals[i];
+    Lit internal_lit = c->literals[i];
     if (internal_lit == remove)
       continue;
     add_literal (internal_lit);
@@ -517,12 +517,12 @@ void Proof::strengthen_clause (Clause *c, int remove,
   c->id = id;
 }
 
-void Proof::otfs_strengthen_clause (Clause *c, const std::vector<int> &old,
+void Proof::otfs_strengthen_clause (Clause *c, const std::vector<Lit> &old,
                                     const vector<int64_t> &chain) {
   LOG (c, "PROOF otfs strengthen");
   assert (clause.empty ());
   for (int i = 0; i < c->size; i++) {
-    int internal_lit = c->literals[i];
+    Lit internal_lit = c->literals[i];
     add_literal (internal_lit);
   }
   int64_t id = ++internal->clause_id;

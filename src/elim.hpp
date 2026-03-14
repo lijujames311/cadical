@@ -18,7 +18,7 @@ typedef heap<elim_more> ElimSchedule;
 
 struct proof_clause {
   int64_t id;
-  vector<int> literals;
+  vector<Lit> literals;
   // for lrat
   unsigned cid; // kitten id
   bool learned;
@@ -47,7 +47,7 @@ struct Eliminator {
   vector<Clause *> gates;
   unsigned definition_unit;
   vector<proof_clause> proof_clauses;
-  vector<int> marked;
+  vector<Lit> marked;
   GateType gatetype;
 };
 

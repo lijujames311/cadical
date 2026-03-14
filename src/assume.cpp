@@ -6,7 +6,7 @@ namespace CaDiCaL {
 // Failed literal handling as pioneered by MiniSAT.  This first function
 // adds an assumption literal onto the assumption stack.
 
-void Internal::assume (int lit) {
+void Internal::assume (Lit lit) {
   if (level && !opts.ilb)
     backtrack ();
   else if (val (lit) < 0)
@@ -26,7 +26,7 @@ void Internal::assume (int lit) {
 // for LRAT we actually need to implement recursive DFS
 // for non-lrat use BFS. TODO: maybe derecursify to avoid stack overflow
 //
-void Internal::assume_analyze_literal (int lit) {
+void Internal::assume_analyze_literal (Lit lit) {
   assert (lit);
   Flags &f = flags (lit);
   if (f.seen)
@@ -59,7 +59,7 @@ void Internal::assume_analyze_literal (int lit) {
   clause.push_back (lit);
 }
 
-void Internal::assume_analyze_reason (int lit, Clause *reason) {
+void Internal::assume_analyze_reason (Lit lit, Clause *reason) {
   assert (reason);
   assert (lrat_chain.empty ());
   assert (reason != external_reason);
@@ -103,7 +103,7 @@ void Internal::failing () {
     int efailed = 0;
 
     for (auto &elit : external->assumptions) {
-      int lit = external->e2i[abs (elit)];
+      Lit lit = external->e2i[abs (elit)];
       if (elit < 0)
         lit = -lit;
       if (val (lit) >= 0)
@@ -252,7 +252,7 @@ void Internal::failing () {
     vector<int> sum_constraints;
     vector<int> econstraints;
     for (auto &elit : external->constraint) {
-      int lit = external->e2i[abs (elit)];
+      Lit lit = external->e2i[abs (elit)];
       if (elit < 0)
         lit = -lit;
       if (!lit)
@@ -270,7 +270,7 @@ void Internal::failing () {
     if (!lrat) {
       size_t next = 0;
       while (next < analyzed.size ()) {
-        const int lit = analyzed[next++];
+        const Lit lit = analyzed[next++];
         assert (val (lit) > 0);
         Var &v = var (lit);
         if (!v.level)
@@ -307,7 +307,7 @@ void Internal::failing () {
       clear_analyzed_literals ();
     } else if (!unsat_constraint) { // LRAT for case (3)
       assert (clause.size () == 1);
-      const int lit = clause[0];
+      const Lit lit = clause[0];
       Var &v = var (lit);
       assert (v.reason);
       if (v.reason == external_reason) { // does this even happen?
@@ -424,7 +424,7 @@ void Internal::failing () {
             if (id) {
               lrat_chain.push_back (id);
             } else {
-              int lit = external->e2i[abs (elit)];
+              Lit lit = external->e2i[abs (elit)];
               if (elit < 0)
                 lit = -lit;
               int64_t id = unit_id (-lit);
@@ -446,7 +446,7 @@ DONE:
   STOP (analyze);
 }
 
-bool Internal::failed (int lit) {
+bool Internal::failed (Lit lit) {
   if (!marked_failed) {
     if (!conflict_id)
       failing ();
@@ -577,8 +577,8 @@ void Internal::sort_and_reuse_assumptions () {
   int target = 0;
   for (unsigned i = 1, j = 0; i < size;) {
     const Level &l = control[i];
-    const int lit = l.decision;
-    const int alit = assumptions[j];
+    const Lit lit = l.decision;
+    const Lit alit = assumptions[j];
     const int lev = i;
     target = lev;
     if (val (alit) > 0 &&

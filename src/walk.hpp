@@ -5,7 +5,7 @@
 
 namespace CaDiCaL {
 struct TaggedBinary {
-  int lit, other;
+  Lit lit, other;
 #if defined(LOGGING) || !defined(NDEBUG)
   Clause *d;
 #endif
@@ -19,7 +19,7 @@ struct TaggedBinary {
     assert (false);
   };
 
-  TaggedBinary (Clause *c, int clit, int cother)
+  TaggedBinary (Clause *c, Lit clit, Lit cother)
       : lit (clit), other (cother)
 #if defined(LOGGING) || !defined(NDEBUG)
         ,

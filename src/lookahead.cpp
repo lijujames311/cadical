@@ -3,7 +3,7 @@
 namespace CaDiCaL {
 
 struct literal_occ {
-  int lit;
+  Lit lit;
   int count;
   bool operator< (const literal_occ &locc) const {
     return (count > locc.count) || (count == locc.count && lit < locc.lit);
@@ -62,7 +62,7 @@ int Internal::most_occurring_literal () {
     if (!active (idx) || assumed (idx) || assumed (-idx) || val (idx))
       continue;
     for (int sign = -1; sign <= 1; sign += 2) {
-      const int lit = sign * idx;
+      const Lit lit = sign * idx;
       if (!active (lit))
         continue;
       int64_t tmp = noccs (lit);
@@ -107,7 +107,7 @@ void Internal::lookahead_flush_probes () {
   const auto eop = probes.end ();
   auto j = probes.begin ();
   for (auto i = j; i != eop; i++) {
-    int lit = *i;
+    Lit lit = *i;
     if (!active (lit))
       continue;
     const bool have_pos_bin_occs = noccs (lit) > 0;

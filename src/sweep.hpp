@@ -25,7 +25,7 @@ struct sweep_blocked_clause {
 
 struct sweep_binary {
   int lit;
-  int other;
+  Lit other;
   int64_t id;
 };
 

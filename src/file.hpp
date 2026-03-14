@@ -1,6 +1,8 @@
 #ifndef _file_hpp_INCLUDED
 #define _file_hpp_INCLUDED
 
+#include "literals.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -129,25 +131,25 @@ public:
     return true;
   }
 
-  bool put (int lit) {
+  bool put (Lit lit) {
     assert (writing);
-    if (!lit)
+    if (lit == INVALID_LIT)
       return put ('0');
-    else if (lit == -2147483648) {
-      assert (lit == INT_MIN);
+    else if (lit.signed_representation() == -2147483648) {
+      assert (lit == OTHER_INVALID_LIT);
       return put ("-2147483648");
     } else {
       char buffer[11];
       int i = sizeof buffer;
       buffer[--i] = 0;
-      assert (lit != INT_MIN);
+      assert (lit != Lit (INT_MIN));
       unsigned idx = abs (lit);
       while (idx) {
         assert (i > 0);
         buffer[--i] = '0' + idx % 10;
         idx /= 10;
       }
-      if (lit < 0 && !put ('-'))
+      if (lit.is_negated () && !put ('-'))
         return false;
       return put (buffer + i);
     }

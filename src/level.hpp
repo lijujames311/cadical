@@ -1,6 +1,8 @@
 #ifndef _level_hpp_INCLUDED
 #define _level_hpp_INCLUDED
 
+#include "literals.hpp"
+
 #include <climits>
 
 namespace CaDiCaL {
@@ -11,7 +13,7 @@ namespace CaDiCaL {
 
 struct Level {
 
-  int decision; // decision literal of this level
+  Lit decision; // decision literal of this level
   int trail;    // trail start of this level
 
   struct {
@@ -24,7 +26,7 @@ struct Level {
     seen.trail = INT_MAX;
   }
 
-  Level (int d, int t) : decision (d), trail (t) { reset (); }
+  Level (Lit d, int t) : decision (d), trail (t) { reset (); }
   Level () {}
 };
 

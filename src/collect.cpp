@@ -55,7 +55,7 @@ void Internal::remove_falsified_literals (Clause *c) {
   }
   literal_iterator j = c->begin ();
   for (i = j; i != end; i++) {
-    const int lit = *j++ = *i, tmp = fixed (lit);
+    const Lit lit = *j++ = *i; int tmp = fixed (lit);
     assert (tmp <= 0);
     if (tmp >= 0)
       continue;
@@ -171,7 +171,7 @@ void Internal::unprotect_reasons () {
 // result is the number of remaining clauses, which in this context means
 // the number of non-garbage clauses.
 
-size_t Internal::flush_occs (int lit) {
+size_t Internal::flush_occs (Lit lit) {
   Occs &os = occs (lit);
   const const_occs_iterator end = os.end ();
   occs_iterator j = os.begin ();
@@ -197,7 +197,7 @@ size_t Internal::flush_occs (int lit) {
 // hidden in 'Clause.collect', which for the root level context of
 // preprocessing is actually redundant.
 
-inline void Internal::flush_watches (int lit, Watches &saved) {
+inline void Internal::flush_watches (Lit lit, Watches &saved) {
   assert (saved.empty ());
   Watches &ws = watches (lit);
   const const_watch_iterator end = ws.end ();
@@ -395,8 +395,8 @@ void Internal::copy_non_garbage_clauses () {
     assert (opts.arenatype == 3);
 
     for (int sign = -1; sign <= 1; sign += 2)
-      for (int idx = queue.last; idx; idx = link (idx).prev)
-        for (const auto &w : watches (sign * likely_phase (idx)))
+      for (int idx = queue.last; idx; idx = link (Lit (idx)).prev)
+        for (const auto &w : watches (sign * likely_phase (Lit (idx))))
           if (!w.clause->moved && !w.clause->collect ())
             copy_clause (w.clause);
   }

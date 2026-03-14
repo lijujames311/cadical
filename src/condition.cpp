@@ -77,13 +77,13 @@ bool Internal::conditioning () {
 // assigned (fixed) literals, to avoid checking the decision level of
 // literals during the procedure.
 
-void Internal::condition_unassign (int lit) {
+void Internal::condition_unassign (Lit lit) {
   LOG ("condition unassign %d", lit);
   assert (val (lit) > 0);
   set_val (lit, 0);
 }
 
-void Internal::condition_assign (int lit) {
+void Internal::condition_assign (Lit lit) {
   LOG ("condition assign %d", lit);
   assert (!val (lit));
   set_val (lit, 1);
@@ -94,15 +94,15 @@ void Internal::condition_assign (int lit) {
 // The current partition into conditional part and autarky part during
 // refinement is represented through a conditional bit in 'marks'.
 
-inline bool Internal::is_conditional_literal (int lit) const {
+inline bool Internal::is_conditional_literal (Lit lit) const {
   return val (lit) > 0 && getbit (lit, 0);
 }
 
-inline bool Internal::is_autarky_literal (int lit) const {
+inline bool Internal::is_autarky_literal (Lit lit) const {
   return val (lit) > 0 && !getbit (lit, 0);
 }
 
-inline void Internal::mark_as_conditional_literal (int lit) {
+inline void Internal::mark_as_conditional_literal (Lit lit) {
   LOG ("marking %d as conditional literal", lit);
   assert (val (lit) > 0);
   setbit (lit, 0);
@@ -110,7 +110,7 @@ inline void Internal::mark_as_conditional_literal (int lit) {
   assert (!is_autarky_literal (lit));
 }
 
-inline void Internal::unmark_as_conditional_literal (int lit) {
+inline void Internal::unmark_as_conditional_literal (Lit lit) {
   LOG ("unmarking %d as conditional literal", lit);
   assert (is_conditional_literal (lit));
   unsetbit (lit, 0);
@@ -123,18 +123,18 @@ inline void Internal::unmark_as_conditional_literal (int lit) {
 // We need a signed mark here, since we have to distinguish positive and
 // negative occurrences of literals in the candidate clause.
 
-inline bool Internal::is_in_candidate_clause (int lit) const {
+inline bool Internal::is_in_candidate_clause (Lit lit) const {
   return marked67 (lit) > 0;
 }
 
-inline void Internal::mark_in_candidate_clause (int lit) {
+inline void Internal::mark_in_candidate_clause (Lit lit) {
   LOG ("marking %d as literal of the candidate clause", lit);
   mark67 (lit);
   assert (is_in_candidate_clause (lit));
   assert (!is_in_candidate_clause (-lit));
 }
 
-inline void Internal::unmark_in_candidate_clause (int lit) {
+inline void Internal::unmark_in_candidate_clause (Lit lit) {
   LOG ("unmarking %d as literal of the candidate clause", lit);
   assert (is_in_candidate_clause (lit));
   unmark67 (lit);
@@ -179,7 +179,7 @@ long Internal::condition_round (long delta) {
     Var &v = var (idx);
     if (tmp) {
       if (v.level) {
-        const int lit = tmp < 0 ? -idx : idx;
+        const Lit lit = tmp < 0 ? -idx : idx;
         if (!active (idx)) {
           LOG ("temporarily unassigning inactive literal %d", lit);
           condition_unassign (lit);
@@ -198,7 +198,7 @@ long Internal::condition_round (long delta) {
         level++;
         LOG ("new condition decision level");
       }
-      const int lit = decide_phase (idx, true);
+      const Lit lit = decide_phase (idx, true);
       condition_assign (lit);
       v.level = level;
       trail.push_back (lit);
@@ -305,7 +305,7 @@ long Internal::condition_round (long delta) {
     //
     for (const_literal_iterator l = c->begin ();
          !satisfied && l != c->end (); l++) {
-      const int lit = *l;
+      const Lit lit = *l;
       const signed char tmp = val (lit);
       if (tmp && !var (lit).level)
         satisfied = (tmp > 0);
@@ -371,7 +371,7 @@ long Internal::condition_round (long delta) {
       size_t new_conditionals = 0;
 
       for (const_literal_iterator l = c->begin (); l != c->end (); l++) {
-        const int lit = *l;
+        const Lit lit = *l;
         signed char tmp = val (lit);
         if (!tmp)
           continue;
@@ -525,7 +525,7 @@ long Internal::condition_round (long delta) {
     // to be globally blocked.
     //
     for (const_literal_iterator l = c->begin (); l != c->end (); l++) {
-      const int lit = *l;
+      const Lit lit = *l;
       mark_in_candidate_clause (lit);
       if (watched_autarky_literal)
         continue;
@@ -620,7 +620,7 @@ long Internal::condition_round (long delta) {
 
           for (const_literal_iterator l = d->begin (); l != d->end ();
                l++) {
-            const int lit = *l;
+            const Lit lit = *l;
             const signed char tmp = val (lit);
             if (tmp > 0)
               replacement = lit;
@@ -674,7 +674,7 @@ long Internal::condition_round (long delta) {
 
             for (const_literal_iterator k = c->begin ();
                  !replacement && k != c->end (); k++) {
-              const int other = *k;
+              const Lit other = *k;
               if (is_autarky_literal (other))
                 replacement = other;
             }
@@ -726,7 +726,7 @@ long Internal::condition_round (long delta) {
     } check;
     check.assigned = check.conditional = check.autarky = 0;
     for (size_t i = 0; i < trail.size (); i++) {
-      const int lit = trail[i];
+      const Lit lit = trail[i];
       if (val (lit)) {
         check.assigned++;
         if (is_conditional_literal (lit)) {
@@ -806,7 +806,7 @@ long Internal::condition_round (long delta) {
     if (!unassigned.empty ()) {
       LOG ("reassigning %zd literals", unassigned.size ());
       while (!unassigned.empty ()) {
-        const int lit = unassigned.back ();
+        const Lit lit = unassigned.back ();
         unassigned.pop_back ();
         condition_assign (lit);
       }
@@ -819,7 +819,7 @@ long Internal::condition_round (long delta) {
       LOG ("flushing %zd autarky literals from conditional stack",
            conditional.size () - initial.conditional);
       while (initial.conditional < conditional.size ()) {
-        const int lit = conditional.back ();
+        const Lit lit = conditional.back ();
         conditional.pop_back ();
         unmark_as_conditional_literal (lit);
       }
@@ -851,7 +851,7 @@ long Internal::condition_round (long delta) {
   int additionally_unassigned = 0;
 #endif
   while (trail.size () > initial_trail_level) {
-    int lit = trail.back ();
+    Lit lit = trail.back ();
     trail.pop_back ();
     condition_unassign (lit);
 #if defined(LOGGING) || !defined(NDEBUG)
@@ -874,7 +874,7 @@ long Internal::condition_round (long delta) {
   //
   LOG ("reassigning previously assigned variables");
   for (size_t i = 0; i < initial_trail_level; i++) {
-    const int lit = trail[i];
+    const Lit lit = trail[i];
     const signed char tmp = val (lit);
     assert (tmp >= 0);
     if (!tmp)

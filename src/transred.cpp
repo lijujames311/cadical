@@ -160,7 +160,7 @@ void Internal::transred () {
           continue;
         if (d->garbage)
           continue;
-        const int other = w.blit;
+        const Lit other = w.blit;
         if (other == dst)
           transitive = true; // 'dst' reached
         else {

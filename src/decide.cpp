@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -9,14 +10,14 @@ namespace CaDiCaL {
 // largest decision level to backtrack to during 'restart' without changing
 // the assigned variables (if 'opts.restartreusetrail' is non-zero).
 
-int Internal::next_decision_variable_on_queue () {
+Lit Internal::next_decision_variable_on_queue () {
   int64_t searched = 0;
-  int res = queue.unassigned;
+  Lit res (queue.unassigned);
   while (val (res))
-    res = link (res).prev, searched++;
+    res = Lit (link (res).prev), searched++;
   if (searched) {
     stats.searched += searched;
-    update_queue_unassigned (res);
+    update_queue_unassigned (res.var ());
   }
   LOG ("next queue decision variable %d bumped %" PRId64 "", res,
        bumped (res));
@@ -25,10 +26,10 @@ int Internal::next_decision_variable_on_queue () {
 
 // This function determines the best decision with respect to score.
 //
-int Internal::next_decision_variable_with_best_score () {
-  int res = 0;
+Lit Internal::next_decision_variable_with_best_score () {
+  Lit res = INVALID_LIT;
   for (;;) {
-    res = scores.front ();
+    res = Lit (scores.front ());
     if (!val (res))
       break;
     (void) scores.pop_front ();
@@ -63,23 +64,23 @@ void Internal::start_random_sequence () {
            lim.random_decision, stats.conflicts);
 }
 
-int Internal::next_random_decision () {
+Lit Internal::next_random_decision () {
   assert (max_var);
   if (!opts.randec)
-    return 0;
+    return INVALID_LIT;
   if (stable && !opts.randecstable)
-    return 0;
+    return INVALID_LIT;
   if (!stable && !opts.randecfocused)
-    return 0;
+    return INVALID_LIT;
   if (stats.conflicts < lim.random_decision)
-    return 0;
+    return INVALID_LIT;
   if (satisfied ())
-    return 0;
+    return INVALID_LIT;
 
   if (!randomized_deciding) {
     if (level > (int) assumptions.size () + !!constraint.size ()) {
       LOG ("random decision delayed because too deep");
-      return 0;
+      return INVALID_LIT;
     }
     start_random_sequence ();
   }
@@ -96,19 +97,19 @@ int Internal::next_random_decision () {
     if (!flags (idx).active())
       continue;
     */
-    if (val (idx))
+    if (val (Lit (idx)))
       continue;
-    if (flags (idx).unused ())
+    if (flags (Lit (idx)).unused ())
       continue;
-    return idx;
+    return Lit (idx);
   }
   assert (false);
   __builtin_unreachable ();
 }
 
-int Internal::next_decision_variable () {
-  int res = next_random_decision ();
-  if (res) {
+Lit Internal::next_decision_variable () {
+  Lit res = next_random_decision ();
+  if (res != INVALID_LIT) {
     LOG ("randomized decision %s", LOGLIT (res));
     return res;
   }
@@ -124,16 +125,17 @@ int Internal::next_decision_variable () {
 // stabilization unless decision phase is forced to the initial value
 // of a phase is forced through the 'phase' option.
 
-int Internal::decide_phase (int idx, bool target) {
+Lit Internal::decide_phase (Lit idx, bool target) {
   const int initial_phase = opts.phase ? 1 : -1;
+  const int pidx = idx.var ();
   int phase = 0;
   if (force_saved_phase) {
-    phase = phases.saved[idx];
+    phase = phases.saved[pidx];
     LOG ("trying force_saved_phase, i.e., %d", phase);
   }
   assert (force_saved_phase || !phase);
   if (!phase) {
-    phase = phases.forced[idx]; // swapped with opts.forcephase case!
+    phase = phases.forced[pidx]; // swapped with opts.forcephase case!
     LOG ("trying forced phase, i.e., %d", phase);
   }
   if (!phase && opts.forcephase) {
@@ -141,7 +143,7 @@ int Internal::decide_phase (int idx, bool target) {
     LOG ("trying initial phase, i.e., %d", phase);
   }
   if (!phase && target) {
-    phase = phases.target[idx];
+    phase = phases.target[pidx];
   }
   if (!phase) {
     // ported from kissat where it does not seem very useful
@@ -154,11 +156,11 @@ int Internal::decide_phase (int idx, bool target) {
         phase = -initial_phase;
         break;
       default:
-        phase = phases.saved[idx];
+        phase = phases.saved[pidx];
         break;
       }
     else
-      phase = phases.saved[idx];
+      phase = phases.saved[pidx];
   }
 
   // The following should not be necessary and in some version we had even
@@ -173,19 +175,19 @@ int Internal::decide_phase (int idx, bool target) {
   if (!phase)
     phase = initial_phase;
 
-  return phase * idx;
+  return phase > 0 ? idx : -idx;
 }
 
 // The likely phase of an variable used in 'collect' for optimizing
 // co-location of clauses likely accessed together during search.
 
-int Internal::likely_phase (int idx) { return decide_phase (idx, false); }
+Lit Internal::likely_phase (Lit idx) { return decide_phase (idx, false); }
 
 /*------------------------------------------------------------------------*/
 
 // adds new level to control and trail
 //
-void Internal::new_trail_level (int lit) {
+void Internal::new_trail_level (Lit lit) {
   level++;
   control.push_back (Level (lit, trail.size ()));
 }
@@ -206,9 +208,9 @@ bool Internal::satisfied () {
   return (assigned + stats.unused == (size_t) max_var);
 }
 
-bool Internal::better_decision (int lit, int other) {
-  int lit_idx = abs (lit);
-  int other_idx = abs (other);
+bool Internal::better_decision (Lit lit, Lit other) {
+  Lit::base_type lit_idx = abs (lit);
+  Lit::base_type other_idx = abs (other);
   if (stable)
     return stab[lit_idx] > stab[other_idx];
   else
@@ -228,7 +230,7 @@ int Internal::decide () {
   check_queue();
   int res = 0;
   if ((size_t) level < assumptions.size ()) {
-    const int lit = assumptions[level];
+    const Lit lit = assumptions[level];
     assert (assumed (lit));
     const signed char tmp = val (lit);
     if (tmp < 0) {
@@ -236,7 +238,7 @@ int Internal::decide () {
       res = 20;
     } else if (tmp > 0) {
       LOG ("assumption %d already satisfied", lit);
-      new_trail_level (0);
+      new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level");
       notify_decision ();
     } else {
@@ -245,22 +247,22 @@ int Internal::decide () {
     }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
 
-    int satisfied_lit = 0;  // The literal satisfying the constrain.
-    int unassigned_lit = 0; // Highest score unassigned literal.
-    int previous_lit = 0;   // Move satisfied literals to the front.
+    Lit satisfied_lit = INVALID_LIT;  // The literal satisfying the constrain.
+    Lit unassigned_lit = INVALID_LIT; // Highest score unassigned literal.
+    Lit previous_lit = INVALID_LIT;   // Move satisfied literals to the front.
 
     const size_t size_constraint = constraint.size ();
 
 #ifndef NDEBUG
     unsigned sum = 0;
     for (auto lit : constraint)
-      sum += lit;
+      sum += lit.signed_representation();
 #endif
     for (size_t i = 0; i != size_constraint; i++) {
 
       // Get literal and move 'constraint[i] = constraint[i-1]'.
 
-      int lit = constraint[i];
+      Lit lit = constraint[i];
       constraint[i] = previous_lit;
       previous_lit = lit;
 
@@ -279,11 +281,11 @@ int Internal::decide () {
       assert (!tmp);
       LOG ("constraint literal %d unassigned", lit);
 
-      if (!unassigned_lit || better_decision (lit, unassigned_lit))
+      if (unassigned_lit != INVALID_LIT || better_decision (lit, unassigned_lit))
         unassigned_lit = lit;
     }
 
-    if (satisfied_lit) {
+    if (satisfied_lit != INVALID_LIT) {
 
       constraint[0] = satisfied_lit; // Move satisfied to the front.
 
@@ -291,7 +293,7 @@ int Internal::decide () {
            "is implied by assumptions",
            satisfied_lit);
 
-      new_trail_level (0);
+      new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level for constraint");
       notify_decision ();
 
@@ -309,7 +311,7 @@ int Internal::decide () {
         constraint[size_constraint - 1] = previous_lit;
       }
 
-      if (unassigned_lit) {
+      if (unassigned_lit != INVALID_LIT) {
 
         LOG ("deciding %d to satisfy constraint", unassigned_lit);
         search_assume_decision (unassigned_lit);
@@ -324,13 +326,13 @@ int Internal::decide () {
 
 #ifndef NDEBUG
     for (auto lit : constraint)
-      sum -= lit;
+      sum -= lit.signed_representation();
     assert (!sum); // Checksum of literal should not change!
 #endif
 
   } else {
     check_queue ();
-    int decision = ask_decision ();
+    Lit decision = ask_decision ();
     if ((size_t) level < assumptions.size () ||
         ((size_t) level == assumptions.size () && constraint.size ())) {
       // Forced backtrack below pseudo decision levels.
@@ -340,8 +342,8 @@ int Internal::decide () {
       START (decide);
     } else {
       stats.decisions++;
-      if (!decision) {
-        int idx = next_decision_variable ();
+      if (decision == INVALID_LIT) {
+        Lit idx = next_decision_variable ();
         const bool target = (opts.target > 1 || (stable && opts.target));
         decision = decide_phase (idx, target);
       }

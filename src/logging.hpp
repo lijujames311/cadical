@@ -63,7 +63,7 @@ struct Logger {
   static void log (Internal *, const Gate *, const char *fmt, ...)
       CADICAL_ATTRIBUTE_FORMAT (3, 4);
 
-  static string loglit (Internal *, int lit);
+  static string loglit (Internal *, Lit lit);
 };
 
 } // namespace CaDiCaL

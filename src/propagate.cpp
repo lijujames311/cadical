@@ -35,7 +35,7 @@ Clause *Internal::decision_reason = &decision_reason_clause;
 // assignment level is the level of the literal (since the reason clause,
 // i.e., the set of other literals, is unknown).
 
-inline int Internal::assignment_level (int lit, Clause *reason) {
+inline int Internal::assignment_level (Lit lit, Clause *reason) {
 
   assert (opts.chrono || external_prop);
   if (!reason || reason == external_reason)
@@ -57,7 +57,7 @@ inline int Internal::assignment_level (int lit, Clause *reason) {
 
 // calculate lrat_chain
 //
-void Internal::build_chain_for_units (int lit, Clause *reason,
+void Internal::build_chain_for_units (Lit lit, Clause *reason,
                                       bool forced) {
   if (!lrat)
     return;
@@ -99,7 +99,7 @@ void Internal::build_chain_for_empty () {
 
 /*------------------------------------------------------------------------*/
 
-inline void Internal::search_assign (int lit, Clause *reason) {
+inline void Internal::search_assign (Lit lit, Clause *reason) {
 
   if (level)
     require_mode (SEARCH);
@@ -176,7 +176,7 @@ inline void Internal::search_assign (int lit, Clause *reason) {
 // clause.  This happens far less frequently than the 'search_assign' above,
 // which is called directly in 'propagate' below and thus is inlined.
 
-void Internal::assign_unit (int lit) {
+void Internal::assign_unit (Lit lit) {
   assert (!level);
   search_assign (lit, 0);
 }
@@ -184,7 +184,7 @@ void Internal::assign_unit (int lit) {
 // Just assume the given literal as decision (increase decision level and
 // assign it).  This is used below in 'decide'.
 
-void Internal::search_assume_decision (int lit) {
+void Internal::search_assume_decision (Lit lit) {
   require_mode (SEARCH);
   assert (propagated == trail.size ());
   new_trail_level (lit);
@@ -193,13 +193,13 @@ void Internal::search_assume_decision (int lit) {
   search_assign (lit, decision_reason);
 }
 
-void Internal::search_assign_driving (int lit, Clause *c) {
+void Internal::search_assign_driving (Lit lit, Clause *c) {
   require_mode (SEARCH);
   search_assign (lit, c);
   notify_assignments ();
 }
 
-void Internal::search_assign_external (int lit) {
+void Internal::search_assign_external (Lit lit) {
   require_mode (SEARCH);
   search_assign (lit, external_reason);
   notify_assignments ();
@@ -245,7 +245,7 @@ bool Internal::propagate () {
 
   while (!conflict && propagated != trail.size ()) {
 
-    const int lit = -trail[propagated++];
+    const Lit lit = -trail[propagated++];
     LOG ("propagating %d", -lit);
     Watches &ws = watches (lit);
 
@@ -331,7 +331,7 @@ bool Internal::propagate () {
         //
         // which achieves the same effect, but needs a branch.
         //
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         const signed char u = val (other); // value of the other watch
 
         if (u > 0)
@@ -413,7 +413,7 @@ bool Internal::propagate () {
             //
             if (opts.chrono > 1) {
 
-              const int other_level = var (other).level;
+              const Lit other_level = var (other).level;
 
               if (other_level > var (lit).level) {
 
@@ -512,7 +512,7 @@ void Internal::propergate () {
 
   while (propergated != trail.size ()) {
 
-    const int lit = -trail[propergated++];
+    const Lit lit = -trail[propergated++];
     LOG ("propergating %d", -lit);
     Watches &ws = watches (lit);
 
@@ -535,7 +535,7 @@ void Internal::propergate () {
 
       literal_iterator lits = w.clause->begin ();
 
-      const int other = lits[0] ^ lits[1] ^ lit;
+      const Lit other = lits[0] ^ lits[1] ^ lit;
       const signed char u = val (other);
 
       // TODO: check if u == 0 can happen.

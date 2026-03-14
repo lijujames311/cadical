@@ -1,5 +1,6 @@
 #include "flags.hpp"
 #include "internal.hpp"
+#include "literals.hpp"
 #include "util.hpp"
 
 #include <cstdint>
@@ -20,31 +21,30 @@ External::~External () {
     delete[] solution;
 }
 
-void External::enlarge (int new_max_var) {
-
+void External::enlarge (ELit new_max_var) {
   assert (!extended);
-
-  size_t new_vsize = vsize ? 2 * vsize : 1 + (size_t) new_max_var;
-  while (new_vsize <= (size_t) new_max_var)
+  assert (!new_max_var.is_negated());
+  size_t new_vsize = vsize ? 2 * vsize : 1 + (size_t) new_max_var.var ();
+  while (new_vsize <= (size_t) new_max_var.var ())
     new_vsize *= 2;
   LOG ("enlarge external size from %zd to new size %zd", vsize, new_vsize);
   vsize = new_vsize;
 }
 
 Lit External::declare_var (ELit new_var, bool extension) {
-  assert (new_var.lit > 0);
+  assert (new_var != INVALID_ELIT);
   Lit ilit = internal_lit (new_var);
   if (!ilit ()) {
     if (!internal->opts.varkeepname)
       ilit = Lit (internal->max_var+1);
     else {
-      ilit = new_var;
-      if (internal->i2e.size () > (size_t)ilit.lit && internal->i2e[ilit.var ()]) {
+      ilit = Lit (new_var.signed_representation ());
+      if (internal->i2e.size () > (size_t)ilit.signed_representation () && internal->i2e[ilit.var ()] != INVALID_ELIT) {
         LOG ("the slot is already used by %d, giving the next available name", internal->i2e[ilit]);
         ilit = Lit (internal->max_var+1);
       }
     }
-    if (internal->i2e.size () <= (size_t)ilit.lit) {
+    if (internal->i2e.size () <= (size_t)ilit.signed_representation ()) {
       reserve_at_least (internal->i2e, ilit.var () + 1);
       internal->i2e.resize (ilit.var () + 1);
     }
@@ -52,14 +52,15 @@ Lit External::declare_var (ELit new_var, bool extension) {
     e2i[new_var] = ilit;
     internal->i2e[ilit.var ()] = new_var;
     internal->declare_variable (ilit);
-    assert (internal->max_var >= ilit);
+    assert (Lit (internal->max_var) >= ilit);
   }
 
   (void)extension;
   return e2i[new_var];
 }
 
-void External::resize (int new_max_var) {
+void External::resize (ELit new_max_lit) {
+  ELit::base_type new_max_var = new_max_lit.var ();
   assert (max_var < new_max_var);
   internal->reserve_vars (new_max_var);
   reserve_at_least (ext_units, 2 * new_max_var + 2);
@@ -73,7 +74,7 @@ void External::resize (int new_max_var) {
     ext_flags.push_back (0);
     ervars.push_back (0);
     assert (internal->i2e.empty ());
-    internal->i2e.push_back (0);
+    internal->i2e.push_back (ELit ());
   }
   unsigned eidx;
   for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var;
@@ -90,19 +91,20 @@ void External::resize (int new_max_var) {
   internal->stats.variables_original += new_vars;
 }
 
-void External::init (int new_max_var, bool extension) {
+void External::init (ELit new_max_lit, bool extension) {
+  ELit::base_type new_max_var = new_max_lit.var ();
   assert (!extended);
   LOG ("%d external variables from %d", new_max_var, max_var);
   assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
   if (new_max_var <= max_var) {
-    declare_var (new_max_var, extension);
+    declare_var (new_max_lit, extension);
     return;
   }
   int new_vars = new_max_var - max_var;
   LOG ("initialized %d external variables", new_vars);
-  resize (new_max_var);
+  resize (new_max_lit);
 
-  declare_var (new_max_var, extension);
+  declare_var (new_max_lit, extension);
   if (extension)
     internal->stats.variables_extension += new_vars;
   else
@@ -145,43 +147,43 @@ void External::reset_limits () { internal->reset_limits (); }
 // we can set a flag that it is an extension variable.
 // This is then used in the API contracts, that extension variables are
 // never part of the input
-int External::internalize (ELit elit, bool extension) {
+Lit External::internalize (ELit elit, bool extension) {
   Lit ilit;
-  if (elit) {
-    assert (elit != INT_MIN);
-    const int eidx = abs (elit);
-    if (extension && eidx <= max_var)
+  if (elit != INVALID_ELIT) {
+    assert (elit != OTHER_INVALID_ELIT);
+    const ELit eidx = elit.labs ();
+    if (extension && eidx <= ELit (max_var))
       FATAL ("can not add a definition for an already used variable %d",
-             eidx);
-    if (eidx > max_var) {
+             eidx.signed_representation());
+    if (eidx > ELit (max_var)) {
       init (eidx, extension);
     }
     if (extension) {
-      assert (ervars.size () > (size_t) eidx);
-      ervars[eidx] = true;
+      assert (ervars.size () > (size_t) eidx.var ());
+      ervars[eidx.var ()] = true;
     }
     ilit = e2i[eidx];
-    if (!ilit)
+    if (ilit != INVALID_LIT)
       ilit = declare_var (eidx, false);
-    if (elit < 0)
+    if (elit.is_negated ())
       ilit = -ilit;
-    if (!ilit) {
+    if (ilit != INVALID_LIT) {
       assert (internal->max_var < INT_MAX);
-      ilit = internal->max_var + 1u;
-      internal->reserve_vars (ilit);
+      ilit = Lit (internal->max_var + 1u);
+      internal->reserve_vars (ilit.var ());
       e2i[eidx] = ilit;
       LOG ("mapping external %d to internal %d", eidx, ilit);
       e2i[eidx] = ilit;
       internal->i2e.push_back (eidx);
-      assert (internal->i2e[ilit] == eidx);
+      assert (internal->i2e[ilit.var ()] == eidx);
       assert (e2i[eidx] == ilit);
-      if (elit < 0)
+      if (elit.is_negated())
         ilit = -ilit;
     }
     if (internal->opts.checkfrozen) {
-      assert (eidx < (int64_t) moltentab.size ());
-      if (moltentab[eidx])
-        FATAL ("can not reuse molten literal %d", eidx);
+      assert (eidx.var () < (int64_t) moltentab.size ());
+      if (moltentab[eidx.var ()])
+        FATAL ("can not reuse molten literal %d", eidx.var ());
     }
     Flags &f = internal->flags (ilit);
     if (f.status == Flags::UNUSED)
@@ -195,15 +197,15 @@ int External::internalize (ELit elit, bool extension) {
       mark (tainted, elit);
     }
   } else
-    ilit = 0;
+    ilit = INVALID_LIT;
   return ilit;
 }
 
-void External::add (int elit) {
-  assert (elit != INT_MIN);
+void External::add (ELit elit) {
+  assert (elit != INVALID_ELIT);
 
-  if (elit)
-    REQUIRE (is_valid_input ((int) elit),
+  if (elit != INVALID_ELIT)
+    REQUIRE (is_valid_input (elit),
              "extension variable '%d' defined by the solver internally "
              "(all user variables have to be declared explicitly "
 	     "if 'factor' is enabled)", // TODO only reason?
@@ -227,16 +229,16 @@ void External::add (int elit) {
       original.push_back (elit);
   }
 
-  const int ilit = internalize (elit);
-  assert (!elit == !ilit);
+  const Lit ilit = internalize (elit);
+  assert ((elit == INVALID_ELIT) == (ilit == INVALID_LIT));
 
   // The external literals of the new clause must be saved for later
   // when the proof is printed during add_original_lit (0)
-  if (elit && (internal->proof || forgettable)) {
+  if (elit != INVALID_ELIT && (internal->proof || forgettable)) {
     eclause.push_back (elit);
     if (internal->lrat) {
       // actually find unit of -elit (flips elit < 0)
-      unsigned eidx = (elit > 0) + 2u * (unsigned) abs (elit);
+      unsigned eidx = elit.vlit ();
       assert ((size_t) eidx < ext_units.size ());
       const int64_t id = ext_units[eidx];
       bool added = ext_flags[abs (elit)];
@@ -247,38 +249,38 @@ void External::add (int elit) {
     }
   }
 
-  if (!elit && internal->proof && internal->lrat) {
+  if (elit != INVALID_ELIT && internal->proof && internal->lrat) {
     for (const auto &elit : eclause) {
       ext_flags[abs (elit)] = false;
     }
   }
 
-  if (elit)
+  if (elit != INVALID_ELIT)
     LOG ("adding external %d as internal %d", elit, ilit);
   if (internal->external_prop)
     internal->activating_all_new_imported_literals ();
   internal->add_original_lit (ilit);
 
   // Clean-up saved external literals once proof line is printed
-  if (!elit && (internal->proof || forgettable))
+  if (elit == INVALID_ELIT && (internal->proof || forgettable))
     eclause.clear ();
 }
 
-void External::assume (int elit) {
-  assert (elit);
+void External::assume (ELit elit) {
+  assert (elit.var ());
   reset_extended ();
   if (internal->proof)
-    internal->proof->add_assumption (elit);
+    internal->proof->add_assumption (elit.signed_representation());
   assumptions.push_back (elit);
-  const int ilit = internalize (elit);
-  assert (ilit);
+  const Lit ilit = internalize (elit);
+  assert (ilit != INVALID_LIT);
   LOG ("assuming external %d as internal %d", elit, ilit);
   internal->assume (ilit);
 }
 
-bool External::flip (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::flip (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   assert (!propagator);
 
   int eidx = abs (elit);
@@ -286,8 +288,8 @@ bool External::flip (int elit) {
     return false;
   if (marked (witness, elit))
     return false;
-  int ilit = e2i[eidx];
-  if (!ilit)
+  Lit ilit = e2i[elit.labs ()];
+  if (ilit == INVALID_LIT)
     return false;
   bool res = internal->flip (ilit);
   if (res && extended)
@@ -295,9 +297,9 @@ bool External::flip (int elit) {
   return res;
 }
 
-bool External::flippable (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::flippable (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   assert (!propagator);
 
   int eidx = abs (elit);
@@ -305,38 +307,39 @@ bool External::flippable (int elit) {
     return false;
   if (marked (witness, elit))
     return false;
-  int ilit = e2i[eidx];
-  if (!ilit)
+  Lit ilit = e2i[elit.labs ()];
+  if (ilit == INVALID_LIT)
     return false;
   return internal->flippable (ilit);
 }
 
-bool External::failed (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::failed (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   int eidx = abs (elit);
   if (eidx > max_var)
     return 0;
-  int ilit = e2i[eidx];
-  if (!ilit)
+  Lit ilit = e2i[elit.labs ()];
+  if (ilit == INVALID_LIT)
     return 0;
-  if (elit < 0)
+  if (elit.is_negated())
     ilit = -ilit;
   return internal->failed (ilit);
 }
 
-void External::constrain (int elit) {
-  if (constraint.size () && !constraint.back ()) {
+void External::constrain (ELit elit) {
+  if (constraint.size () && constraint.back () != INVALID_ELIT) {
     LOG (constraint, "replacing previous constraint");
     reset_constraint ();
   }
-  assert (elit != INT_MIN);
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   reset_extended ();
-  const int ilit = internalize (elit);
-  assert (!elit == !ilit);
-  if (elit)
+  const Lit ilit = internalize (elit);
+  assert ((elit != INVALID_ELIT) == (ilit != INVALID_LIT));
+  if (elit != INVALID_ELIT)
     LOG ("adding external %d as internal %d to constraint", elit, ilit);
-  else if (!elit && internal->proof) {
+  else if (elit == INVALID_ELIT && internal->proof) {
     internal->proof->add_constraint (constraint);
   }
   constraint.push_back (elit);
@@ -347,15 +350,15 @@ bool External::failed_constraint () {
   return internal->failed_constraint ();
 }
 
-void External::phase (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+void External::phase (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   // this test is a bit stupid, it is triggereing an assertion, but we we could
   // simply add thos to the other if...
-  if (std::abs(elit) > max_var) {
+  if (abs(elit) > max_var) {
     reset_extended ();
   }
-  const int ilit = internalize (elit);
+  const Lit ilit = internalize (elit);
   if (!internal->imports.empty()) {
     if (extended)
       reset_extended ();
@@ -364,19 +367,19 @@ void External::phase (int elit) {
   internal->phase (ilit);
 }
 
-void External::unphase (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+void External::unphase (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   int eidx = abs (elit);
   if (eidx > max_var) {
   UNUSED:
     LOG ("resetting forced phase of unused external %d ignored", elit);
     return;
   }
-  int ilit = e2i[eidx];
-  if (!ilit)
+  Lit ilit = e2i[elit.labs ()];
+  if (ilit == INVALID_LIT)
     goto UNUSED;
-  if (elit < 0)
+  if (elit.is_negated())
     ilit = -ilit;
   internal->unphase (ilit);
 }
@@ -388,11 +391,10 @@ void External::unphase (int elit) {
 // Note that when an already assigned variable is added as observed, the
 // solver will backtrack to undo this assignment.
 //
-void External::add_observed_var (int elit) {
+void External::add_observed_var (ELit elit) {
   assert (propagator); // REQ is in Solver::add_observed_var
-
-  assert (elit);
-  assert (elit != INT_MIN);
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   reset_extended (); // tainting!
 
   int eidx = abs (elit);
@@ -421,7 +423,7 @@ void External::add_observed_var (int elit) {
 
   LOG ("marking %d as externally watched", eidx);
 
-  int ilit = internalize (elit);
+  Lit ilit = internalize (elit);
   // Will do the necessary internalization
   freeze (elit);
   is_observed[eidx] = true;
@@ -443,7 +445,7 @@ void External::add_observed_var (int elit) {
   const int tmp = fixed (elit);
   if (!tmp)
     return;
-  int unit = tmp < 0 ? -elit : elit;
+  ELit unit = tmp < 0 ? -elit : elit;
 
   LOG ("notify propagator about fixed assignment upon observe for %d",
        unit);
@@ -451,11 +453,11 @@ void External::add_observed_var (int elit) {
   // internal add-observed-var had to backtrack to root-level already
   assert (!internal->level);
 
-  std::vector<int> assigned = {unit};
+  std::vector<int> assigned = {unit.signed_representation()};
   propagator->notify_assignment (assigned);
 }
 
-void External::remove_observed_var (int elit) {
+void External::remove_observed_var (ELit elit) {
   assert (propagator); // REQ is in Solver::remove_observed_var
 
   int eidx = abs (elit);
@@ -469,7 +471,7 @@ void External::remove_observed_var (int elit) {
   if (is_observed[eidx]) {
     // Follow opposite order of add_observed_var, first remove internal
     // is_observed
-    int ilit = e2i[eidx]; // internalize (elit);
+    Lit ilit = e2i[elit.labs ()]; // internalize (elit);
     internal->remove_observed_var (ilit);
 
     is_observed[eidx] = false;
@@ -495,7 +497,7 @@ void External::reset_observed_vars () {
     if ((size_t) eidx >= is_observed.size ())
       break;
     if (is_observed[eidx]) {
-      int ilit = internalize (elit);
+      Lit ilit = internalize (elit);
       internal->remove_observed_var (ilit);
       LOG ("unmarking %d as externally watched", eidx);
       is_observed[eidx] = false;
@@ -504,9 +506,9 @@ void External::reset_observed_vars () {
   }
 }
 
-bool External::observed (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::observed (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   int eidx = abs (elit);
   if (eidx > max_var)
     return false;
@@ -516,23 +518,23 @@ bool External::observed (int elit) {
   return is_observed[eidx];
 }
 
-bool External::is_witness (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::is_witness (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   int eidx = abs (elit);
   if (eidx > max_var)
     return false;
   return (marked (witness, elit) || marked (witness, -elit));
 }
 
-bool External::is_decision (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
+bool External::is_decision (ELit elit) {
+  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
   int eidx = abs (elit);
   if (eidx > max_var)
     return false;
 
-  int ilit = internalize (elit);
+  Lit ilit = internalize (elit);
   return internal->is_decision (ilit);
 }
 
@@ -555,7 +557,7 @@ int External::propagate_assumptions () {
 }
 
 void External::implied (std::vector<int> &trailed) {
-  std::vector<int> ilit_implicants;
+  std::vector<Lit> ilit_implicants;
   internal->implied (ilit_implicants);
 
   // Those implied literals must be filtered out that are witnesses
@@ -566,12 +568,12 @@ void External::implied (std::vector<int> &trailed) {
   trailed.clear ();
 
   for (const auto &ilit : ilit_implicants) {
-    assert (ilit);
-    const int elit = internal->externalize (ilit);
+    assert (ilit != INVALID_LIT);
+    const ELit elit = internal->externalize (ilit);
     const int eidx = abs (elit);
     const bool is_extension_var = ervars[eidx];
     if (!marked (tainted, elit) && !is_extension_var) {
-      trailed.push_back (elit);
+      trailed.push_back (elit.signed_representation());
     }
   }
 }
@@ -636,7 +638,7 @@ void External::update_molten_literals () {
   int registered = 0, molten = 0;
 #endif
   for (auto lit : vars) {
-    if (moltentab[lit]) {
+    if (moltentab[lit.var ()]) {
       LOG ("skipping already molten literal %d", lit);
 #ifdef LOGGING
       molten++;
@@ -645,7 +647,7 @@ void External::update_molten_literals () {
       LOG ("skipping currently frozen literal %d", lit);
     else {
       LOG ("new molten literal %d", lit);
-      moltentab[lit] = true;
+      moltentab[lit.var ()] = true;
 #ifdef LOGGING
       registered++;
       molten++;
@@ -667,12 +669,12 @@ int External::solve (bool preprocess_only) {
 
 void External::terminate () { internal->terminate (); }
 
-int External::lookahead () {
+ELit External::lookahead () {
   reset_extended ();
   update_molten_literals ();
-  int ilit = internal->lookahead ();
-  const int elit =
-      (ilit && ilit != INT_MIN) ? internal->externalize (ilit) : 0;
+  Lit ilit = internal->lookahead ();
+  const ELit elit =
+      (ilit != INVALID_LIT && ilit != OTHER_INVALID_LIT) ? internal->externalize (ilit) : INVALID_ELIT;
   LOG ("lookahead internal %d external %d", ilit, elit);
   return elit;
 }
@@ -683,9 +685,9 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth,
   update_molten_literals ();
   reset_limits ();
   auto cubes = internal->generate_cubes (depth, min_depth);
-  auto externalize = [this] (int ilit) {
-    const int elit = ilit ? internal->externalize (ilit) : 0;
-    MSG ("lookahead internal %d external %d", ilit, elit);
+  auto externalize = [this] (Lit ilit) {
+    const ELit elit = ilit != INVALID_LIT ? internal->externalize (ilit) : INVALID_ELIT;
+    MSG ("lookahead internal %d external %d", ilit.signed_representation(), elit.signed_representation());
     return elit;
   };
   auto externalize_map = [this, externalize] (std::vector<int> cube) {
@@ -700,9 +702,9 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth,
 
 /*------------------------------------------------------------------------*/
 
-void External::freeze (int elit) {
+void External::freeze (ELit elit) {
   reset_extended ();
-  int ilit = internalize (elit);
+  Lit ilit = internalize (elit);
   unsigned eidx = vidx (elit);
   if (eidx >= frozentab.size ())
     frozentab.resize (eidx + 1, 0);
@@ -716,9 +718,9 @@ void External::freeze (int elit) {
   internal->freeze (ilit);
 }
 
-void External::melt (int elit) {
+void External::melt (ELit elit) {
   reset_extended ();
-  int ilit = internalize (elit);
+  Lit ilit = internalize (elit);
   unsigned eidx = vidx (elit);
   assert (eidx < frozentab.size ());
   unsigned &ref = frozentab[eidx];
@@ -743,15 +745,15 @@ void External::melt (int elit) {
 
 /*------------------------------------------------------------------------*/
 
-void External::check_assignment (int (External::*a) (int) const) {
+void External::check_assignment (ELit (External::*a) (ELit) const) {
 
   // First check all assigned and consistent.
   //
   for (auto idx : vars) {
-    if (!(this->*a) (idx))
-      FATAL ("unassigned variable: %d", idx);
-    int value_idx = (this->*a) (idx);
-    int value_neg_idx = (this->*a) (-idx);
+    if ((this->*a) (idx) == INVALID_ELIT)
+      FATAL ("unassigned variable: %d", idx.signed_representation());
+    ELit value_idx = (this->*a) (idx);
+    ELit value_neg_idx = (this->*a) (-idx);
     if (value_idx == idx)
       assert (value_neg_idx == idx);
     else {
@@ -759,7 +761,7 @@ void External::check_assignment (int (External::*a) (int) const) {
       assert (value_neg_idx == -idx);
     }
     if (value_idx != value_neg_idx)
-      FATAL ("inconsistently assigned literals %d and %d", idx, -idx);
+      FATAL ("inconsistently assigned literals %d and %d", idx.signed_representation (), (-idx).signed_representation ());
   }
 
   // Then check that all (saved) original clauses are satisfied.
@@ -771,13 +773,13 @@ void External::check_assignment (int (External::*a) (int) const) {
   int64_t count = 0;
 #endif
   for (; i != end; i++) {
-    int lit = *i;
-    if (!lit) {
+    ELit lit = *i;
+    if (lit == INVALID_ELIT) {
       if (!satisfied) {
         fatal_message_start ();
         fputs ("unsatisfied clause:\n", stderr);
         for (auto j = start; j != i; j++)
-          fprintf (stderr, "%d ", *j);
+          fprintf (stderr, "%d ", (*j).signed_representation());
         fputc ('0', stderr);
         fatal_message_end ();
       }
@@ -807,7 +809,7 @@ void External::check_assignment (int (External::*a) (int) const) {
     for (const auto lit : forgettables.second) {
       if (presence_flag) {
         // First integer is a Boolean flag, not a literal
-        if (!lit) {
+        if (lit == INVALID_ELIT) {
           // Deleted clauses can be ignored, they count as satisfied
           satisfied = true;
           break;
@@ -826,7 +828,7 @@ void External::check_assignment (int (External::*a) (int) const) {
       fatal_message_start ();
       fputs ("unsatisfied external forgettable clause:\n", stderr);
       for (size_t j = 1; j < forgettables.second.size (); j++)
-        fprintf (stderr, "%d ", forgettables.second[j]);
+        fprintf (stderr, "%d ", forgettables.second[j].signed_representation ());
       fputc ('0', stderr);
       fatal_message_end ();
     }
@@ -842,11 +844,10 @@ void External::check_assignment (int (External::*a) (int) const) {
 void External::check_assumptions_satisfied () {
   for (const auto &lit : assumptions) {
     // Not 'signed char' !!!!
-    const int tmp = ival (lit);
+    const ELit tmp = ival (lit);
     if (tmp != lit)
-      FATAL ("assumption %d falsified", lit);
-    if (!tmp)
-      FATAL ("assumption %d unassigned", lit);
+      FATAL ("assumption %d falsified", lit.signed_representation());
+    assert (tmp != ELit (0)); // checks if assigned
   }
   VERBOSE (1, "checked that %zd assumptions are satisfied",
            assumptions.size ());
@@ -876,20 +877,20 @@ void External::check_failing () {
     if (!failed (lit))
       continue;
     LOG ("checking failed literal %d in core", lit);
-    checker->add (lit);
+    checker->add (lit.signed_representation());
     checker->add (0);
   }
   if (failed_constraint ()) {
     LOG (constraint, "checking failed constraint");
     for (const auto lit : constraint)
-      checker->add (lit);
+      checker->add (lit.signed_representation());
   } else if (constraint.size ())
     LOG (constraint, "constraint satisfied and ignored");
 
   // Add original clauses as last step, failing () and failed_constraint ()
   // might add more external clauses (due to lazy explanation)
   for (const auto lit : original)
-    checker->add (lit);
+    checker->add (lit.signed_representation());
 
   // Add every forgettable external clauses
   for (const auto &forgettables : forgettable_original) {
@@ -900,7 +901,7 @@ void External::check_failing () {
         presence_flag = false;
         continue;
       }
-      checker->add (lit);
+      checker->add (lit.signed_representation());
     }
     checker->add (0);
   }
@@ -973,8 +974,8 @@ bool External::traverse_all_frozen_units_as_clauses (ClauseIterator &it) {
     const int tmp = fixed (idx);
     if (!tmp)
       continue;
-    int unit = tmp < 0 ? -idx : idx;
-    clause.push_back (unit);
+    ELit unit = tmp < 0 ? -idx : idx;
+    clause.push_back (unit.signed_representation ());
     if (!it.clause (clause))
       return false;
     clause.clear ();
@@ -995,12 +996,12 @@ bool External::traverse_all_non_frozen_units_as_witnesses (
     const int tmp = fixed (idx);
     if (!tmp)
       continue;
-    int unit = tmp < 0 ? -idx : idx;
-    const int ilit = e2i[idx] * (tmp < 0 ? -1 : 1);
+    ELit unit = tmp < 0 ? -idx : idx;
+    const Lit ilit = (tmp < 0 ? -1 : 1) * e2i[idx];
     // heurstically add + max_var to the id to avoid reusing ids
     const int64_t id = internal->lrat ? internal->unit_id (ilit) : 1;
     assert (id);
-    clause_and_witness.push_back (unit);
+    clause_and_witness.push_back (unit.signed_representation());
     if (!it.witness (clause_and_witness, clause_and_witness, id + max_var))
       return false;
     clause_and_witness.clear ();
@@ -1016,18 +1017,19 @@ void External::copy_flags (External &other) const {
   vector<Flags> &other_ftab = other.internal->ftab;
   const unsigned limit = min (max_var, other.max_var);
   for (unsigned eidx = 1; eidx <= limit; eidx++) {
-    const int this_ilit = internal_lit (eidx);
-    if (!this_ilit)
+    const ELit elit = ELit (eidx);
+    const Lit this_ilit = internal_lit (elit);
+    if (this_ilit == INVALID_LIT)
       continue;
-    const int other_ilit = other.e2i[eidx];
-    if (!other_ilit)
+    const Lit other_ilit = other.e2i[elit];
+    if (other_ilit == INVALID_LIT)
       continue;
     if (!internal->active (this_ilit))
       continue;
     if (!other.internal->active (other_ilit))
       continue;
-    assert (this_ilit != INT_MIN);
-    assert (other_ilit != INT_MIN);
+    assert (this_ilit != INVALID_LIT);
+    assert (other_ilit != INVALID_LIT);
     const Flags &this_flags = this_ftab[abs (this_ilit)];
     Flags &other_flags = other_ftab[abs (other_ilit)];
     this_flags.copy (other_flags);
@@ -1045,28 +1047,28 @@ void External::export_learned_empty_clause () {
     LOG ("not exporting learned empty clause");
 }
 
-void External::export_learned_unit_clause (int ilit) {
+void External::export_learned_unit_clause (Lit ilit) {
   assert (learner);
   if (learner->learning (1)) {
     LOG ("exporting learned unit clause");
-    const int elit = internal->externalize (ilit);
-    assert (elit);
-    learner->learn (elit);
+    const ELit elit = internal->externalize (ilit);
+    assert (elit != INVALID_ELIT);
+    learner->learn (elit.signed_representation ());
     learner->learn (0);
   } else
     LOG ("not exporting learned unit clause");
 }
 
-void External::export_learned_large_clause (const vector<int> &clause) {
+void External::export_learned_large_clause (const vector<Lit> &clause) {
   assert (learner);
   size_t size = clause.size ();
   assert (size <= (unsigned) INT_MAX);
   if (learner->learning ((int) size)) {
     LOG ("exporting learned clause of size %zu", size);
     for (auto ilit : clause) {
-      const int elit = internal->externalize (ilit);
-      assert (elit);
-      learner->learn (elit);
+      const ELit elit = internal->externalize (ilit);
+      assert (elit != INVALID_ELIT);
+      learner->learn (elit.signed_representation());
     }
     learner->learn (0);
   } else

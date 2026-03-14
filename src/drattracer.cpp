@@ -33,7 +33,7 @@ inline void DratTracer::put_binary_zero () {
   file->put ((unsigned char) 0);
 }
 
-inline void DratTracer::put_binary_lit (int lit) {
+inline void DratTracer::put_binary_lit (Lit lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);

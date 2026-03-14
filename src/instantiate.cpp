@@ -22,7 +22,7 @@ void Internal::collect_instantiation_candidates (
     if (flags (idx).elim)
       continue; // BVE attempt pending
     for (int sign = -1; sign <= 1; sign += 2) {
-      const int lit = sign * idx;
+      const Lit lit = sign * idx;
       if (noccs (lit) > opts.instantiateocclim)
         continue;
       Occs &os = occs (lit);
@@ -61,7 +61,7 @@ void Internal::collect_instantiation_candidates (
 
 // Specialized propagation and assignment routines for instantiation.
 
-inline void Internal::inst_assign (int lit) {
+inline void Internal::inst_assign (Lit lit) {
   LOG ("instantiate assign %d", lit);
   assert (!val (lit));
   assert ((int) num_assigned < max_var);
@@ -80,7 +80,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
   int64_t before = propagated;
   bool ok = true;
   while (ok && propagated != trail.size ()) {
-    const int lit = -trail[propagated++];
+    const Lit lit = -trail[propagated++];
     LOG ("instantiate propagating %d", -lit);
     Watches &ws = watches (lit);
     const const_watch_iterator eow = ws.end ();
@@ -107,7 +107,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
         }
       } else {
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         lits[0] = other, lits[1] = lit;
         const signed char u = val (other);
         if (u > 0)
@@ -172,7 +172,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
 
 // This is the instantiation attempt.
 
-bool Internal::instantiate_candidate (int lit, Clause *c) {
+bool Internal::instantiate_candidate (Lit lit, Clause *c) {
   stats.instried++;
   if (c->garbage)
     return false;
@@ -239,7 +239,7 @@ bool Internal::instantiate_candidate (int lit, Clause *c) {
     }
   }
   while (trail.size () > before) { // Backtrack.
-    const int other = trail.back ();
+    const Lit other = trail.back ();
     LOG ("instantiate unassign %d", other);
     trail.pop_back ();
     assert (val (other) > 0);
@@ -272,7 +272,7 @@ bool Internal::instantiate_candidate (int lit, Clause *c) {
       Flags &f = flags (other);
       f.seen = false;
     }
-    for (int other : analyzed) {
+    for (Lit other : analyzed) {
       Flags &f = flags (other);
       if (!f.seen) {
         f.seen = true;

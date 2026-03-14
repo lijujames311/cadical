@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -19,9 +20,9 @@ namespace CaDiCaL {
 /*------------------------------------------------------------------------*/
 
 inline double Internal::compute_elim_score (unsigned lit) {
-  assert (1 <= lit), assert (lit <= (unsigned) max_var);
-  const double pos = noccs (lit);
-  const double neg = noccs (-lit);
+  assert (lit >= 1), assert (lit <= (Lit::base_type) max_var);
+  const double pos = noccs (Lit (lit));
+  const double neg = noccs (Lit (-lit));
   if (!pos)
     return -neg;
   if (!neg)
@@ -104,7 +105,7 @@ void Internal::elim_update_added_clause (Eliminator &eliminator,
   }
 }
 
-void Internal::elim_update_removed_lit (Eliminator &eliminator, int lit) {
+void Internal::elim_update_removed_lit (Eliminator &eliminator, Lit lit) {
   if (!active (lit))
     return;
   if (frozen (lit))
@@ -123,7 +124,7 @@ void Internal::elim_update_removed_lit (Eliminator &eliminator, int lit) {
 }
 
 void Internal::elim_update_removed_clause (Eliminator &eliminator,
-                                           Clause *c, int except) {
+                                           Clause *c, Lit except) {
   assert (!c->redundant);
   for (const auto &lit : *c) {
     if (lit == except)
@@ -139,20 +140,20 @@ void Internal::elim_update_removed_clause (Eliminator &eliminator,
 // during elimination as soon we find a unit clause.  This finds new units
 // and also marks clauses satisfied by those units as garbage immediately.
 
-void Internal::elim_propagate (Eliminator &eliminator, int root) {
+void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
   assert (val (root) > 0);
-  vector<int> work;
+  vector<Lit> work;
   size_t i = 0;
   work.push_back (root);
   while (i < work.size ()) {
-    int lit = work[i++];
+    Lit lit = work[i++];
     LOG ("elimination propagation of %d", lit);
     assert (val (lit) > 0);
     const Occs &ns = occs (-lit);
     for (const auto &c : ns) {
       if (c->garbage)
         continue;
-      int unit = 0, satisfied = 0;
+      Lit unit = INVALID_LIT, satisfied = INVALID_LIT;
       for (const auto &other : *c) {
         const signed char tmp = val (other);
         if (tmp < 0)
@@ -161,24 +162,24 @@ void Internal::elim_propagate (Eliminator &eliminator, int root) {
           satisfied = other;
           break;
         }
-        if (unit)
-          unit = INT_MIN;
+        if (unit != INVALID_LIT)
+          unit = OTHER_INVALID_LIT;
         else
           unit = other;
       }
-      if (satisfied) {
+      if (satisfied != INVALID_LIT) {
         LOG (c, "elimination propagation of %d finds %d satisfied", lit,
              satisfied);
         elim_update_removed_clause (eliminator, c, satisfied);
         mark_garbage (c);
-      } else if (!unit) {
+      } else if (unit == INVALID_LIT) {
         LOG ("empty clause during elimination propagation of %d", lit);
         // need to set conflict = c for lrat
         conflict = c;
         learn_empty_clause ();
         conflict = 0;
         break;
-      } else if (unit != INT_MIN) {
+      } else if (unit != INVALID_LIT) {
         LOG ("new unit %d during elimination propagation of %d", unit, lit);
         build_chain_for_units (unit, c, 0);
         assign_unit (unit);
@@ -207,7 +208,7 @@ void Internal::elim_propagate (Eliminator &eliminator, int root) {
 // on-the-fly and the resolution can be skipped during elimination.
 
 void Internal::elim_on_the_fly_self_subsumption (Eliminator &eliminator,
-                                                 Clause *c, int pivot) {
+                                                 Clause *c, Lit pivot) {
   LOG (c, "pivot %d on-the-fly self-subsuming resolution", pivot);
   stats.elimotfstr++;
   stats.strengthened++;
@@ -262,7 +263,7 @@ void Internal::elim_on_the_fly_self_subsumption (Eliminator &eliminator,
 // precise regarding scheduling but very rarely happens).
 
 bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
-                                int pivot, Clause *d,
+                                Lit pivot, Clause *d,
                                 const bool propagate_eagerly) {
 
   assert (!c->redundant);
@@ -280,8 +281,8 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
   assert (!level);
   assert (clause.empty ());
 
-  int satisfied = 0;    // Contains this satisfying literal.
-  int tautological = 0; // Clashing literal if tautological.
+  Lit satisfied = INVALID_LIT;    // Contains this satisfying literal.
+  Lit tautological = INVALID_LIT; // Clashing literal if tautological.
 
   int s = 0; // Actual literals from 'c'.
   int t = 0; // Actual literals from 'd'.
@@ -313,7 +314,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
     } else
       mark (lit), clause.push_back (lit), s++;
   }
-  if (satisfied) {
+  if (satisfied != INVALID_LIT) {
     LOG (c, "satisfied by %d antecedent", satisfied);
     elim_update_removed_clause (eliminator, c, satisfied);
     mark_garbage (c);
@@ -367,7 +368,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
     lrat_chain.push_back (c->id);
   }
 
-  if (satisfied) {
+  if (satisfied != INVALID_LIT) {
     LOG (d, "satisfied by %d antecedent", satisfied);
     elim_update_removed_clause (eliminator, d, satisfied);
     mark_garbage (d);
@@ -379,7 +380,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
   LOG (c, "first antecedent");
   LOG (d, "second antecedent");
 
-  if (tautological) {
+  if (tautological != INVALID_LIT) {
     clause.clear ();
     LOG ("resolvent tautological on %d", tautological);
     lrat_chain.clear ();
@@ -394,7 +395,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
   }
 
   if (size == 1) {
-    int unit = clause[0];
+    Lit unit = clause[0];
     LOG ("unit resolvent %d", unit);
     clause.clear ();
     assign_unit (unit); // already clears lrat_chain.
@@ -460,7 +461,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
 // than negative occurrences.
 
 bool Internal::elim_resolvents_are_bounded (Eliminator &eliminator,
-                                            int pivot) {
+                                            Lit pivot) {
   const bool substitute = !eliminator.gates.empty ();
   const bool resolve_gates = eliminator.definition_unit;
   if (substitute)
@@ -535,7 +536,7 @@ bool Internal::elim_resolvents_are_bounded (Eliminator &eliminator,
 // Add all resolvents on 'pivot' and connect them.
 
 inline void Internal::elim_add_resolvents (Eliminator &eliminator,
-                                           int pivot) {
+                                           Lit pivot) {
 
   const bool substitute = !eliminator.gates.empty ();
   const bool resolve_gates = eliminator.definition_unit;
@@ -609,7 +610,7 @@ inline void Internal::elim_add_resolvents (Eliminator &eliminator,
 // push them on the extension stack.
 
 void Internal::mark_eliminated_clauses_as_garbage (
-    Eliminator &eliminator, int pivot, bool &deleted_binary_clause) {
+    Eliminator &eliminator, Lit pivot, bool &deleted_binary_clause) {
   assert (!unsat);
 
   LOG ("marking irredundant clauses with %d as garbage", pivot);
@@ -673,7 +674,7 @@ void Internal::mark_eliminated_clauses_as_garbage (
 /*------------------------------------------------------------------------*/
 
 // Try to eliminate 'pivot' by bounded variable elimination.
-void Internal::try_to_eliminate_variable (Eliminator &eliminator, int pivot,
+void Internal::try_to_eliminate_variable (Eliminator &eliminator, Lit pivot,
                                           bool &deleted_binary_clause) {
 
   if (!active (pivot))
@@ -845,7 +846,7 @@ int Internal::elim_round (bool &completed, bool &deleted_binary_clause) {
     if (!flags (idx).elim)
       continue;
     LOG ("scheduling %d for elimination initially", idx);
-    schedule.push_back (idx);
+    schedule.push_back ((unsigned) idx.var ());
   }
 
   schedule.shrink ();
@@ -888,8 +889,9 @@ int Internal::elim_round (bool &completed, bool &deleted_binary_clause) {
          stats.elimres <= resolution_limit && !schedule.empty ()) {
     int idx = schedule.front ();
     schedule.pop_front ();
-    flags (idx).elim = false;
-    try_to_eliminate_variable (eliminator, idx, deleted_binary_clause);
+    Lit lit = Lit (idx);
+    flags (lit).elim = false;
+    try_to_eliminate_variable (eliminator, lit, deleted_binary_clause);
 #ifndef QUIET
     tried++;
 #endif

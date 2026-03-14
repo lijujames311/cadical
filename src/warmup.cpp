@@ -134,7 +134,7 @@ void Internal::warmup_propagate_beyond_conflict () {
           continue;
         }
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         const signed char u = val (other);
         if (u > 0)
           j[-1].blit = other;

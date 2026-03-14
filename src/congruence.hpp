@@ -14,6 +14,7 @@
 
 #include "clause.hpp"
 #include "inttypes.hpp"
+#include "literals.hpp"
 #include "util.hpp"
 #include "watch.hpp"
 
@@ -180,12 +181,12 @@ std::string string_of_gate (Gate_Type t);
 // them are conditional, but the condition is only in the context not in the
 // structure. Without LRAT we would not need to remember the gate.
 struct lit_implication {
-  int first;
-  int second;
+  Lit first;
+  Lit second;
   Clause *clause;
-  lit_implication (int f, int s, Clause *_id)
+  lit_implication (Lit f, Lit s, Clause *_id)
       : first (f), second (s), clause (_id) {}
-  lit_implication (int f, int s) : first (f), second (s), clause (0) {}
+  lit_implication (Lit f, Lit s) : first (f), second (s), clause (0) {}
   lit_implication () : first (0), second (0), clause (nullptr) {}
   void swap () { std::swap (first, second); }
 };
@@ -194,8 +195,8 @@ struct lit_implication {
 // produced by merging implication. We have to keep the clauses for the lrat
 // reasons.
 struct lit_equivalence {
-  int first;
-  int second;
+  Lit first;
+  Lit second;
   Clause *first_clause;
   Clause *second_clause;
   void check_invariant () const {
@@ -210,13 +211,13 @@ struct lit_equivalence {
     assert (std::find (begin (*second_clause), end (*second_clause),
                        -first) != end (*second_clause));
   }
-  lit_equivalence (int f, Clause *f_id, int s, Clause *s_id)
+  lit_equivalence (Lit f, Clause *f_id, Lit s, Clause *s_id)
       : first (f), second (s), first_clause (f_id), second_clause (s_id) {}
-  lit_equivalence (int f, int s)
+  lit_equivalence (Lit f, Lit s)
       : first (f), second (s), first_clause (nullptr),
         second_clause (nullptr) {}
   lit_equivalence ()
-      : first (0), second (0), first_clause (nullptr),
+      : first (INVALID_LIT), second (INVALID_LIT), first_clause (nullptr),
         second_clause (nullptr) {}
   // swaps the first and the second literal (and their corresponding id)
   lit_equivalence swap () {
@@ -240,16 +241,16 @@ typedef std::vector<lit_equivalence> lit_equivalences;
 // Main structure for our LRAT proofs: a literal (or a number for XOR gates) and
 // the corresponding clause.
 struct LitClausePair {
-  int current_lit; // current literal from the gate
+  Lit current_lit; // current literal from the gate
   Clause *clause;
-  LitClausePair (int lit, Clause *cl) : current_lit (lit), clause (cl) {}
+  LitClausePair (Lit lit, Clause *cl) : current_lit (lit), clause (cl) {}
   LitClausePair () : current_lit (0), clause (nullptr) {}
 };
 
 /*------------------------------------------------------------------------*/
 // Used for XOR gate detection, synonym of std::pair<int,LRAT_ID>.
 struct LitIdPair {
-  int lit; // current literal from the gate
+  Lit lit; // current literal from the gate
   LRAT_ID id;
   LitIdPair (int l, LRAT_ID i) : lit (l), id (i) {}
   LitIdPair () : lit (0), id (0) {}
@@ -340,13 +341,13 @@ inline bool ite_flags_cond_lhs (int8_t flag) {
 // Actually, std::optional has bad performance under some systems.
 struct my_dummy_optional {
   LitClausePair content;
-  my_dummy_optional () : content (0, 0) {}
-  bool operator() () const { return content.current_lit; }
+  my_dummy_optional () : content (Lit(0), nullptr) {}
+  bool operator() () const { return content.current_lit (); }
   my_dummy_optional operator= (LitClausePair p) {
     content = p;
     return *this;
   }
-  void reset () { content = LitClausePair (0, 0); }
+  void reset () { content = LitClausePair (Lit (0), 0); }
 };
 
 /*------------------------------------------------------------------------*/
@@ -412,7 +413,7 @@ struct Gate {
     vector<LitClausePair> pos_lhs_ids;
     my_dummy_optional neg_lhs_id;
   } *lrat_reasons;
-  int lhs;
+  Lit lhs;
   Gate_Type tag;
   bool garbage : 1;
   bool indexed : 1;
@@ -420,9 +421,9 @@ struct Gate {
   int8_t degenerated_gate = Special_Gate::NORMAL;
   int size;
 #ifndef NFLEXIBLE
-  int rhs[];
+  Lit rhs[];
 #else
-  int rhs[2];
+  Lit rhs[2];
 #endif
   int arity () const { return size; }
 
@@ -437,8 +438,8 @@ struct Gate {
     return true;
   }
   // default constructor
-  Gate () : lrat_reasons (nullptr), lhs (0), garbage (false), indexed (false), marked (false), size (0) {}
-  Gate (int _size) : lrat_reasons (nullptr), lhs (0), tag (Gate_Type::And_Gate), garbage (false), indexed (false), marked (false), size (_size) {
+  Gate () : lrat_reasons (nullptr), lhs ({}), garbage (false), indexed (false), marked (false), size (0) {}
+  Gate (int _size) : lrat_reasons (nullptr), lhs ({}), tag (Gate_Type::And_Gate), garbage (false), indexed (false), marked (false), size (_size) {
       assert (size >= 2);
     }
 
@@ -458,7 +459,7 @@ struct Gate {
 
   // creation of a gate with either the size or of the right-hand side
   static Gate *new_gate(size_t n, bool lrat);
-  static Gate *new_gate(const std::vector<int> &v, bool lrat);
+  static Gate *new_gate(const std::vector<Lit> &v, bool lrat);
   static Gate *new_gate(const_literal_iterator begin, const_literal_iterator end, bool lrat);
 
   // deletion of a gate
@@ -473,7 +474,7 @@ struct Gate {
   // reduce the size of the rhs of the gate
   void resize (int n);
   // set the rhs to the vector passed as argument
-  void set (const std::vector<int> &new_rhs);
+  void set (const std::vector<Lit> &new_rhs);
   // set the rhs based on the iterators passed as argument
   void set (const_literal_iterator begin, const_literal_iterator end);
 
@@ -524,13 +525,13 @@ struct Hash {
 // Useful for LRAT generation to update the clauses in a controlled way,
 // pontentially overwriting the eager rewriting..
 struct Rewrite {
-  int src, dst;
+  Lit src, dst;
   LRAT_ID id1;
   LRAT_ID id2;
 
-  Rewrite (int _src, int _dst, LRAT_ID _id1, LRAT_ID _id2)
+  Rewrite (Lit _src, Lit _dst, LRAT_ID _id1, LRAT_ID _id2)
       : src (_src), dst (_dst), id1 (_id1), id2 (_id2) {}
-  Rewrite () : src (0), dst (0), id1 (0), id2 (0) {}
+  Rewrite () : src (Lit ()), dst (Lit ()), id1 (0), id2 (0) {}
 };
 
 /*------------------------------------------------------------------------*/
@@ -539,8 +540,8 @@ struct Rewrite {
 struct CompactBinary {
   Clause *clause;
   LRAT_ID id;
-  int lit1, lit2;
-  CompactBinary (Clause *c, LRAT_ID i, int l1, int l2)
+  Lit lit1, lit2;
+  CompactBinary (Clause *c, LRAT_ID i, Lit l1, Lit l2)
       : clause (c), id (i), lit1 (l1), lit2 (l2) {}
   CompactBinary () : clause (nullptr), id (0), lit1 (0), lit2 (0) {}
 };
@@ -568,12 +569,12 @@ struct Closure {
   // promote binary clauses to irredundant
   vector<LitClausePair> mu1_ids, mu2_ids, mu4_ids;
 
-  vector<int> lits;         // result of definitions
-  vector<int> rhs;          // stack for storing RHS
-  vector<int> unsimplified; // stack for storing unsimplified version (XOR,
+  vector<Lit> lits;         // result of definitions
+  vector<Lit> rhs;          // stack for storing RHS
+  vector<Lit> unsimplified; // stack for storing unsimplified version (XOR,
                             // ITEs) for DRAT proof
   vector<int> chain;  // store clauses to be able to delete them properly
-  vector<int> clause; // storing partial clauses
+  vector<Lit> clause; // storing partial clauses
   vector<uint64_t>
       glargecounts; // count for large clauses to complement internal->noccs
   vector<uint64_t> gnew_largecounts; // count for large clauses to
@@ -587,7 +588,7 @@ struct Closure {
 
   // schedule of literals to rewrite and marking structure to check if already
   // scheduled
-  queue<int> schedule;
+  queue<Lit> schedule;
   vector<bool> scheduled;
 
   std::vector<Clause *> new_unwatched_binary_clauses;
@@ -599,78 +600,78 @@ struct Closure {
   uint64_t fresh_id;
 #endif
 
-  uint64_t &new_largecounts (int lit);
-  uint64_t &largecounts (int lit);
+  uint64_t &new_largecounts (Lit lit);
+  uint64_t &largecounts (Lit lit);
 
   void unmark_all ();
-  vector<int> representant;              // union-find
-  vector<int> eager_representant;        // union-find
+  vector<Lit> representant;              // union-find
+  vector<Lit> eager_representant;        // union-find
   vector<LRAT_ID> representant_id;       // lrat version of union-find
   vector<LRAT_ID> eager_representant_id; // lrat version of union-find
   // next literal in our union-find structure
-  int &representative (int lit);
+  Lit &representative (Lit lit);
   // next literal in our union-find structure
-  int representative (int lit) const;
+  Lit representative (Lit lit) const;
   // clause id justifying the rewriting to the next literal in our union-find structure
-  LRAT_ID &representative_id (int lit);
+  LRAT_ID &representative_id (Lit lit);
   // clause id justifying the rewriting to the next literal in our union-find structure
-  LRAT_ID representative_id (int lit) const;
+  LRAT_ID representative_id (Lit lit) const;
   // next literal in our eager union-find structure
-  int &eager_representative (int lit);
+  Lit &eager_representative (Lit lit);
   // next literal in our eager union-find structure
-  int eager_representative (int lit) const;
+  Lit eager_representative (Lit lit) const;
   // clause id justifying the rewriting to the next literal in our eager union-find structure
-  LRAT_ID &eager_representative_id (int lit);
+  LRAT_ID &eager_representative_id (Lit lit);
   // clause id justifying the rewriting to the next literal in our eager union-find structure
-  LRAT_ID eager_representative_id (int lit) const;
+  LRAT_ID eager_representative_id (Lit lit) const;
   std::vector<char> lazy_propagated_idx;
   size_t units; // next trail position to propagate
   // checks whether a literal has been already eager propagated (and therefore
   // can be removed from the clauses)
-  char &lazy_propagated (int lit);
+  char &lazy_propagated (Lit lit);
 
   // representative in the union-find structure in the lazy equivalences
-  int find_representative (int lit);
+  Lit find_representative (Lit lit);
   // representative in the union-find structure in the lazy equivalences.
   // only useful if you do not care about proofs like during forward
   // subsumption.
-  int find_representative_and_compress_no_proofs (int lit);
+  Lit find_representative_and_compress_no_proofs (Lit lit);
   // returns the representant assumping that path compression has already been
   // implied.
   //
   // This is mostly useful at the end in the forward subsumption, where no new
   // rewriting is happening.
-  int find_representative_already_compressed (int lit);
+  Lit find_representative_already_compressed (Lit lit);
   // find the representative and produce the binary clause representing the
   // normalization from the literal to the result.
-  int find_representative_and_compress (int, bool update_eager = true);
+  Lit find_representative_and_compress (Lit, bool update_eager = true);
   // find the lazy representative for the `lit' and `-lit'
-  void find_representative_and_compress_both (int);
+  void find_representative_and_compress_both (Lit);
   // find the eager representative
-  int find_eager_representative (int);
+  Lit find_eager_representative (Lit);
 
   // compreses the path from lit to the representative with a new clause if
   // needed. Save internal->lrat_chain to avoid any issue.
-  int find_eager_representative_and_compress (int);
+  Lit find_eager_representative_and_compress (Lit);
   // Import the path from the literal and its negation to the representative
   // in the lazy graph to the eager part, producing the binary clauses.
-  void import_lazy_and_find_eager_representative_and_compress_both (int);
+  void import_lazy_and_find_eager_representative_and_compress_both (Lit);
 
   // returns the ID of the LRAT clause for the normalization from the
   // literal lit to its argument, assuming that the representative was
   // already compressed.
-  LRAT_ID find_representative_lrat (int lit);
+  LRAT_ID find_representative_lrat (Lit lit);
   // returns the ID of the LRAT clause for the eager normalization from the
   // literal lit to its argument assuming that the representative was
   // already compressed.
-  LRAT_ID find_eager_representative_lrat (int lit);
+  LRAT_ID find_eager_representative_lrat (Lit lit);
 
   // Writes the LRAT chain required for the eager normalization to
   // `lrat_chain`.
-  void produce_eager_representative_lrat (int lit);
+  void produce_eager_representative_lrat (Lit lit);
   // Writes the LRAT chain required for the lazy normalization to
   // `lrat_chain`.
-  void produce_representative_lrat (int lit);
+  void produce_representative_lrat (Lit lit);
 
   // promotes a clause from redundant to irredundant. We do this for all
   // clauses involved in gates to make sure that we produce correct result.
@@ -705,24 +706,24 @@ struct Closure {
   // the two clauses and assuming the two literals have not been set (because
   // propagation can be done exaustively on binary clauses, so either both
   // already have a value or none).
-  bool merge_literals_from_clauses (int lit, int other, Clause *c1,
+  bool merge_literals_from_clauses (Lit lit, Lit other, Clause *c1,
                                    Clause *c2);
-  bool merge_literals (Gate *g, Gate *h, int lit, int other,
+  bool merge_literals (Gate *g, Gate *h, Lit lit, Lit other,
                        const std::vector<LRAT_ID> & = {},
                        const std::vector<LRAT_ID> & = {});
-  bool merge_literals (int lit, int other,
+  bool merge_literals (Lit lit, Lit other,
                        const std::vector<LRAT_ID> & = {},
                        const std::vector<LRAT_ID> & = {});
   // factoring out the merge w.r.t. both cases above
-  bool really_merge_literals (int lit, int other, int repr_lit,
-                              int repr_other,
+  bool really_merge_literals (Lit lit, Lit other, Lit repr_lit,
+                              Lit repr_other,
                               const std::vector<LRAT_ID> & = {},
                               const std::vector<LRAT_ID> & = {});
 
   // proof production
   vector<LitClausePair> lrat_chain_and_gate;
   // pushed the id of the reason of literal lit to the lrat chain
-  void push_lrat_unit (int lit);
+  void push_lrat_unit (Lit lit);
 
   // This functions produces the LRAT reasoning to normalize the clause.
   //
@@ -736,8 +737,8 @@ struct Closure {
                                         std::vector<LRAT_ID> &chain,
                                         bool = true,
                                         Rewrite rewrite2 = Rewrite (),
-                                        int execept_lhs = 0,
-                                        int except_lhs2 = 0);
+                                        Lit execept_lhs = Lit (),
+                                        Lit except_lhs2 = Lit ());
   // push the id of c to the lrat chain.
   void push_id_on_chain (std::vector<LRAT_ID> &chain, Clause *c);
   // push the ids of c to the lrat chain in order.
@@ -746,7 +747,7 @@ struct Closure {
   void push_id_on_chain (std::vector<LRAT_ID> &chain,
                          const my_dummy_optional &c);
   // Push the id required to rewrite lit to chain according to the rewrite.
-  void push_id_on_chain (std::vector<LRAT_ID> &chain, Rewrite rewrite, int lit);
+  void push_id_on_chain (std::vector<LRAT_ID> &chain, Rewrite rewrite, Lit lit);
 
   // produces the LRAT for merging two AND-gates, including all the special
   // cases.
@@ -754,13 +755,13 @@ struct Closure {
       Gate *g, Gate *h, std::vector<LRAT_ID> &extra_reasons_lit,
       std::vector<LRAT_ID> &extra_reasons_ulit, bool remove_units = true);
   void update_and_gate_unit_build_lrat_chain (
-      Gate *g, int src, LRAT_ID id1, LRAT_ID id2, int dst,
+      Gate *g, Lit src, LRAT_ID id1, LRAT_ID id2, Lit dst,
       std::vector<LRAT_ID> &extra_reasons_lit,
       std::vector<LRAT_ID> &extra_reasons_ulit);
   // occs
   Gate_Occurrences gtab;
-  Gate_Occurrence &goccs (int lit);
-  void connect_goccs (Gate *g, int lit);
+  Gate_Occurrence &goccs (Lit lit);
+  void connect_goccs (Gate *g, Lit lit);
   vector<Gate *> garbage;
   // mark the gate garbage and add it to the list of garbage clauses
   void mark_garbage (Gate *);
@@ -772,48 +773,48 @@ struct Closure {
   void index_gate (Gate *);
 
   // second counter for size, complements noccs
-  uint64_t &largecount (int lit);
+  uint64_t &largecount (Lit lit);
 
 
   /*------------------------------------------------------------------------*/
   // simplification
   bool skip_and_gate (Gate *g);
   bool skip_xor_gate (Gate *g);
-  void update_and_gate (Gate *g, GatesTable::iterator, int src, int dst,
-                        LRAT_ID id1, LRAT_ID id2, int falsified = 0,
-                        int clashing = 0);
+  void update_and_gate (Gate *g, GatesTable::iterator, Lit src, Lit dst,
+                        LRAT_ID id1, LRAT_ID id2, Lit falsified = Lit (),
+                        Lit clashing = Lit ());
   void update_xor_gate (Gate *g, GatesTable::iterator);
-  void shrink_and_gate (Gate *g, int falsified = 0, int clashing = 0);
+  void shrink_and_gate (Gate *g, Lit falsified = Lit (), Lit clashing = Lit ());
   bool simplify_gate (Gate *g);
   void simplify_and_gate (Gate *g);
   void simplify_ite_gate (Gate *g);
-  Clause *simplify_xor_clause (int lhs, Clause *);
+  Clause *simplify_xor_clause (Lit lhs, Clause *);
   void simplify_xor_gate (Gate *g);
-  bool simplify_gates (int lit);
+  bool simplify_gates (Lit lit);
   void simplify_and_sort_xor_lrat_clauses (const vector<LitClausePair> &,
-                                           vector<LitClausePair> &, int,
-                                           int except2 = 0, bool flip = 0);
-  void simplify_unit_xor_lrat_clauses (const vector<LitClausePair> &, int);
+                                           vector<LitClausePair> &, Lit lhs,
+                                           Lit except2 = Lit (), bool flip = 0);
+  void simplify_unit_xor_lrat_clauses (const vector<LitClausePair> &, Lit);
 
   // rewriting
-  bool rewriting_lhs (Gate *g, int dst);
-  bool rewrite_gates (int dst, int src, LRAT_ID id1, LRAT_ID id2);
-  bool rewrite_gate (Gate *g, int dst, int src, LRAT_ID id1, LRAT_ID id2);
-  void rewrite_xor_gate (Gate *g, int dst, int src);
-  void rewrite_and_gate (Gate *g, int dst, int src, LRAT_ID id1,
+  bool rewriting_lhs (Gate *g, Lit dst);
+  bool rewrite_gates (Lit dst, Lit src, LRAT_ID id1, LRAT_ID id2);
+  bool rewrite_gate (Gate *g, Lit dst, Lit src, LRAT_ID id1, LRAT_ID id2);
+  void rewrite_xor_gate (Gate *g, Lit dst, Lit src);
+  void rewrite_and_gate (Gate *g, Lit dst, Lit src, LRAT_ID id1,
                          LRAT_ID id2);
-  void rewrite_ite_gate (Gate *g, int dst, int src);
+  void rewrite_ite_gate (Gate *g, Lit dst, Lit src);
 
   /*------------------------------------------------------------------------*/
 
 
-  bool propagate_unit (int lit);
+  bool propagate_unit (Lit lit);
   bool propagate_units ();
   size_t propagate_units_and_equivalences ();
 
   // propagate the first found equivalence to all gates by rewriting through all
   // gates..
-  bool propagate_equivalence (int lit);
+  bool propagate_equivalence (Lit lit);
 
   // overall scheduling
   void init_closure ();
@@ -836,23 +837,23 @@ struct Closure {
                   Gate_Type typ,
                   Gate *except = nullptr);
   Gate *
-  find_gate_lits (const std::vector<int>&rhs,
+  find_gate_lits (const std::vector<Lit>&rhs,
                   Gate_Type typ,
                   Gate *except = nullptr);
-  Gate *find_and_lits (vector<int> &rhs, Gate *except = nullptr);
+  Gate *find_and_lits (vector<Lit> &rhs, Gate *except = nullptr);
 
   Gate *find_and_lits (literal_iterator begin, literal_iterator end, Gate *except = nullptr);
 
-  Gate *find_xor_lits (const vector<int> &rhs);
+  Gate *find_xor_lits (const vector<Lit> &rhs);
   Gate *find_xor_gate (const Gate *const);
 
   // not const to normalize negations, also fixes the order of the LRAT chain
   Gate *find_ite_gate (Gate *, bool &);
 
-  Gate *new_ite_gate (int lhs, int cond, int then_lit, int else_lit,
+  Gate *new_ite_gate (Lit lhs, Lit cond, Lit then_lit, Lit else_lit,
                       std::vector<LitClausePair> &&clauses);
-  Gate *new_and_gate (Clause *, int);
-  Gate *new_xor_gate (const vector<LitClausePair> &, int);
+  Gate *new_and_gate (Clause *, Lit);
+  Gate *new_xor_gate (const vector<LitClausePair> &, Lit);
 
   /*------------------------------------------------------------------------*/
   // Gate Extraction out of the clauses
@@ -861,35 +862,35 @@ struct Closure {
   void extract_and_gates ();
   void init_and_gate_extraction ();
   void extract_and_gates_with_base_clause (Clause *c);
-  Gate *find_first_and_gate (Clause *base_clause, int lhs);
-  Gate *find_remaining_and_gate (Clause *base_clause, int lhs);
+  Gate *find_first_and_gate (Clause *base_clause, Lit lhs);
+  Gate *find_remaining_and_gate (Clause *base_clause, Lit lhs);
 
   // XOR gate extraction
   void init_xor_gate_extraction (std::vector<Clause *> &candidates);
   void extract_xor_gates ();
   void extract_xor_gates_with_base_clause (Clause *c);
-  Clause *find_large_xor_side_clause (std::vector<int> &lits);
+  Clause *find_large_xor_side_clause (std::vector<Lit> &lits);
   void reset_xor_gate_extraction ();
 
   // ITE extraction. This is the most complicated code because we need to go
   // over all ternary gates.
   void extract_ite_gates ();
-  void merge_condeq (int cond, lit_equivalences &condeq,
+  void merge_condeq (Lit cond, lit_equivalences &condeq,
                      lit_equivalences &not_condeq);
-  void find_conditional_equivalences (int lit, lit_implications &condbin,
+  void find_conditional_equivalences (Lit lit, lit_implications &condbin,
                                       lit_equivalences &condeq);
-  void copy_conditional_equivalences (int lit, lit_implications &condbin);
-  void extract_ite_gates_of_literal (int);
-  void extract_ite_gates_of_variable (int idx);
-  void extract_condeq_pairs (int lit, lit_implications &condbin,
+  void copy_conditional_equivalences (Lit lit, lit_implications &condbin);
+  void extract_ite_gates_of_literal (Lit);
+  void extract_ite_gates_of_variable (Lit idx);
+  void extract_condeq_pairs (Lit lit, lit_implications &condbin,
                              lit_equivalences &condeq);
   void init_ite_gate_extraction (std::vector<ClauseSize> &candidates);
   lit_implications::const_iterator find_lit_implication_second_literal (
-      int lit, lit_implications::const_iterator begin,
+      Lit lit, lit_implications::const_iterator begin,
       lit_implications::const_iterator end);
-  void search_condeq (int lit, int pos_lit,
+  void search_condeq (Lit lit, Lit pos_lit,
                       lit_implications::const_iterator pos_begin,
-                      lit_implications::const_iterator pos_end, int neg_lit,
+                      lit_implications::const_iterator pos_end, Lit neg_lit,
                       lit_implications::const_iterator neg_begin,
                       lit_implications::const_iterator neg_end,
                       lit_equivalences &condeq);
@@ -903,42 +904,42 @@ struct Closure {
   // and very soon removed. We usually do not need those extra clauses in LRAT
   // as we can produce the resolution chain directly, but the resulting clause
   // often needs probing on one decision to find the conflict.
-  LRAT_ID check_and_add_to_proof_chain (vector<int> &clause);
+  LRAT_ID check_and_add_to_proof_chain (vector<Lit> &clause);
   void delete_proof_chain ();
   void add_ite_turned_and_binary_clauses (Gate *g);
   // proof. If delete_id is non-zero, then delete the clause instead of
   // learning it
-  LRAT_ID simplify_and_add_to_proof_chain (vector<int> &unsimplified,
+  LRAT_ID simplify_and_add_to_proof_chain (vector<Lit> &unsimplified,
                                            LRAT_ID delete_id = 0);
 
   // LRAT production for merging LRAT gates
-  void produce_lrat_chain_for_xor_merge (Gate *g, int lhs1,
+  void produce_lrat_chain_for_xor_merge (Gate *g, Lit lhs1,
                                      const vector<LitClausePair> &,
-                                     int lhs2, vector<LRAT_ID> &,
+                                     Lit lhs2, vector<LRAT_ID> &,
                                      vector<LRAT_ID> &);
-  void add_xor_shrinking_proof_chain (Gate *g, int src);
-  void add_ite_matching_proof_chain (Gate *g, Gate *h, int lhs1, int lhs2,
+  void add_xor_shrinking_proof_chain (Gate *g, Lit src);
+  void add_ite_matching_proof_chain (Gate *g, Gate *h, Lit lhs1, Lit lhs2,
                                      std::vector<LRAT_ID> &reasons1,
                                      std::vector<LRAT_ID> &reasons2);
 
   // and gates
-  void learn_congruence_unit_falsifies_lrat_chain (Gate *g, int src,
-                                                   int dst, int clashing,
-                                                   int falsified, int unit);
+  void learn_congruence_unit_falsifies_lrat_chain (Gate *g, Lit src,
+                                                   Lit dst, Lit clashing,
+                                                   Lit falsified, Lit unit);
   // when the AND gate is reduced to arity one and the LHS is already set, then
   // we produce the reason for the units.
-  void learn_congruence_unit_when_lhs_set (Gate *g, int src, LRAT_ID id1,
-                                           LRAT_ID id2, int dst);
+  void learn_congruence_unit_when_lhs_set (Gate *g, Lit src, LRAT_ID id1,
+                                           LRAT_ID id2, Lit dst);
 
   /*------------------------------------------------------------------------*/
   // TODO checking that implies
-  void check_ite_implied (int lhs, int cond, int then_lit, int else_lit);
+  void check_ite_implied (Lit lhs, Lit cond, Lit then_lit, Lit else_lit);
   void check_ite_gate_implied (Gate *g);
   void check_and_gate_implied (Gate *g);
   void check_ite_lrat_reasons (Gate *g);
   void check_xor_gate_implied (Gate const *const);
-  void check_ternary (int a, int b, int c);
-  void check_binary_implied (int a, int b);
+  void check_ternary (Lit a, Lit b, Lit c);
+  void check_binary_implied (Lit a, Lit b);
   void check_implied ();
 
   /*------------------------------------------------------------------------*/
@@ -953,96 +954,96 @@ struct Closure {
   //
   // The function can also learn the empty clause if the unit is already
   // set. Do not add the unit in the chain!
-  bool learn_congruence_unit (int unit);
+  bool learn_congruence_unit (Lit unit);
   bool fully_propagate ();
 
 
   /*------------------------------------------------------------------------*/
   // binary extraction and ternary strengthening
   void extract_binaries ();
-  bool find_binary (int, int) const;
+  bool find_binary (Lit, Lit) const;
 
   /*------------------------------------------------------------------------*/
   // rewrite the clause using eager rewriting and rew1 and rew2, except for
   // 2 literals Usage:
   //   - the except are used to ignore LHS of gates that have not and should
   //   not be rewritten.
-  Clause *rewrite_clause (Clause *c, int execept_lhs = 0,
+  Clause *rewrite_clause (Clause *c, Lit exeept_lhs = Lit (),
                                          bool remove_units = true,
                                          bool = false);
   // Rewrites the clauses in a vector of LitClausePair without removing
   // tautologies from the clause.
   void rewrite_clauses (vector<LitClausePair> &,
-                                      int execept_lhs = 0, bool = true);
+                                      Lit except_lhs = Lit (), bool = true);
   // Produce the rewritten clause into clause without creating a new clause
-  void rewrite_clause_to_clause_vector (Clause *c, int except);
+  void rewrite_clause_to_clause_vector (Clause *c, Lit except);
 
   // rewrite clauses and removes tautology
   void rewrite_clauses_and_clean (vector<LitClausePair> &,
-                                                  int execept_lhs = 0,
+                                                  Lit except_lhs = Lit (),
                                                   bool = true, bool = false);
   // rewrite clauses in an optional clause, cleaning up if the result is a
   // tautology.
   void rewrite_clauses_and_clean (my_dummy_optional &,
-                                                  int execept_lhs = 0,
+                                                  Lit except_lhs = Lit (),
                                                   bool = true);
   // rewrites clauses and updates the indices after removing the tautologies and
   // remove the tautological clauses
   void rewrite_clauses_and_clean (
-      std::vector<LitClausePair> &litIds, int except_lhs,
+      std::vector<LitClausePair> &litIds, Lit except_lhs,
       size_t &old_position1, size_t &old_position2,
       bool remove_units = true);
 
   /*------------------------------------------------------------------------*/
   // Clause handling for LRAT: we produce extra clauses that are only local to
   // the algorithm, unless we promote them to real clauses.
-  Clause *new_tmp_clause (std::vector<int> &clause);
+  Clause *new_tmp_clause (std::vector<Lit> &clause);
   Clause *maybe_promote_tmp_binary_clause (Clause *);
   void check_not_tmp_binary_clause (Clause *c);
   Clause *new_clause ();
 
 
   // learns a binary clause if we are not in the case that a literal is unit.
-  Clause *maybe_add_binary_clause (int a, int b);
+  Clause *maybe_add_binary_clause (Lit a, Lit b);
   // add binary clause unconditionnaly.
-  Clause *add_binary_clause (int a, int b);
+  Clause *add_binary_clause (Lit a, Lit b);
   // add tmp clause
-  Clause *add_tmp_binary_clause (int a, int b);
+  Clause *add_tmp_binary_clause (Lit a, Lit b);
 
   /*------------------------------------------------------------------------*/
   // Various sorting functions to sort literals in the proper order
   //
   // sort a vector of literals
-  void sort_literals_by_var (vector<int> &rhs);
+  void sort_literals_by_var (vector<Lit> &rhs);
   // sort the rhs of a gate
   void sort_literals_by_var (Gate *rhs);
   // sort the literals in a gate except for two literals that should be put first
-  void sort_literals_by_var_except (vector<int> &rhs, int, int except2 = 0);
+  void sort_literals_by_var_except (vector<Lit> &rhs, Lit, Lit except2 = Lit ());
 
   // XOR handling
-  uint32_t number_from_xor_reason_reversed (const std::vector<int> &rhs);
-  uint32_t number_from_xor_reason (const std::vector<int> &rhs, int,
-                                   int except2 = 0, bool flip = 0);
+  uint32_t number_from_xor_reason_reversed (const std::vector<Lit> &rhs);
+  uint32_t number_from_xor_reason (const std::vector<Lit> &rhs, Lit,
+                                   Lit except2 = Lit (), bool flip = 0);
   // Sort the literals within the reasons of an XOR gate.
-  void gate_sort_lrat_reasons (std::vector<LitClausePair> &, int,
-                               int except2 = 0, bool flip = 0);
+  void gate_sort_lrat_reasons (std::vector<LitClausePair> &, Lit,
+                               Lit except2 = Lit (), bool flip = 0);
   // Sort the literals within the reasons of an XOR gate.
-  void gate_sort_lrat_reasons (LitClausePair &, int, int except2 = 0,
+  void gate_sort_lrat_reasons (LitClausePair &, Lit, Lit except2 = Lit (),
                                bool flip = 0);
 
-  void schedule_literal (int lit);
-  void add_clause_to_chain (std::vector<int>, LRAT_ID);
+  void schedule_literal (Lit lit);
+  void add_clause_to_chain (std::vector<Lit>, LRAT_ID);
 
   /*------------------------------------------------------------------------*/
   // we define our own wrapper as cadical has otherwise a non-compatible
   // marking system
-  signed char &marked (int lit);
-  void set_mu1_reason (int lit, Clause *c);
-  void set_mu2_reason (int lit, Clause *c);
-  void set_mu4_reason (int lit, Clause *c);
-  LitClausePair marked_mu1 (int lit);
-  LitClausePair marked_mu2 (int lit);
-  LitClausePair marked_mu4 (int lit);
+  signed char &marked (Lit lit);
+  void set_mu1_reason (Lit lit, Clause *c);
+  void set_mu2_reason (Lit lit, Clause *c);
+  void set_mu4_reason (Lit lit, Clause *c);
+  LitClausePair marked_mu1 (Lit lit);
+  LitClausePair marked_mu2 (Lit lit);
+  LitClausePair marked_mu4 (Lit lit);
 
 
 
@@ -1058,10 +1059,10 @@ struct Closure {
   //
   // The update to an XOR gate is done here, as it is rather regular, but nor
   // for AND gates.
-  bool rewrite_ite_gate_to_xor_or_and (Gate *g, Gate_Type tag, int src,
-                                       int dst, GatesTable::iterator git,
-                                       int cond, int then_lit,
-                                       int else_lit);
+  bool rewrite_ite_gate_to_xor_or_and (Gate *g, Gate_Type tag, Lit src,
+                                       Lit dst, GatesTable::iterator git,
+                                       Lit cond, Lit then_lit,
+                                       Lit else_lit);
 
   // When we get a gate of the forem cond ? then_lit : !then_lit, we can convert
   // it to the xor gate !(cond ^then_lit). However, there are special cases when
@@ -1078,13 +1079,13 @@ struct Closure {
   // rewriting the clauses for LRAT.
   //
   // Returns whethe the clause is garbage or not.
-  bool rewrite_ite_gate_else_to_not_then (Gate *g, int, int, int);
+  bool rewrite_ite_gate_else_to_not_then (Gate *g, Lit, Lit, Lit);
 
   // Transforms an ITE gate to an AND gate, taking care of the special cases
   // where some values are already set.
-  bool rewrite_ite_gate_to_and (Gate *g, int dst, int src, size_t c,
+  bool rewrite_ite_gate_to_and (Gate *g, Lit dst, Lit src, size_t c,
                                 size_t d,
-                                int cond_lit_to_learn_if_degenerated);
+                                Lit cond_lit_to_learn_if_degenerated);
   // Transforms the former ITE gate to an XOR, taking care of the special case
   // with the LHS already in the RHS and updating the clauses in the gate.
   bool rewrite_ite_gate_to_xor (Gate *g);
@@ -1094,24 +1095,24 @@ struct Closure {
   // takes care of the case lhs == cond or lhs == -cond where several gate
   // clauses are missing.
   void produce_ite_merge_then_else_reasons (
-      Gate *g, int dst, int src, std::vector<LRAT_ID> &reasons_implication,
+      Gate *g, Lit dst, Lit src, std::vector<LRAT_ID> &reasons_implication,
       std::vector<LRAT_ID> &reasons_back);
 
   // Special case of ITE gate -dst := cond ? dst : else, leading do the unit
   // -cond and the merge -dst == else. For degenerated cases, we failed to
   // produce the lrat reason for the merge and first derive the unit.
-  bool produce_ite_merge_lhs_then_else_reasons (Gate *g, bool, int);
+  bool produce_ite_merge_lhs_then_else_reasons (Gate *g, bool, Lit);
 
   // Produce unit c out of ITE gate c := c ? !e : e.
-  void produce_ite_merge_rhs_cond (Gate *g, int, int);
+  void produce_ite_merge_rhs_cond (Gate *g, Lit, Lit);
   // Updates the reason clauses after rewriting in an ITE gate, assuming that it
   // is not a special case and remains an ITE gate.
-  void rewrite_ite_gate_update_lrat_reasons (Gate *g, int src, int dst);
+  void rewrite_ite_gate_update_lrat_reasons (Gate *g, Lit src, Lit dst);
   // Generates the LRAT proof for deriving a unit clause when an ITE's `then`
   // and `else` branches are both true (simplifying `lhs = (cond ? true : true)`
   // to `lhs`) or both false (simplifying `lhs = (cond ? false : false)` to
   // `~lhs`).
-  void simplify_ite_gate_produce_unit_lrat (Gate *g, int lit, size_t idx1,
+  void simplify_ite_gate_produce_unit_lrat (Gate *g, Lit lit, size_t idx1,
                                             size_t idx2);
 
   // Transforms an ITE (If-Then-Else) gate into an AND gate when unit
@@ -1122,7 +1123,7 @@ struct Closure {
   // The first index is a binary clause after unit propagation and the second
   // has length 3
   bool simplify_ite_gate_to_and (Gate *g, size_t idx1, size_t idx2,
-                                 int removed);
+                                 Lit removed);
   // Generates the LRAT proof chain for merging ITE gates where the `then` and
   // `else` branches are identical (i.e., trivial case `lhs = (cond ? x : x)`
   // simplifying to `lhs = x`). This function assumes that no rewriting is

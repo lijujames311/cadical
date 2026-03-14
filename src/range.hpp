@@ -1,6 +1,8 @@
 #ifndef _range_hpp_INCLUDED
 #define _range_hpp_INCLUDED
 
+#include "literals.hpp"
+
 #include <cassert>
 
 namespace CaDiCaL {
@@ -46,6 +48,7 @@ struct Clause;
 // Further note that the referenced integer has to be non-negative before
 // starting to iterate (it can be zero though), otherwise it breaks.
 
+template <class Literal>
 class Range {
   static unsigned inc (unsigned u) { return u + 1u; }
   static unsigned dec (unsigned u) { return u - 1u; }
@@ -55,7 +58,7 @@ class Range {
   public:
     iterator (int i) : idx (i) {}
     void operator++ () { idx = inc (idx); }
-    const int &operator* () const { return idx; }
+    const Literal operator* () const { return Literal (idx); }
     friend bool operator!= (const iterator &a, const iterator &b) {
       return a.idx != b.idx;
     }
@@ -68,7 +71,7 @@ class Range {
   public:
     reverse_iterator (int i) : idx (i) {}
     void operator++ () { idx = dec (idx); }
-    const int &operator* () const { return idx; }
+    const Literal operator* () const { return Literal (idx); }
     friend bool operator!= (const reverse_iterator &a,
                             const reverse_iterator &b) {
       return a.idx != b.idx;
@@ -99,6 +102,7 @@ public:
 // to figure out how to properly factor the code into a generic range
 // template with 'inc' as only parameter.  This gives at least clean code.
 
+template<class Literal>
 class Sange {
   static unsigned inc (unsigned u) { return ~u + (u >> 31); }
   class iterator {
@@ -107,7 +111,7 @@ class Sange {
   public:
     iterator (int i) : lit (i) {}
     void operator++ () { lit = inc (lit); }
-    const int &operator* () const { return lit; }
+    const Literal operator* () const { return Literal (lit); }
     friend bool operator!= (const iterator &a, const iterator &b) {
       return a.lit != b.lit;
     }
@@ -119,6 +123,7 @@ public:
   iterator end () const { return assert (n >= 0), iterator (inc (n)); }
   Sange (int &m) : n (m) { assert (m >= 0); }
 };
+
 
 } // namespace CaDiCaL
 

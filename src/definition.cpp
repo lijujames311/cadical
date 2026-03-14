@@ -10,9 +10,9 @@ struct definition_extractor {
   Eliminator *eliminator;
   Internal *internal;
   vector<Clause *> clauses[2];
-  int lit;
+  Lit lit;
   vector<vector<int>> implicants;
-  int unit;
+  Lit unit;
 };
 
 extern "C" {
@@ -175,7 +175,7 @@ static void traverse_one_sided_core_lemma_with_lrat (
 // To avoid confusion all cadical interal definitions with kitten are called
 // citten.
 //
-void Internal::find_definition (Eliminator &eliminator, int lit) {
+void Internal::find_definition (Eliminator &eliminator, Lit lit) {
   if (!opts.elimdef)
     return;
   if (unsat)

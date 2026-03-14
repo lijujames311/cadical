@@ -1,5 +1,6 @@
 #include "internal.hpp"
 #include "flags.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -435,7 +436,7 @@ int Internal::propagate_assumptions () {
   return res;
 }
 
-void Internal::implied (std::vector<int> &entrailed) {
+void Internal::implied (std::vector<Lit> &entrailed) {
   int last_assumption_level = assumptions.size ();
   if (constraint.size ())
     last_assumption_level++;
@@ -1105,7 +1106,7 @@ int Internal::restore_clauses () {
   return res;
 }
 
-int Internal::lookahead () {
+Lit Internal::lookahead () {
   assert (clause.empty ());
   START (lookahead);
   assert (!lookingahead);
@@ -1123,11 +1124,11 @@ int Internal::lookahead () {
   int tmp = already_solved ();
   if (!tmp)
     tmp = restore_clauses ();
-  int res = 0;
+  Lit res = INVALID_LIT;
   if (!tmp)
     res = lookahead_probing ();
-  if (res == INT_MIN)
-    res = 0;
+  if (res == OTHER_INVALID_LIT)
+    res = INVALID_LIT;
   reset_solving ();
   report_solving (tmp);
   assert (lookingahead);
@@ -1150,13 +1151,13 @@ void Internal::finalize (int res) {
   // finalize external units
   if (frat) {
     for (const auto &evar : external->vars) {
-      assert (evar > 0);
+      assert (evar.is_positive ());
       const auto eidx = 2 * evar;
       int sign = 1;
-      int64_t id = external->ext_units[eidx];
+      int64_t id = external->ext_units[eidx.var ()];
       if (!id) {
         sign = -1;
-        id = external->ext_units[eidx + 1];
+        id = external->ext_units[eidx.var () + 1];
       }
       if (id) {
         proof->finalize_external_unit (id, evar * sign);
@@ -1166,7 +1167,7 @@ void Internal::finalize (int res) {
     for (const auto &lit : lits) {
       const auto elit = externalize (lit);
       if (elit) {
-        const unsigned eidx = (elit < 0) + 2u * (unsigned) abs (elit);
+        const unsigned eidx = elit.vlit ();
         const int64_t id = external->ext_units[eidx];
         if (id) {
           assert (unit_clauses (vlit (lit)) == id);
@@ -1212,7 +1213,7 @@ void Internal::print_statistics () {
 
 void Internal::dump (Clause *c) {
   for (const auto &lit : *c)
-    printf ("%d ", lit);
+    printf ("%d ", lit.signed_representation ());
   printf ("0\n");
 }
 
@@ -1228,13 +1229,13 @@ void Internal::dump () {
   for (auto idx : vars) {
     const int tmp = fixed (idx);
     if (tmp)
-      printf ("%d 0\n", tmp < 0 ? -idx : idx);
+      printf ("%d 0\n", (tmp < 0 ? -idx : idx).signed_representation ());
   }
   for (const auto &c : clauses)
     if (!c->garbage)
       dump (c);
   for (const auto &lit : assumptions)
-    printf ("%d 0\n", lit);
+    printf ("%d 0\n", lit.signed_representation ());
   fflush (stdout);
 }
 
@@ -1258,8 +1259,8 @@ bool Internal::traverse_constraint (ClauseIterator &it) {
     }
     if (tmp < 0)
       continue;
-    const int elit = externalize (ilit);
-    eclause.push_back (elit);
+    const ELit elit = externalize (ilit);
+    eclause.push_back (elit.signed_representation());
   }
   if (!satisfied && !it.clause (eclause))
     return false;
@@ -1286,8 +1287,8 @@ bool Internal::traverse_clauses (ClauseIterator &it) {
       }
       if (tmp < 0)
         continue;
-      const int elit = externalize (ilit);
-      eclause.push_back (elit);
+      const ELit elit = externalize (ilit);
+      eclause.push_back (elit.signed_representation());
     }
     if (!satisfied && !it.clause (eclause))
       return false;

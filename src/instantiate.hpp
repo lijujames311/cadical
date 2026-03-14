@@ -22,7 +22,7 @@ class Instantiator {
   friend struct Internal;
 
   struct Candidate {
-    int lit;
+    Lit lit;
     int size;
     size_t negoccs;
     Clause *clause;

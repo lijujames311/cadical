@@ -1728,7 +1728,7 @@ static bool flip_literal (kitten *kitten, unsigned lit) {
 // this cadical specific clause addition avoids copying clauses multiple
 // times just to convert literals to unsigned representation.
 //
-static unsigned int2u (int lit) {
+static unsigned int2u (Lit lit) {
   assert (lit != 0);
   int idx = abs (lit) - 1;
   return (lit < 0) + 2u * (unsigned) idx;

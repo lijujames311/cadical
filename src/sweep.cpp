@@ -666,7 +666,7 @@ void Internal::sweep_refine_partition (Sweeper &sweeper) {
 #endif
   for (auto p = old_begin, q = p; p != old_end; p = q + 1) {
     unsigned assigned_true = 0;
-    int other;
+    Lit other;
     for (q = p; (other = *q) != 0; q++) {
       if (sweep_repr (sweeper, other) != other)
         continue;
@@ -894,7 +894,7 @@ bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
 // and push it on the extension stack.
 //
 int64_t Internal::add_sweep_binary (sweep_proof_clause pc, int lit,
-                                    int other) {
+                                    Lit other) {
   assert (!unsat);
   if (unsat)
     return 0; // sanity check, should be fuzzed
@@ -1343,7 +1343,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
 }
 
 bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
-                                             int other) {
+                                             Lit other) {
   LOG ("trying equivalence candidates %d = %d", lit, other);
   const auto begin = sweeper.partition.begin ();
   auto const end = sweeper.partition.end ();
@@ -1673,7 +1673,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
         const auto end = sweeper.partition.end ();
         assert (end[-1] == 0);
         int lit = end[-3];
-        int other = end[-2];
+        Lit other = end[-2];
         if (sweep_equivalence_candidates (sweeper, lit, other))
           success = true;
       } else

@@ -12,7 +12,7 @@ namespace CaDiCaL {
 // Flush garbage clause, check fast elimination limits and return number of
 // remaining occurrences (or 'fastelimbound + 1' if some limit was hit).
 
-int64_t Internal::flush_elimfast_occs (int lit) {
+int64_t Internal::flush_elimfast_occs (Lit lit) {
   const int64_t occslim = opts.fastelimocclim;
   const int64_t clslim = opts.fastelimclslim;
   const int64_t failed = occslim + 1;
@@ -53,7 +53,7 @@ int64_t Internal::flush_elimfast_occs (int lit) {
 // than negative occurrences.
 
 bool Internal::elimfast_resolvents_are_bounded (Eliminator &eliminator,
-                                                int pivot) {
+                                                Lit pivot) {
   assert (eliminator.gates.empty ());
   assert (!eliminator.definition_unit);
 
@@ -137,7 +137,7 @@ bool Internal::elimfast_resolvents_are_bounded (Eliminator &eliminator,
 // Add all resolvents on 'pivot' and connect them.
 
 inline void Internal::elimfast_add_resolvents (Eliminator &eliminator,
-                                               int pivot) {
+                                               Lit pivot) {
 
   assert (eliminator.gates.empty ());
   assert (!eliminator.definition_unit);
@@ -183,7 +183,7 @@ inline void Internal::elimfast_add_resolvents (Eliminator &eliminator,
 
 // Try to eliminate 'pivot' by bounded variable elimination.
 void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
-                                              int pivot,
+                                              Lit pivot,
                                               bool &deleted_binary_clause) {
 
   if (!active (pivot))
@@ -343,7 +343,7 @@ int Internal::elimfast_round (bool &completed,
     if (!flags (idx).elim)
       continue;
     LOG ("scheduling %d for elimination initially", idx);
-    schedule.push_back (idx);
+    schedule.push_back (idx.var ());
   }
 
   schedule.shrink ();
@@ -386,8 +386,9 @@ int Internal::elimfast_round (bool &completed,
          stats.elimres <= resolution_limit && !schedule.empty ()) {
     int idx = schedule.front ();
     schedule.pop_front ();
-    flags (idx).elim = false;
-    try_to_fasteliminate_variable (eliminator, idx, deleted_binary_clause);
+    Lit lit = Lit (idx);
+    flags (lit).elim = false;
+    try_to_fasteliminate_variable (eliminator, lit, deleted_binary_clause);
 #ifndef QUIET
     tried++;
 #endif

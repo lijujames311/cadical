@@ -185,7 +185,7 @@ void Logger::log (Internal *internal, const int *literals,
   vprintf (fmt, ap);
   va_end (ap);
   for (unsigned i = 0; i < size; i++) {
-    const int lit = literals[i];
+    const Lit lit = literals[i];
     printf (" %d", lit);
   }
   fputc ('\n', stdout);
@@ -193,7 +193,7 @@ void Logger::log (Internal *internal, const int *literals,
   fflush (stdout);
 }
 
-string Logger::loglit (Internal *internal, int lit) {
+string Logger::loglit (Internal *internal, Lit lit) {
   std::string v = std::to_string (lit);
   if (lit && -internal->max_var <= lit && internal->max_var >= lit) {
     const int va = internal->val (lit);

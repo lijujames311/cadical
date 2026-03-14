@@ -235,7 +235,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
           continue;
         }
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         const signed char u = val (other);
         if (u > 0)
           j[-1].blit = other;

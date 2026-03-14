@@ -27,17 +27,17 @@ bool Internal::inprobing () {
 
 /*------------------------------------------------------------------------*/
 
-inline int Internal::get_parent_reason_literal (int lit) {
+inline Lit Internal::get_parent_reason_literal (int lit) {
   const int idx = vidx (lit);
-  int res = parents[idx];
+  Lit res = parents[idx];
   if (lit < 0)
     res = -res;
   return res;
 }
 
-inline void Internal::set_parent_reason_literal (int lit, int reason) {
+inline void Internal::set_parent_reason_literal (Lit lit, int reason) {
   const int idx = vidx (lit);
-  if (lit < 0)
+  if (lit.is_negated())
     reason = -reason;
   parents[idx] = reason;
 }
@@ -83,7 +83,7 @@ void Internal::init_probehbr_lrat () {
 // sets lrat_chain to the stored chain in probehbr_chains.
 // this leads to conflict with unit reason uip
 //
-void Internal::get_probehbr_lrat (int lit, int uip) {
+void Internal::get_probehbr_lrat (Lit lit, int uip) {
   if (!lrat || opts.probehbr)
     return;
   assert (lit);
@@ -97,7 +97,7 @@ void Internal::get_probehbr_lrat (int lit, int uip) {
 // sets the corresponding probehbr_chain to what is currently stored in
 // lrat_chain. also clears lrat_chain.
 //
-void Internal::set_probehbr_lrat (int lit, int uip) {
+void Internal::set_probehbr_lrat (Lit lit, int uip) {
   if (!lrat || opts.probehbr)
     return;
   assert (lit);
@@ -232,10 +232,10 @@ inline int Internal::hyper_binary_resolve (Clause *reason) {
   LOG (reason, "hyper binary resolving");
   stats.hbrs++;
   stats.hbrsizes += reason->size;
-  const int lit = lits[1];
+  const Lit lit = lits[1];
   int dom = -lit, non_root_level_literals = 0;
   for (k = lits + 2; k != end; k++) {
-    const int other = -*k;
+    const Lit other = -*k;
     assert (val (other) > 0);
     if (!var (other).level)
       continue;
@@ -289,7 +289,7 @@ inline int Internal::hyper_binary_resolve (Clause *reason) {
 // The code is mostly copied from 'propagate.cpp' and specialized.  We only
 // comment on the differences.  More explanations are in 'propagate.cpp'.
 
-inline void Internal::probe_assign (int lit, int parent) {
+inline void Internal::probe_assign (Lit lit, int parent) {
   require_mode (PROBE);
   int idx = vidx (lit);
   assert (!val (idx));
@@ -329,7 +329,7 @@ inline void Internal::probe_assign (int lit, int parent) {
     LOG ("probe assign %d negated failed literal UIP", lit);
 }
 
-void Internal::probe_assign_decision (int lit) {
+void Internal::probe_assign_decision (Lit lit) {
   require_mode (PROBE);
   assert (!level);
   assert (propagated == trail.size ());
@@ -338,7 +338,7 @@ void Internal::probe_assign_decision (int lit) {
   probe_assign (lit, 0);
 }
 
-void Internal::probe_assign_unit (int lit) {
+void Internal::probe_assign_unit (Lit lit) {
   require_mode (PROBE);
   assert (!level);
   assert (active (lit));
@@ -349,7 +349,7 @@ void Internal::probe_assign_unit (int lit) {
 
 // same as in propagate but inlined here
 //
-inline void Internal::probe_lrat_for_units (int lit) {
+inline void Internal::probe_lrat_for_units (Lit lit) {
   if (!lrat)
     return;
   if (level)
@@ -384,7 +384,7 @@ inline void Internal::probe_propagate2 () {
   require_mode (PROBE);
   int64_t &ticks = stats.ticks.probe;
   while (propagated2 != trail.size ()) {
-    const int lit = -trail[propagated2++];
+    const Lit lit = -trail[propagated2++];
     LOG ("probe propagating %d over binary clauses", -lit);
     Watches &ws = watches (lit);
     ticks += 1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
@@ -419,7 +419,7 @@ bool Internal::probe_propagate () {
     if (propagated2 != trail.size ())
       probe_propagate2 ();
     else if (propagated != trail.size ()) {
-      const int lit = -trail[propagated++];
+      const Lit lit = -trail[propagated++];
       LOG ("probe propagating %d over large clauses", -lit);
       Watches &ws = watches (lit);
       ticks +=
@@ -436,7 +436,7 @@ bool Internal::probe_propagate () {
         if (w.clause->garbage)
           continue;
         const literal_iterator lits = w.clause->begin ();
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         // lits[0] = other, lits[1] = lit;
         const signed char u = val (other);
         if (u > 0)
@@ -528,7 +528,7 @@ void Internal::failed_literal (int failed) {
 
   int uip = 0;
   for (const auto &lit : *conflict) {
-    const int other = -lit;
+    const Lit other = -lit;
     if (!var (other).level) {
       assert (val (other) > 0);
       continue;
@@ -714,7 +714,7 @@ void Internal::flush_probes () {
   const auto eop = probes.end ();
   auto j = probes.begin ();
   for (auto i = j; i != eop; i++) {
-    int lit = *i;
+    Lit lit = *i;
     if (!active (lit))
       continue;
     ticks += 2;

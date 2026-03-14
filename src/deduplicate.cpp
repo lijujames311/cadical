@@ -51,7 +51,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
 
     for (int sign = -1; !unit && sign <= 1; sign += 2) {
 
-      const int lit = sign * idx; // Consider all literals.
+      const Lit lit = sign * idx; // Consider all literals.
 
       assert (stack.empty ());
       Watches &ws = watches (lit);
@@ -66,7 +66,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
         Watch w = *j++ = *i;
         if (!w.binary ())
           continue;
-        int other = w.blit;
+        Lit other = w.blit;
         const int tmp = marked (other);
         Clause *c = w.clause;
 

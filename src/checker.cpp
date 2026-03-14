@@ -63,7 +63,7 @@ CheckerClause *Checker::new_clause () {
     if (!val (lit))
       continue;
     for (unsigned j = i + 1; j < size; j++) {
-      int other = literals[j];
+      Lit other = literals[j];
       if (val (other))
         continue;
       swap (literals[i], literals[j]);
@@ -420,7 +420,7 @@ bool Checker::propagate () {
         } // skip garbage clauses
         assert (size == c->size);
         int *lits = c->literals;
-        int other = lits[0] ^ lits[1] ^ (-lit);
+        Lit other = lits[0] ^ lits[1] ^ (-lit);
         assert (other != -lit);
         signed char other_val = val (other);
         if (other_val > 0) {

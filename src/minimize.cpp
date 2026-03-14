@@ -14,7 +14,7 @@ namespace CaDiCaL {
 // minimization if only one literal was seen on the level and a new idea of
 // also aborting if the earliest seen literal was assigned afterwards.
 
-bool Internal::minimize_literal (int lit, int depth) {
+bool Internal::minimize_literal (Lit lit, int depth) {
   LOG ("attempt to minimize lit %d at depth %d", lit, depth);
   assert (val (lit) > 0);
   Flags &f = flags (lit);
@@ -46,7 +46,7 @@ bool Internal::minimize_literal (int lit, int depth) {
   const const_literal_iterator end = v.reason->end ();
   const_literal_iterator i;
   for (i = v.reason->begin (); res && i != end; i++) {
-    const int other = *i;
+    const Lit other = *i;
     if (other == lit)
       continue;
     res = minimize_literal (-other, depth + 1);
@@ -70,7 +70,7 @@ struct minimize_trail_positive_rank {
   Internal *internal;
   minimize_trail_positive_rank (Internal *s) : internal (s) {}
   typedef unsigned Type;
-  Type operator() (const int &a) const {
+  Type operator() (const Lit &a) const {
     assert (internal->val (a));
     return (unsigned) internal->var (a).trail;
   }
@@ -152,7 +152,7 @@ void Internal::minimize_clause () {
 // We have to use the non-recursive as we cannot limit the depth like the
 // minimize version. Unlike the minimize version, we have to keep literals
 // on the stack in order to push its reason later.
-void Internal::calculate_minimize_chain (int lit, std::vector<int> &stack) {
+void Internal::calculate_minimize_chain (Lit lit, std::vector<int> &stack) {
   assert (stack.empty ());
   stack.push_back (vidx (lit));
 
@@ -176,7 +176,7 @@ void Internal::calculate_minimize_chain (int lit, std::vector<int> &stack) {
         continue;
       f.seen = true;
       unit_analyzed.push_back (idx);
-      const int lit = val (idx) > 0 ? idx : -idx;
+      const Lit lit = val (idx) > 0 ? idx : -idx;
       int64_t id = unit_id (lit);
       unit_chain.push_back (id);
       continue;
@@ -189,7 +189,7 @@ void Internal::calculate_minimize_chain (int lit, std::vector<int> &stack) {
          stack.size ());
     stack.push_back (-idx);
     for (i = v.reason->begin (); i != end; i++) {
-      const int other = *i;
+      const Lit other = *i;
       if (other == idx)
         continue;
       stack.push_back (vidx (other));

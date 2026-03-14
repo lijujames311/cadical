@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -45,7 +46,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
   LOG (c, "attempting backward subsumption and strengthening with");
   size_t len = UINT_MAX;
   unsigned size = 0;
-  int best = 0;
+  Lit best = INVALID_LIT;
   bool satisfied = false;
   assert (mini_chain.empty ());
   for (const auto &lit : *c) {
@@ -80,7 +81,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
         continue;
       if ((unsigned) d->size < size)
         continue;
-      int negated = 0;
+      Lit negated = INVALID_LIT;
       unsigned found = 0;
       satisfied = false;
       for (const auto &lit : *d) {
@@ -95,7 +96,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
         if (!tmp)
           continue;
         if (tmp < 0) {
-          if (negated) {
+          if (negated != INVALID_LIT) {
             size = UINT_MAX;
             break;
           } else
@@ -109,14 +110,14 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
         elim_update_removed_clause (eliminator, d);
         mark_garbage (d);
       } else if (found == size) {
-        if (!negated) {
+        if (negated == INVALID_LIT) {
           LOG (d, "found subsumed clause");
           elim_update_removed_clause (eliminator, d);
           mark_garbage (d);
           stats.subsumed++;
           stats.elimbwsub++;
         } else {
-          int unit = 0;
+          Lit unit = INVALID_LIT;
           assert (minimize_chain.empty ());
           assert (analyzed.empty ());
           assert (lrat_chain.empty ());
@@ -140,8 +141,8 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
             }
             if (lit == negated)
               continue;
-            if (unit) {
-              unit = INT_MIN;
+            if (unit != INVALID_LIT) {
+              unit = OTHER_INVALID_LIT;
               continue; // needed to guarantee d is not satsified
             } else
               unit = lit;
@@ -155,7 +156,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
               if (tmp >= 0)
                 continue;
               Flags &f = flags (lit);
-              if (f.seen && unit && unit == INT_MIN) {
+              if (f.seen && unit != INVALID_LIT && unit == OTHER_INVALID_LIT) {
                 f.seen = false;
                 continue;
               } else if (!f.seen) {
@@ -163,7 +164,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
                 analyzed.push_back (lit);
               }
             }
-            if (unit == INT_MIN) { // we do not need units from {d\c}
+            if (unit == OTHER_INVALID_LIT) { // we do not need units from {d\c}
               for (const auto &lit : *d) {
                 flags (lit).seen = false;
               }
@@ -186,8 +187,8 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
             assert (lrat_chain.empty ());
             mark_garbage (d);
             elim_update_removed_clause (eliminator, d);
-          } else if (unit && unit != INT_MIN) {
-            assert (unit);
+          } else if (unit != INVALID_LIT && unit != OTHER_INVALID_LIT) {
+            assert (unit != INVALID_LIT);
             LOG (d, "unit %d through hyper unary resolution with", unit);
             assign_unit (unit);
             elim_propagate (eliminator, unit);

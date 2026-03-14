@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -40,7 +41,7 @@ void Internal::learn_empty_clause () {
 
 void Internal::learn_unit_clause (Lit lit) {
   assert (!unsat);
-  LOG ("learned unit clause %d, stored at position %d", lit, vlit (lit));
+  LOG ("learned unit clause %s, stored at position %d", LOGLIT (lit), vlit (lit));
   external->check_learned_unit_clause (lit);
   int64_t id = ++clause_id;
   if (lrat || frat) {
@@ -96,7 +97,7 @@ void Internal::rescale_variable_scores () {
   stats.rescored++;
   double divider = score_inc;
   for (auto idx : vars) {
-    const double tmp = stab[idx];
+    const double tmp = stab[idx.var ()];
     if (tmp > divider)
       divider = tmp;
   }
@@ -105,7 +106,7 @@ void Internal::rescale_variable_scores () {
   assert (divider > 0);
   double factor = 1.0 / divider;
   for (auto idx : vars)
-    stab[idx] *= factor;
+    stab[idx.var ()] *= factor;
   score_inc *= factor;
   PHASE ("rescore", stats.rescored,
          "new score increment %g after %" PRId64 " conflicts", score_inc,
@@ -263,7 +264,7 @@ void Internal::bump_clause2 (Clause *c) { bump_clause (c); }
 inline void Internal::analyze_literal (Lit lit, int &open,
                                        int &resolvent_size,
                                        int &antecedent_size) {
-  assert (lit);
+  assert (lit != INVALID_LIT);
   Var &v = var (lit);
   Flags &f = flags (lit);
 
@@ -290,7 +291,7 @@ inline void Internal::analyze_literal (Lit lit, int &open,
     v.reason = learn_external_reason_clause (-lit, 0, true);
     if (!v.reason) { // actually a unit
       --antecedent_size;
-      LOG ("%d unit after explanation", -lit);
+      LOG ("%s unit after explanation", LOGLIT (-lit));
       if (f.seen || !lrat)
         return;
       f.seen = true;
@@ -318,7 +319,7 @@ inline void Internal::analyze_literal (Lit lit, int &open,
   if (v.trail < l.seen.trail)
     l.seen.trail = v.trail;
   ++resolvent_size;
-  LOG ("analyzed literal %d assigned at level %d", lit, v.level);
+  LOG ("analyzed literal %s assigned at level %d", LOGLIT (lit), v.level);
   if (v.level == level)
     open++;
 }
@@ -350,7 +351,7 @@ inline void Internal::analyze_reason (Lit lit, Clause *reason, int &open,
 // 30 million propagations, which then is increased geometrically by 10%.
 
 inline bool Internal::bump_also_reason_literal (Lit lit) {
-  assert (lit);
+  assert (lit != INVALID_LIT);
   assert (val (lit) < 0);
   Flags &f = flags (lit);
   if (f.seen)
@@ -360,7 +361,7 @@ inline bool Internal::bump_also_reason_literal (Lit lit) {
     return false;
   f.seen = true;
   analyzed.push_back (lit);
-  LOG ("bumping also reason literal %d assigned at level %d", lit, v.level);
+  LOG ("bumping also reason literal %s assigned at level %d", LOGLIT (lit), v.level);
   return true;
 }
 
@@ -368,7 +369,7 @@ inline bool Internal::bump_also_reason_literal (Lit lit) {
 
 inline void Internal::bump_also_reason_literals (Lit lit, int depth_limit,
                                                  size_t analyzed_limit) {
-  assert (lit);
+  assert (lit != INVALID_LIT);
   assert (depth_limit > 0);
   const Var &v = var (lit);
   assert (val (lit));
@@ -565,7 +566,7 @@ inline int Internal::otfs_find_backtrack_level (Lit &forced) {
       forced = lit;
     } else if (tmp > res) {
       res = tmp;
-      LOG ("bt level is now %d due to %d", res, lit);
+      LOG ("bt level is now %d due to %s", res, LOGLIT (lit));
     }
   }
   return res;
@@ -634,7 +635,7 @@ inline int Internal::find_conflict_level (Lit &forced) {
       continue;
 
     if (highest_position > 1) {
-      LOG (conflict, "unwatch %d in", lit);
+      LOG (conflict, "unwatch %s in", LOGLIT (lit));
       remove_watch (watches (lit), conflict);
     }
 
@@ -780,7 +781,7 @@ void Internal::eagerly_subsume_recently_learned_clauses (Clause *c) {
 Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
   assert (new_conflict);
   assert (new_conflict->size > 2);
-  LOG (new_conflict, "applying OTFS on lit %d", uip);
+  LOG (new_conflict, "applying OTFS on lit %s", LOGLIT (uip));
   auto sorted = std::vector<Lit> ();
   sorted.reserve (new_conflict->size);
   assert (sorted.empty ());
@@ -841,13 +842,13 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
       assert (val (other) < 0);
       const int level = var (other).level;
       assert (level);
-      LOG ("checking %d", other);
+      LOG ("checking %s", LOGLIT (other));
       if (level <= highest_level)
         continue;
       highest_pos = i;
       highest_level = level;
     }
-    LOG ("highest lit is %d", lits[highest_pos]);
+    LOG ("highest lit is %s", LOGLIT (lits[highest_pos]));
     if (highest_pos != 1)
       swap (lits[1], lits[highest_pos]);
     LOG ("removing %d literals", new_conflict->size - new_size);
@@ -963,7 +964,7 @@ void Internal::analyze () {
 
   if (opts.chrono || external_prop) {
 
-    int forced;
+    Lit forced;
 
     const int conflict_level = find_conflict_level (forced);
 
@@ -976,11 +977,11 @@ void Internal::analyze () {
     // that the pseudo code in the paper only backtracks while we eagerly
     // assign the single literal on the highest decision level.
 
-    if (forced) {
+    if (forced != INVALID_LIT) {
 
-      assert (forced);
+      assert (forced != INVALID_LIT);
       assert (conflict_level > 0);
-      LOG ("single highest level literal %d", forced);
+      LOG ("single highest level literal %s", LOGLIT (forced));
 
       // The pseudo code in the SAT'18 paper actually backtracks to the
       // 'second highest decision' level, while their code backtracks
@@ -996,7 +997,7 @@ void Internal::analyze () {
       //
       build_chain_for_units (forced, conflict, 0);
 
-      LOG ("forcing %d", forced);
+      LOG ("forcing %s", LOGLIT (forced));
       search_assign_driving (forced, conflict);
 
       conflict = 0;
@@ -1053,7 +1054,7 @@ void Internal::analyze () {
   const auto &t = &trail;
   int i = (int)t->size ();      // Start at end-of-trail.
   int open = 0;            // Seen but not processed on this level.
-  int uip = 0;             // The first UIP literal.
+  Lit uip {};             // The first UIP literal.
   int resolvent_size = 0;  // without the uip
   int antecedent_size = 1; // with the uip and without unit literals
   int conflict_size = 0;   // without the uip and without unit literals
@@ -1074,7 +1075,7 @@ void Internal::analyze () {
       LOG (clause, "found candidate for OTFS conflict");
       LOG (reason, "found candidate (size %d) for OTFS resolvent",
            antecedent_size);
-      const int other = reason->literals[0] ^ reason->literals[1] ^ uip;
+      const Lit other = reason->literals[0] ^ reason->literals[1] ^ uip;
       assert (other != uip);
       reason = on_the_fly_strengthen (reason, uip);
       if (opts.bump)
@@ -1109,7 +1110,7 @@ void Internal::analyze () {
       LOG (reason, "changing conflict to");
       conflict = reason;
       if (open == 1) {
-        int forced = 0;
+        Lit forced {};
         const int conflict_level = otfs_find_backtrack_level (forced);
         int new_level = determine_actual_backtrack_level (conflict_level);
         UPDATE_AVERAGE (averages.current.level, new_level);
@@ -1137,20 +1138,20 @@ void Internal::analyze () {
       antecedent_size = 1;
       resolved = 0;
       open = 0;
-      analyze_reason (0, reason, open, resolvent_size, antecedent_size);
+      analyze_reason (Lit (), reason, open, resolvent_size, antecedent_size);
       conflict_size = antecedent_size - 1;
       assert (open > 1);
     }
 
     ++resolved;
 
-    uip = 0;
-    while (!uip) {
+    uip = Lit ();
+    while (uip != INVALID_LIT) {
       if (!i) {
         lazy_external_propagator_out_of_order_clause (uip);
         if (unsat)
           return;
-        else if (uip) {
+        else if (uip != INVALID_LIT) {
           open = 1;
           break;
         } else {
@@ -1161,13 +1162,13 @@ void Internal::analyze () {
           antecedent_size = 1;
           resolved = 0;
           open = 0;
-          analyze_reason (0, reason, open, resolvent_size, antecedent_size);
+          analyze_reason (INVALID_LIT, reason, open, resolvent_size, antecedent_size);
           conflict_size = antecedent_size - 1;
           assert (open > 1);
         }
       }
       assert (i > 0);
-      const int lit = (*t)[--i];
+      const Lit lit = (*t)[--i];
       if (!flags (lit).seen)
         continue;
       if (var (lit).level == level)
@@ -1228,7 +1229,7 @@ void Internal::analyze () {
     if (external->learner)
       external->export_learned_large_clause (clause);
   } else if (external->learner)
-    external->export_learned_unit_clause (-uip);
+    external->export_learned_unit_clause ((-uip).signed_representation());
 
   // Update actual size statistics.
   //
@@ -1265,7 +1266,7 @@ void Internal::analyze () {
   // or we haven't actually learned a clause in new_driving_clause
   // then lrat_chain is still valid and we will learn a unit or empty clause
   //
-  if (uip) {
+  if (uip != INVALID_LIT) {
     search_assign_driving (-uip, driving_clause);
   } else
     learn_empty_clause ();
@@ -1301,7 +1302,7 @@ void Internal::analyze () {
 //
 // TODO: we do not really need to keep the clause longer than the conflict
 // analysis.
-void Internal::lazy_external_propagator_out_of_order_clause (int &uip) {
+void Internal::lazy_external_propagator_out_of_order_clause (Lit &uip) {
   assert (!opts.exteagerreasons);
   assert (external_prop);
   LOG (clause, "out-of-order conflict");
@@ -1324,7 +1325,7 @@ void Internal::lazy_external_propagator_out_of_order_clause (int &uip) {
   } else if (clause.size () == 1) {
     LOG ("found out-of-order unit");
     uip = -clause[0];
-    assert (uip);
+    assert (uip != INVALID_LIT);
     backtrack (var (uip).level);
     assert (val (uip) > 0);
     clause.clear ();

@@ -106,7 +106,7 @@ bool Internal::ternary_find_ternary_clause (int a, int b, int c) {
 // 'false' is returned.  The global 'clause' contains the resolvent and
 // needs to be cleared in any case.
 
-bool Internal::hyper_ternary_resolve (Clause *c, int pivot, Clause *d) {
+bool Internal::hyper_ternary_resolve (Clause *c, Lit pivot, Clause *d) {
   LOG ("hyper binary resolving on pivot %d", pivot);
   LOG (c, "1st antecedent");
   LOG (d, "2nd antecedent");
@@ -149,7 +149,7 @@ bool Internal::hyper_ternary_resolve (Clause *c, int pivot, Clause *d) {
 // the effort spent in 'ternary' is that it should be similar to one
 // propagation step during search.
 
-void Internal::ternary_lit (int pivot, int64_t &steps, int64_t &htrs) {
+void Internal::ternary_lit (Lit pivot, int64_t &steps, int64_t &htrs) {
   LOG ("starting hyper ternary resolutions on pivot %d", pivot);
   steps -= 1 + cache_lines (occs (pivot).size (), sizeof (Clause *));
   for (const auto &c : occs (pivot)) {
@@ -247,7 +247,7 @@ void Internal::ternary_idx (int idx, int64_t &steps, int64_t &htrs) {
   if (pos <= opts.ternaryocclim && neg <= opts.ternaryocclim) {
     LOG ("index %d has %zd positive and %zd negative occurrences", idx,
          occs (idx).size (), occs (-idx).size ());
-    int pivot = (neg < pos ? -idx : idx);
+    Lit pivot = (neg < pos ? -idx : idx);
     ternary_lit (pivot, steps, htrs);
   }
   flags (idx).ternary = false;

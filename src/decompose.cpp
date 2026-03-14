@@ -1,8 +1,9 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
-void Internal::decompose_analyze_binary_chain (DFS *dfs, int from) {
+void Internal::decompose_analyze_binary_chain (DFS *dfs, Lit from) {
   if (!lrat)
     return;
   LOG ("binary chain starting at %d", from);
@@ -12,7 +13,7 @@ void Internal::decompose_analyze_binary_chain (DFS *dfs, int from) {
     return;
   assert (reason->size == 2);
   mini_chain.push_back (reason->id);
-  int other = reason->literals[0];
+  Lit other = reason->literals[0];
   other = other == from ? -reason->literals[1] : -other;
   Flags &f = flags (other);
   if (f.seen)
@@ -23,7 +24,7 @@ void Internal::decompose_analyze_binary_chain (DFS *dfs, int from) {
 }
 
 vector<Clause *> Internal::decompose_analyze_binary_clauses (DFS *dfs,
-                                                             int from) {
+                                                             Lit from) {
   vector<Clause *> result;
   LOG ("binary chain starting at %d", from);
   DFS &from_dfs = dfs[vlit (from)];
@@ -31,7 +32,7 @@ vector<Clause *> Internal::decompose_analyze_binary_clauses (DFS *dfs,
   while (reason) {
     result.push_back (reason);
     assert (reason->size == 2);
-    int other = reason->literals[0];
+    Lit other = reason->literals[0];
     other = other == from ? -reason->literals[1] : -other;
     Flags &f = flags (other);
     if (f.seen)
@@ -45,7 +46,7 @@ vector<Clause *> Internal::decompose_analyze_binary_clauses (DFS *dfs,
   return result;
 }
 
-void Internal::decompose_conflicting_scc_lrat (DFS *dfs, vector<int> &scc) {
+void Internal::decompose_conflicting_scc_lrat (DFS *dfs, vector<Lit> &scc) {
   if (!lrat)
     return;
   assert (lrat_chain.empty ());
@@ -87,7 +88,7 @@ void Internal::build_lrat_for_clause (
       if (marked_decomposed (other))
         continue;
       mark_decomposed (other);
-      int implied = p->literals[0];
+      Lit implied = p->literals[0];
       implied = implied == other ? -p->literals[1] : -implied;
       LOG ("ADDED %d -> %d (%" PRId64 ")", implied, other, p->id);
       other = implied;
@@ -145,8 +146,8 @@ bool Internal::decompose_round () {
   const size_t size_dfs = 2 * (1 + (size_t) max_var);
   DFS *dfs = new DFS[size_dfs];
   DeferDeleteArray<DFS> dfs_delete (dfs);
-  int *reprs = new int[size_dfs];
-  DeferDeleteArray<int> reprs_delete (reprs);
+  Lit *reprs = new Lit[size_dfs];
+  DeferDeleteArray<Lit> reprs_delete (reprs);
   clear_n (reprs, size_dfs);
   vector<vector<Clause *>> dfs_chains;
   if (lrat) {
@@ -160,8 +161,8 @@ bool Internal::decompose_round () {
 #endif
   unsigned dfs_idx = 0;
 
-  vector<int> work; // depth first search working stack
-  vector<int> scc;  // collects members of one SCC
+  vector<Lit> work; // depth first search working stack
+  vector<Lit> scc;  // collects members of one SCC
 
   // The binary implication graph might have disconnected components and
   // thus we have in general to start several depth first searches.
@@ -172,7 +173,7 @@ bool Internal::decompose_round () {
     if (!active (root_idx))
       continue;
     for (int root_sign = -1; !unsat && root_sign <= 1; root_sign += 2) {
-      int root = root_sign * root_idx;
+      Lit root = root_sign > 0 ? root_idx : -root_idx;
       if (dfs[vlit (root)].min == TRAVERSED)
         continue; // skip traversed
       LOG ("new dfs search starting at root %d", root);
@@ -180,13 +181,13 @@ bool Internal::decompose_round () {
       assert (scc.empty ());
       work.push_back (root);
       while (!unsat && !work.empty ()) {
-        int parent = work.back ();
+        Lit parent = work.back ();
         DFS &parent_dfs = dfs[vlit (parent)];
         if (parent_dfs.min == TRAVERSED) { // skip traversed
-          assert (reprs[vlit (parent)]);
+          assert (reprs[vlit (parent)] != INVALID_LIT);
           work.pop_back ();
         } else {
-          assert (!reprs[vlit (parent)]);
+          assert (reprs[vlit (parent)] == INVALID_LIT);
 
           // Go over all implied literals, thus need to iterate over all
           // binary watched clauses with the negation of 'parent'.
@@ -212,7 +213,7 @@ bool Internal::decompose_round () {
             for (const auto &w : ws) {
               if (!w.binary ())
                 continue;
-              const int child = w.blit;
+              const Lit child = w.blit;
               if (!active (child))
                 continue;
               DFS &child_dfs = dfs[vlit (child)];
@@ -233,13 +234,13 @@ bool Internal::decompose_round () {
 
               if (lrat) {
                 assert (analyzed.empty ());
-                int other, first = 0;
+                Lit other, first = INVALID_LIT;
                 bool conflicting = false;
                 size_t j = scc.size ();
                 do {
                   assert (j > 0);
                   other = scc[--j];
-                  if (!first || vlit (other) < vlit (first))
+                  if (first != INVALID_LIT || vlit (other) < vlit (first))
                     first = other;
                   Flags &f = flags (other);
                   if (other == -parent) {
@@ -252,21 +253,21 @@ bool Internal::decompose_round () {
                   analyzed.push_back (other);
                 } while (other != parent);
 
-                assert (!conflicting || first > 0);
-                vector<int> to_justify;
+                assert (!conflicting || !first.is_negated());
+                vector<Lit> to_justify;
                 if (conflicting) {
                   LOG ("conflicting scc simulating up at %d", parent);
                   to_justify.push_back (-parent);
                 } else
                   to_justify.push_back (first);
                 while (!to_justify.empty ()) {
-                  const int next = to_justify.back ();
+                  const Lit next = to_justify.back ();
                   to_justify.pop_back ();
                   Watches &next_ws = watches (-next);
                   for (const auto &w : next_ws) {
                     if (!w.binary ())
                       continue;
-                    const int child = w.blit;
+                    const Lit child = w.blit;
                     if (!active (child))
                       continue;
                     if (!flags (child).seen)
@@ -282,7 +283,7 @@ bool Internal::decompose_round () {
                 clear_analyzed_literals ();
               }
 
-              int other, repr = parent;
+              Lit other, repr = parent;
 #ifndef QUIET
               int size = 0;
 #endif
@@ -376,7 +377,7 @@ bool Internal::decompose_round () {
             for (const auto &w : ws) {
               if (!w.binary ())
                 continue;
-              const int child = w.blit;
+              const Lit child = w.blit;
               if (!active (child))
                 continue;
               DFS &child_dfs = dfs[vlit (child)];
@@ -423,7 +424,7 @@ bool Internal::decompose_round () {
       break;
     if (!active (idx))
       continue;
-    int other = reprs[vlit (idx)];
+    Lit other = reprs[vlit (idx)];
     if (other == idx)
       continue;
     assert (!flags (other).eliminated ());
@@ -496,8 +497,8 @@ bool Internal::decompose_round () {
     assert (id2);
     decompose_ids[vlit (idx)] = id2;
     for (auto &tracer : tracers) {
-      const int eidx = externalize (idx);
-      const int eother = externalize (other);
+      const ELit::base_type eidx = externalize (idx).signed_representation();
+      const ELit::base_type eother = externalize (other).signed_representation();
       tracer->notify_equivalence (eidx, eother);
     }
 
@@ -520,7 +521,7 @@ bool Internal::decompose_round () {
       continue;
     int j, size = c->size;
     for (j = 0; j < size; j++) {
-      const int lit = c->literals[j];
+      const Lit lit = c->literals[j];
       if (reprs[vlit (lit)] != lit)
         break;
     }
@@ -546,7 +547,7 @@ bool Internal::decompose_round () {
       continue;
 
     for (int k = 0; !satisfied && k < size; k++) {
-      const int lit = c->literals[k];
+      const Lit lit = c->literals[k];
       signed char tmp = val (lit);
       if (tmp > 0)
         satisfied = true;
@@ -562,7 +563,7 @@ bool Internal::decompose_round () {
         lrat_chain.push_back (id);
         continue;
       } else {
-        const int other = reprs[vlit (lit)];
+        const Lit other = reprs[vlit (lit)];
         tmp = val (other);
         if (tmp < 0) {
           if (!lrat)
@@ -646,7 +647,7 @@ bool Internal::decompose_round () {
         c->id = clause_id;
       }
       size_t l;
-      int *literals = c->literals;
+      Lit *literals = c->literals;
       for (l = 2; l < clause.size (); l++)
         literals[l] = clause[l];
       int flushed = c->size - (int) l;
@@ -668,7 +669,7 @@ bool Internal::decompose_round () {
       LOG (c, "substituted");
     }
     while (!clause.empty ()) {
-      int lit = clause.back ();
+      Lit lit = clause.back ();
       clause.pop_back ();
       assert (marked (lit) > 0);
       unmark (lit);
@@ -687,7 +688,7 @@ bool Internal::decompose_round () {
       const int64_t id1 = decompose_ids[vlit (-idx)];
       if (!id1)
         continue;
-      int other = reprs[vlit (idx)];
+      Lit other = reprs[vlit (idx)];
       assert (other != idx);
       assert (!flags (other).eliminated ());
       assert (!flags (other).substituted ());
@@ -736,7 +737,7 @@ bool Internal::decompose_round () {
       break;
     if (!active (idx))
       continue;
-    int other = reprs[vlit (idx)];
+    Lit other = reprs[vlit (idx)];
     if (other == idx)
       continue;
     assert (!flags (other).eliminated ());

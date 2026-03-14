@@ -4,7 +4,7 @@
 
 namespace CaDiCaL {
 
-inline void Internal::backbone_lrat_for_units (int lit, Clause *reason) {
+inline void Internal::backbone_lrat_for_units (Lit lit, Clause *reason) {
   if (!lrat)
     return;
   if (level)
@@ -32,7 +32,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
   int64_t before = propagated2 = propagated;
   for (;;) {
     if (propagated2 != trail.size ()) {
-      const int lit = -trail[propagated2++];
+      const Lit lit = -trail[propagated2++];
       LOG ("backbone propagating %d over binary clauses", -lit);
       Watches &ws = watches (lit);
       ticks +=
@@ -53,7 +53,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
         }
       }
     } else if (!conflict && propagated != trail.size ()) {
-      const int lit = -trail[propagated++];
+      const Lit lit = -trail[propagated++];
       LOG ("backbone propagating %d over large clauses", -lit);
       Watches &ws = watches (lit);
       const const_watch_iterator eow = ws.end ();
@@ -72,7 +72,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
           continue;
         }
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const Lit other = lits[0] ^ lits[1] ^ lit;
         const signed char u = val (other);
         if (u > 0)
           j[-1].blit = other;
@@ -142,7 +142,7 @@ inline void Internal::backbone_propagate2 (int64_t &ticks) {
   assert (propagated2 <= trail.size ());
   int64_t before = propagated2;
   while (propagated2 != trail.size ()) {
-    const int lit = -trail[propagated2++];
+    const Lit lit = -trail[propagated2++];
     LOG ("probe propagating %d over binary clauses", -lit);
     Watches &ws = watches (lit);
     ticks += 1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
@@ -230,7 +230,7 @@ int Internal::backbone_analyze (Clause *, int64_t &ticks) {
 
   for (auto t = trail.rbegin ();;) {
     assert (t < trail.rend ());
-    int lit = *t++;
+    Lit lit = *t++;
     LOG ("analyzing %s", LOGLIT (lit));
     if (!flags (lit).seen)
       continue;
@@ -238,7 +238,7 @@ int Internal::backbone_analyze (Clause *, int64_t &ticks) {
     LOG (reason, "resolving with reason of %s", LOGLIT (lit));
     assert (reason), assert (reason != decision_reason);
     ++ticks;
-    const int other = reason->literals[0] ^ reason->literals[1] ^ lit;
+    const Lit other = reason->literals[0] ^ reason->literals[1] ^ lit;
     Flags &f_o = flags (other);
     if (lrat)
       lrat_chain.push_back (reason->id);
@@ -257,7 +257,7 @@ int Internal::backbone_analyze (Clause *, int64_t &ticks) {
   }
 }
 
-inline void Internal::backbone_unit_reassign (int lit) {
+inline void Internal::backbone_unit_reassign (Lit lit) {
 #ifdef LOGGING
   LOG ("reassigning %s to level 0", LOGLIT (lit));
   assert (val (lit) > 0);
@@ -268,7 +268,7 @@ inline void Internal::backbone_unit_reassign (int lit) {
   return;
 }
 
-inline void Internal::backbone_unit_assign (int lit) {
+inline void Internal::backbone_unit_assign (Lit lit) {
   LOG ("assigning %s to level 0", LOGLIT (lit));
   require_mode (BACKBONE);
   const int idx = vidx (lit);
@@ -290,7 +290,7 @@ inline void Internal::backbone_unit_assign (int lit) {
   LOG ("backbone assign %d to level 0", lit);
 }
 
-inline void Internal::backbone_assign_any (int lit, Clause *reason) {
+inline void Internal::backbone_assign_any (Lit lit, Clause *reason) {
   require_mode (BACKBONE);
   const int idx = vidx (lit);
   assert (!vals[idx]);
@@ -313,7 +313,7 @@ inline void Internal::backbone_assign_any (int lit, Clause *reason) {
   LOG (reason, "backbone assign %d", lit);
 }
 
-inline void Internal::backbone_assign (int lit, Clause *reason) {
+inline void Internal::backbone_assign (Lit lit, Clause *reason) {
   require_mode (BACKBONE);
   const int idx = vidx (lit);
   assert (!vals[idx]);
@@ -336,7 +336,7 @@ inline void Internal::backbone_assign (int lit, Clause *reason) {
   LOG (reason, "backbone assign %d", lit);
 }
 
-void Internal::backbone_decision (int lit) {
+void Internal::backbone_decision (Lit lit) {
   require_mode (BACKBONE);
   assert (propagated2 == trail.size ());
   new_trail_level (lit);

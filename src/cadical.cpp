@@ -3,6 +3,7 @@
 // Do include 'internal.hpp' but try to minimize internal dependencies.
 
 #include "internal.hpp"
+#include "literals.hpp"
 #include "signal.hpp" // Separate, only need for apps.
 
 /*------------------------------------------------------------------------*/
@@ -268,7 +269,7 @@ void App::print_usage (bool all) {
 // Pretty print competition format witness with 'v' lines.
 
 void App::print_witness (FILE *file) {
-  int c = 0, tmp = 0;
+  int c = 0; ELit tmp = INVALID_ELIT;
   if (solver->internal->opts.modelalllits) {
     for (auto elit = 1; elit <= solver->external->max_var; ++elit) {
       if (!c)
@@ -276,9 +277,9 @@ void App::print_witness (FILE *file) {
       if (solver->external->ervars[elit])
         continue;
       else
-        tmp = solver->val (elit) < 0 ? -elit : elit;
+        tmp = solver->val (elit) < 0 ? ELit (-elit) : ELit (elit);
       char str[32];
-      snprintf (str, sizeof str, " %d", tmp);
+      snprintf (str, sizeof str, " %d", tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;
@@ -288,18 +289,18 @@ void App::print_witness (FILE *file) {
     }
   } else {
     for (auto /*[elit, ilit] C++17*/ eilit : solver->external->e2i) {
-      const int elit = eilit.first;
-      const int ilit = eilit.second;
+      const ELit elit = eilit.first;
+      const Lit ilit = eilit.second;
       if (!c)
         fputc ('v', file), c = 1;
-      if (!ilit)
+      if (ilit == INVALID_LIT)
         continue;
-      if (solver->external->ervars[elit])
+      if (solver->external->ervars[elit.var ()])
         continue;
       else
-        tmp = solver->val (elit) < 0 ? -elit : elit;
+        tmp = solver->val (elit.signed_representation()) < 0 ? -elit : elit;
       char str[32];
-      snprintf (str, sizeof str, " %d", tmp);
+      snprintf (str, sizeof str, " %d", tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;

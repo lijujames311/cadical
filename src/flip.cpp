@@ -2,7 +2,7 @@
 
 namespace CaDiCaL {
 
-bool Internal::flip (int lit) {
+bool Internal::flip (Lit lit) {
 
   // Do not try to flip inactive literals except for unused variables.
 
@@ -68,7 +68,7 @@ bool Internal::flip (int lit) {
 
       literal_iterator lits = w.clause->begin ();
 
-      const int other = lits[0] ^ lits[1] ^ lit;
+      const Lit other = lits[0] ^ lits[1] ^ lit;
       const signed char u = val (other);
       if (u > 0)
         continue;
@@ -150,7 +150,7 @@ bool Internal::flip (int lit) {
   return res;
 }
 
-bool Internal::flippable (int lit) {
+bool Internal::flippable (Lit lit) {
 
   // Can not check inactive literals except for unused variables.
 
@@ -199,7 +199,7 @@ bool Internal::flippable (int lit) {
 
     literal_iterator lits = w.clause->begin ();
 
-    const int other = lits[0] ^ lits[1] ^ lit;
+    const Lit other = lits[0] ^ lits[1] ^ lit;
     const signed char u = val (other);
     if (u > 0) {
       i->blit = other;

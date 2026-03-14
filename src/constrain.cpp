@@ -1,9 +1,10 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
-void Internal::constrain (int lit) {
-  if (lit)
+void Internal::constrain (Lit lit) {
+  if (lit != INVALID_LIT)
     constraint.push_back (lit);
   else {
     if (level)

@@ -133,7 +133,7 @@ template <class T> static void reserve_at_least (vector<T> &v, size_t N) {
 }
 
 template <class K, class E>
-static K find_or_default (const std::unordered_map<K, E> &map, K key, E default_el) {
+static E find_or_default (const std::unordered_map<K, E> &map, K key, E default_el) {
   auto it = map.find (key);
   if (it == map.end ())
     return default_el;

@@ -545,7 +545,7 @@ bool Internal::subsume_round () {
            minlit, minsize, minoccs);
 
       const int minlit_pos = (c->literals[1] == minlit);
-      const int other = c->literals[!minlit_pos];
+      const Lit other = c->literals[!minlit_pos];
       bins (minlit).push_back (Bin{other, c->id});
     }
   }

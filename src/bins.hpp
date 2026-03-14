@@ -8,7 +8,7 @@ namespace CaDiCaL {
 using namespace std;
 
 struct Bin {
-  int lit;
+  Lit lit;
   int64_t id;
 };
 

@@ -3,6 +3,7 @@
 
 /*------------------------------------------------------------------------*/
 
+#include "literals.hpp"
 #include "range.hpp"
 #include "util.hpp"
 #include <climits>
@@ -66,19 +67,19 @@ struct External {
 
   Internal *internal; // The actual internal solver.
 
-  int max_var;  // External maximum variable index.
+  ELit::base_type max_var;  // External maximum variable index.
   size_t vsize; // Allocated external size.
 
   vector<bool> vals; // Current external (extended) assignment.
   std::unordered_map<ELit, Lit> e2i;   // External 'idx' to internal 'lit'.
 
-  vector<int> assumptions; // External assumptions.
-  vector<int> constraint;  // External constraint. Terminated by zero.
+  vector<ELit> assumptions; // External assumptions.
+  vector<ELit> constraint;  // External constraint. Terminated by zero.
 
   vector<int64_t>
       ext_units; // External units. Needed to compute LRAT for eclause
   vector<bool> ext_flags; // to avoid duplicate units
-  vector<int> eclause;    // External version of original input clause.
+  vector<ELit> eclause;    // External version of original input clause.
   // The extension stack for reconstructing complete satisfying assignments
   // (models) of the original external formula is kept in this external
   // solver object. It keeps track of blocked clauses and clauses containing
@@ -107,8 +108,8 @@ struct External {
   Learner *learner;
 
   void export_learned_empty_clause ();
-  void export_learned_unit_clause (int ilit);
-  void export_learned_large_clause (const vector<int> &);
+  void export_learned_unit_clause (Lit ilit);
+  void export_learned_large_clause (const vector<Lit> &);
 
   // If there is a listener for fixed assignments.
 
@@ -124,15 +125,15 @@ struct External {
   // propagator. The value of the map starts with a Boolean flag indicating
   // if the clause is still present or got already deleted, and then
   // followed by the literals of the clause.
-  unordered_map<uint64_t, vector<int>> forgettable_original;
+  unordered_map<uint64_t, vector<ELit>> forgettable_original;
 
-  void add_observed_var (int elit);
-  void remove_observed_var (int elit);
+  void add_observed_var (ELit elit);
+  void remove_observed_var (ELit elit);
   void reset_observed_vars ();
 
-  bool observed (int elit);
-  bool is_witness (int elit);
-  bool is_decision (int elit);
+  bool observed (ELit elit);
+  bool is_witness (ELit elit);
+  bool is_decision (ELit elit);
 
   void force_backtrack (int new_level);
 
@@ -140,7 +141,7 @@ struct External {
 
   signed char *solution; // Given solution checking for debugging.
   int solution_size;     // Given solution checking for debugging.
-  vector<int> original;  // Saved original formula for checking.
+  vector<ELit> original;  // Saved original formula for checking.
 
   // If 'opts.checkfrozen' is set make sure that only literals are added
   // which were never completely molten before.  These molten literals are
@@ -152,30 +153,30 @@ struct External {
 
   //----------------------------------------------------------------------//
 
-  const Range vars; // Provides safe variable iterations.
+  const Range<ELit> vars; // Provides safe variable iterations.
 
   /*==== end of state ====================================================*/
 
   // These two just factor out common sanity (assertion) checking code.
 
-  inline int vidx (int elit) const {
-    assert (elit);
-    assert (elit != INT_MIN);
+  inline int vidx (ELit elit) const {
+    assert (elit != INVALID_ELIT);
+    assert (elit != OTHER_INVALID_ELIT);
     int res = abs (elit);
     assert (res <= max_var);
     return res;
   }
 
-  inline int vlit (int elit) const {
-    assert (elit);
-    assert (elit != INT_MIN);
+  inline int vlit (ELit elit) const {
+    assert (elit != INVALID_ELIT);
+    assert (elit != OTHER_INVALID_ELIT);
     assert (abs (elit) <= max_var);
-    return elit;
+    return elit.signed_representation();
   }
 
-  inline bool is_valid_input (int elit) {
-    assert (elit);
-    assert (elit != INT_MIN);
+  inline bool is_valid_input (ELit elit) {
+    assert (elit != INVALID_ELIT);
+    assert (elit != OTHER_INVALID_ELIT);
     int eidx = abs (elit);
     return eidx > max_var || !ervars[eidx];
   }
@@ -196,13 +197,13 @@ struct External {
   // literal and for blocked clauses the blocking literal) followed by all
   // the clause literals starting with and separated by zero.
   //
-  void push_clause_literal_on_extension_stack (int ilit);
-  void push_witness_literal_on_extension_stack (int ilit);
+  void push_clause_literal_on_extension_stack (Lit ilit);
+  void push_witness_literal_on_extension_stack (Lit ilit);
 
   void push_clause_on_extension_stack (Clause *);
-  void push_clause_on_extension_stack (Clause *, int witness);
-  void push_binary_clause_on_extension_stack (int64_t id, int witness,
-                                              int other);
+  void push_clause_on_extension_stack (Clause *, Lit witness);
+  void push_binary_clause_on_extension_stack (int64_t id, Lit witness,
+                                              Lit other);
 
   // The main 'extend' function which extends an internal assignment to an
   // external assignment using the extension stack (and sets 'extended').
@@ -214,27 +215,27 @@ struct External {
 
   // Marking external literals.
 
-  unsigned elit2ulit (int elit) const {
-    assert (elit);
-    assert (elit != INT_MIN);
+  unsigned elit2ulit (ELit elit) const {
+    assert (elit != INVALID_ELIT);
+    assert (elit != OTHER_INVALID_ELIT);
     const int idx = abs (elit) - 1;
     assert (idx <= max_var);
-    return 2u * idx + (elit < 0);
+    return 2u * idx + (elit.is_negated ());
   }
 
-  bool marked (const vector<bool> &map, int elit) const {
+  bool marked (const vector<bool> &map, ELit elit) const {
     const unsigned ulit = elit2ulit (elit);
     return ulit < map.size () ? map[ulit] : false;
   }
 
-  void mark (vector<bool> &map, int elit) {
+  void mark (vector<bool> &map, ELit elit) {
     const unsigned ulit = elit2ulit (elit);
     if (ulit >= map.size ())
       map.resize (ulit + 1, false);
     map[ulit] = true;
   }
 
-  void unmark (vector<bool> &map, int elit) {
+  void unmark (vector<bool> &map, ELit elit) {
     const unsigned ulit = elit2ulit (elit);
     if (ulit < map.size ())
       map[ulit] = false;
@@ -243,13 +244,13 @@ struct External {
   /*----------------------------------------------------------------------*/
 
   void push_external_clause_and_witness_on_extension_stack (
-      const vector<int> &clause, const vector<int> &witness, int64_t id);
+      const vector<ELit> &clause, const vector<ELit> &witness, int64_t id);
 
   void push_id_on_extension_stack (int64_t id);
 
   // Restore a clause, which was pushed on the extension stack.
-  void restore_clause (const vector<int>::const_iterator &begin,
-                       const vector<int>::const_iterator &end,
+  void restore_clause (const vector<ELit>::const_iterator &begin,
+                       const vector<ELit>::const_iterator &end,
                        const int64_t id);
 
   void restore_clauses ();
@@ -260,12 +261,12 @@ struct External {
   // internally and implicitly assumed literals).  Passes on freezing and
   // melting to the internal solver, which has separate frozen counters.
 
-  void freeze (int elit);
-  void melt (int elit);
+  void freeze (ELit elit);
+  void melt (ELit elit);
 
-  bool frozen (int elit) {
-    assert (elit);
-    assert (elit != INT_MIN);
+  bool frozen (ELit elit) {
+    assert (elit != INVALID_ELIT);
+    assert (elit != OTHER_INVALID_ELIT);
     int eidx = abs (elit);
     if (eidx > max_var)
       return false;
@@ -279,12 +280,12 @@ struct External {
   External (Internal *);
   ~External ();
 
-  void enlarge (int new_max_var); // Enlarge allocated 'vsize'.
-  void init (int new_max_var,
+  void enlarge (ELit new_max_var); // Enlarge allocated 'vsize'.
+  void init (ELit new_max_var,
              bool extension = false); // Initialize up-to 'new_max_var'.
-  void resize (int new_max_var); // Reserves up-to 'new_max_var'.
+  void resize (ELit new_max_var); // Reserves up-to 'new_max_var'.
 
-  int internalize (
+  Lit internalize (
       ELit,
       bool extension = false); // Translate external to internal literal.
 
@@ -326,8 +327,8 @@ struct External {
 
   // Proxies to IPASIR functions.
 
-  void add (int elit);
-  void assume (int elit);
+  void add (ELit elit);
+  void assume (ELit elit);
   int solve (bool preprocess_only);
 
   // We call it 'ival' as abbreviation for 'val' with 'int' return type to
@@ -359,21 +360,21 @@ struct External {
   // under the current assignment no matter whether you give the positive
   // literal or its negation and thus 'ival (lit) == ival (-lit))"
 
-  inline int ival (int elit) const {
-    assert (elit != INT_MIN);
+  inline ELit ival (ELit elit) const {
+    assert (elit != OTHER_INVALID_ELIT);
     int eidx = abs (elit);
     bool val = false;
     if (eidx <= max_var && (size_t) eidx < vals.size ())
       val = vals[eidx];
-    if (elit < 0)
+    if (elit.is_negated ())
       val = !val;
     return val ? elit : -elit;
   }
 
-  bool flip (int elit);
-  bool flippable (int elit);
+  bool flip (ELit elit);
+  bool flippable (ELit elit);
 
-  bool failed (int elit);
+  bool failed (ELit elit);
 
   void terminate ();
 
@@ -383,7 +384,7 @@ struct External {
 
   // Add literal to external constraint.
   //
-  void constrain (int elit);
+  void constrain (ELit elit);
 
   // Returns true if 'solve' returned 20 because of the constraint.
   //
@@ -402,15 +403,15 @@ struct External {
   void conclude_unknown ();
 
   /*----------------------------------------------------------------------*/
-  int lookahead ();
+  ELit lookahead ();
   CaDiCaL::CubesWithStatus generate_cubes (int, int);
 
-  int fixed (int elit) const; // Implemented in 'internal.hpp'.
+  int fixed (ELit elit) const; // Implemented in 'internal.hpp'.
 
   /*----------------------------------------------------------------------*/
 
-  void phase (int elit);
-  void unphase (int elit);
+  void phase (ELit elit);
+  void unphase (ELit elit);
 
   /*----------------------------------------------------------------------*/
 
@@ -462,7 +463,7 @@ struct External {
       check_solution_on_shrunken_clause (c);
   }
 
-  void check_assignment (int (External::*assignment) (int) const);
+  void check_assignment (ELit (External::*assignment) (ELit) const);
 
   void check_satisfiable ();
   void check_unsatisfiable ();
@@ -481,18 +482,18 @@ struct External {
   // setting it to a value once a clause is learned which is not satisfied
   // already).
   //
-  inline int sol (int elit) const {
+  inline ELit sol (ELit elit) const {
     assert (solution);
-    assert (elit != INT_MIN);
+    assert (elit != OTHER_INVALID_ELIT);
     int eidx = abs (elit);
     if (eidx > max_var)
-      return 0;
+      return ELit ();
     else if (eidx > solution_size)
       return elit;
     signed char value = solution[eidx];
     if (!value)
-      return 0;
-    if (elit < 0)
+      return ELit ();
+    if (elit.is_negated ())
       value = -value;
     return value > 0 ? elit : -elit;
   }

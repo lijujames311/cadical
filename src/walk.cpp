@@ -310,7 +310,7 @@ unsigned Internal::walk_break_value (int lit, int64_t &ticks) {
     auto i = begin;
     int prev = 0;
     while (i != end) {
-      const int other = *i;
+      const Lit other = *i;
       *i++ = prev;
       prev = other;
       if (val (other) < 0)
@@ -330,7 +330,7 @@ unsigned Internal::walk_break_value (int lit, int64_t &ticks) {
     // Otherwise restore literals (undo shift to the right).
     //
     while (i != begin) {
-      const int other = *--i;
+      const Lit other = *--i;
       *i = prev;
       prev = other;
     }
@@ -518,7 +518,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       if (tagged.is_binary ()) {
         const TaggedBinary &b = tagged.tagged_binary ();
         const int clit = b.lit;
-        const int other = b.other;
+        const Lit other = b.other;
         assert (val (clit) < 0 || val (other) < 0);
 #if defined(LOGGING)
         assert (b.d->literals[0] == clit || b.d->literals[1] == clit);
@@ -557,7 +557,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       //
       const int size = d->size;
       for (int i = 0; i < size; i++) {
-        const int other = literals[i];
+        const Lit other = literals[i];
         assert (active (other));
         literals[i] = prev;
         prev = other;
@@ -579,7 +579,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       } else { // Otherwise the clause is not satisfied, undo shift.
 
         for (int i = size - 1; i >= 0; i--) {
-          int other = literals[i];
+          Lit other = literals[i];
           literals[i] = prev;
           prev = other;
         }
@@ -627,7 +627,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       Clause *d = w.clause;
       const bool binary = w.binary ();
       if (binary) {
-        const int other = w.blit;
+        const Lit other = w.blit;
         assert (w.blit != -lit);
         if (val (other) > 0) {
           LOG (d, "unwatch %d in", -lit);
@@ -660,7 +660,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       assert (literals[0] == -lit);
 
       for (int i = 1; i < size; i++) {
-        const int other = literals[i];
+        const Lit other = literals[i];
         assert (active (other));
         literals[i] = prev; // shift all to right
         prev = other;
@@ -679,7 +679,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
         LOG (d, "found replacement");
       } else {
         for (int i = size - 1; i > 0; i--) { // undo shift
-          const int other = literals[i];
+          const Lit other = literals[i];
           literals[i] = prev;
           prev = other;
         }
