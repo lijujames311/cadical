@@ -48,7 +48,7 @@ Lit Internal::second_literal_in_binary_clause (Eliminator &eliminator,
   if (c->size == 2)
     LOG (c, "found binary");
   else
-    LOG (c, "found actual binary %d %d", first, second);
+    LOG (c, "found actual binary %s %s", LOGLIT(first), LOGLIT(second));
 #endif
   return second;
 }
@@ -131,7 +131,7 @@ void Internal::mark_binary_literals (Eliminator &eliminator, Lit first) {
     if (tmp < 0) {
       // had a bug where units could occur multiple times here
       // solved with flags
-      LOG ("found binary resolved unit %d", first);
+      LOG ("found binary resolved unit %s", LOGLIT(first));
       if (lrat) {
         Clause *d = find_binary_clause (first, -second);
         assert (d);
@@ -179,8 +179,7 @@ void Internal::mark_binary_literals (Eliminator &eliminator, Lit first) {
     }
     eliminator.marked.push_back (second);
     mark (second);
-    LOG ("marked second literal %d in binary clause %d %d", second, first,
-         second);
+    LOG ("marked second literal %s in binary clause %s %s", LOGLIT(second), LOGLIT(first), LOGLIT(second));
   }
 }
 
@@ -227,7 +226,7 @@ void Internal::find_equivalence (Eliminator &eliminator, Lit pivot) {
       continue;
     const int tmp = marked (second);
     if (tmp > 0) {
-      LOG ("found binary resolved unit %d", second);
+      LOG ("found binary resolved unit %s", LOGLIT(second));
       // did not find a bug where units could occur multiple times here
       // still solved potential issues with flags
       if (lrat) {
@@ -275,7 +274,7 @@ void Internal::find_equivalence (Eliminator &eliminator, Lit pivot) {
     if (tmp >= 0)
       continue;
 
-    LOG ("found equivalence %d = %d", pivot, -second);
+    LOG ("found equivalence %s = %s", LOGLIT(pivot), LOGLIT(-second));
     stats.elimequivs++;
     stats.elimgates++;
 
@@ -370,29 +369,14 @@ void Internal::find_and_gate (Eliminator &eliminator, Lit pivot) {
       continue;
 
     if (satisfied != INVALID_LIT) {
-      LOG (c, "satisfied by %d candidate base clause", satisfied);
+      LOG (c, "satisfied by %s candidate base clause", LOGLIT(satisfied));
       mark_garbage (c);
       continue;
     }
 
 #ifdef LOGGING
     if (opts.log) {
-      Logger::print_log_prefix (this);
-      tout.magenta ();
-      printf ("found arity %u AND gate %d = ", arity, -pivot);
-      bool first = true;
-      for (const auto &lit : *c) {
-        if (lit == -pivot)
-          continue;
-        assert (lit != pivot);
-        if (!first)
-          fputs (" & ", stdout);
-        printf ("%d", -lit);
-        first = false;
-      }
-      fputc ('\n', stdout);
-      tout.normal ();
-      fflush (stdout);
+      LOG (c, "found arity %u AND gate %s = ", arity, LOGLIT (-pivot));
     }
 #endif
     stats.elimands++;
@@ -443,7 +427,6 @@ DONE:
 }
 
 /*------------------------------------------------------------------------*/
-
 // Find and extract ternary clauses.
 
 bool Internal::get_ternary_clause (Clause *d, Lit &a, Lit &b, Lit &c) {
@@ -551,7 +534,7 @@ void Internal::find_if_then_else (Eliminator &eliminator, Lit pivot) {
       LOG (dj, "2nd if-then-else");
       LOG (d1, "3rd if-then-else");
       LOG (d2, "4th if-then-else");
-      LOG ("found ITE gate %d == (%d ? %d : %d)", pivot, -bi, -ci, -cj);
+      LOG ("found ITE gate %s == (%s ? %s : %s)", LOGLIT(pivot), LOGLIT(-bi), LOGLIT(-ci), LOGLIT(-cj));
       assert (!di->gate);
       assert (!dj->gate);
       assert (!d1->gate);
@@ -692,7 +675,7 @@ void Internal::find_xor_gate (Eliminator &eliminator, Lit pivot) {
     if (opts.log) {
       Logger::print_log_prefix (this);
       tout.magenta ();
-      printf ("found arity %u XOR gate %d = ", arity, -pivot);
+      printf ("found arity %u XOR gate %s = ", arity, LOGLIT (-pivot));
       bool first = true;
       for (const auto &lit : *d) {
         if (lit == pivot)
@@ -700,7 +683,7 @@ void Internal::find_xor_gate (Eliminator &eliminator, Lit pivot) {
         assert (lit != -pivot);
         if (!first)
           fputs (" ^ ", stdout);
-        printf ("%d", lit);
+        printf ("%s", LOGLIT (lit));
         first = false;
       }
       fputc ('\n', stdout);

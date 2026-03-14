@@ -40,7 +40,7 @@ inline void LratTracer::put_binary_lit (int lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);
-  unsigned idx = abs (lit);
+  unsigned idx = std::abs (lit);
   assert (idx < (1u << 31));
   unsigned x = 2 * idx + (lit < 0);
   unsigned char ch;
@@ -56,7 +56,7 @@ inline void LratTracer::put_binary_lit (int lit) {
 inline void LratTracer::put_binary_id (int64_t id) {
   assert (binary);
   assert (file);
-  uint64_t x = abs (id);
+  uint64_t x = std::abs (id);
   x = 2 * x + (id < 0);
   unsigned char ch;
   while (x & ~0x7f) {

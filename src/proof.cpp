@@ -266,7 +266,7 @@ void Proof::add_derived_empty_clause (int64_t id,
 
 void Proof::add_derived_unit_clause (int64_t id, Lit internal_unit,
                                      const vector<int64_t> &chain) {
-  LOG ("PROOF adding unit clause %d", internal_unit);
+  LOG ("PROOF adding unit clause %s", LOGLIT (internal_unit));
   assert (proof_chain.empty ());
   assert (clause.empty ());
   add_literal (internal_unit);
@@ -293,7 +293,8 @@ void Proof::add_derived_clause (Clause *c, const vector<int64_t> &chain) {
 
 void Proof::add_derived_rat_clause (Clause *c, ELit w,
                                     const vector<int64_t> &chain) {
-  LOG (c, "PROOF adding to proof derived witness %d", w.signed_representation ());
+  LOG (c, "PROOF adding to proof derived witness %s",
+       LOGLIT (w));
   assert (clause.empty ());
   assert (proof_chain.empty ());
   add_literals (c);
@@ -322,7 +323,7 @@ void Proof::add_derived_clause (int64_t id, bool r, const vector<Lit> &c,
 void Proof::add_derived_rat_clause (int64_t id, bool r, ELit l,
                                     const vector<Lit> &c,
                                     const vector<int64_t> &chain) {
-  LOG (c, "PROOF adding derived witness %d clause", l);
+  LOG (c, "PROOF adding derived witness %s clause", LOGLIT (l));
   assert (clause.empty ());
   assert (proof_chain.empty ());
   for (const auto &lit : c)
@@ -421,7 +422,7 @@ void Proof::weaken_plus (int64_t id, const vector<Lit> &c) {
 }
 
 void Proof::delete_unit_clause (int64_t id, const Lit lit) {
-  LOG ("PROOF deleting unit from proof %d", lit);
+  LOG ("PROOF deleting unit from proof %s", LOGLIT (lit));
   assert (clause.empty ());
   add_literal (lit);
   clause_id = id;
@@ -447,7 +448,7 @@ void Proof::finalize_clause (int64_t id, const vector<Lit> &c) {
 }
 
 void Proof::finalize_unit (int64_t id, Lit lit) {
-  LOG ("PROOF finalizing clause %d", lit);
+  LOG ("PROOF finalizing clause %s", LOGLIT (lit));
   assert (clause.empty ());
   add_literal (lit);
   clause_id = id;
@@ -455,7 +456,7 @@ void Proof::finalize_unit (int64_t id, Lit lit) {
 }
 
 void Proof::finalize_external_unit (int64_t id, ELit lit) {
-  LOG ("PROOF finalizing clause %d", lit);
+  LOG ("PROOF finalizing clause %s", LOGLIT (lit));
   assert (clause.empty ());
   clause.push_back (lit.signed_representation());
   clause_id = id;
@@ -500,7 +501,7 @@ void Proof::flush_clause (Clause *c) {
 
 void Proof::strengthen_clause (Clause *c, Lit remove,
                                const vector<int64_t> &chain) {
-  LOG (c, "PROOF strengthen by removing %d in", remove);
+  LOG (c, "PROOF strengthen by removing %s in", LOGLIT (remove));
   assert (clause.empty ());
   for (int i = 0; i < c->size; i++) {
     Lit internal_lit = c->literals[i];

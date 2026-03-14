@@ -11,23 +11,23 @@ void Internal::constrain (Lit lit) {
       backtrack_without_updating_phases ();
     LOG (constraint, "shrinking constraint");
     bool satisfied_constraint = false;
-    const vector<int>::const_iterator end = constraint.end ();
-    vector<int>::iterator i = constraint.begin ();
-    for (vector<int>::const_iterator j = i; j != end; j++) {
+    const vector<Lit>::const_iterator end = constraint.end ();
+    vector<Lit>::iterator i = constraint.begin ();
+    for (vector<Lit>::const_iterator j = i; j != end; j++) {
       int tmp = marked (*j);
       if (tmp > 0) {
-        LOG ("removing duplicated literal %d from constraint", *j);
+        LOG ("removing duplicated literal %s from constraint", LOGLIT (*j));
       } else if (tmp < 0) {
-        LOG ("tautological since both %d and %d occur in constraint", -*j,
-             *j);
+        LOG ("tautological since both %s and %s occur in constraint", LOGLIT (-*j),
+             LOGLIT (*j));
         satisfied_constraint = true;
         break;
       } else {
         tmp = val (*j);
         if (tmp < 0) {
-          LOG ("removing falsified literal %d from constraint clause", *j);
+          LOG ("removing falsified literal %s from constraint clause", LOGLIT (*j));
         } else if (tmp > 0) {
-          LOG ("satisfied constraint with literal %d", *j);
+          LOG ("satisfied constraint with literal %s", LOGLIT (*j));
           satisfied_constraint = true;
           break;
         } else {

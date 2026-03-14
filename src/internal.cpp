@@ -51,7 +51,7 @@ Internal::Internal ()
 
   size_t bytes = Clause::bytes (2);
   dummy_binary = (Clause *) new char[bytes];
-  memset (dummy_binary, 0, bytes);
+  memset ((void *)dummy_binary, 0, bytes);
   dummy_binary->size = 2;
 
   /*with C++17: static_*/ assert (max_used == (1 << USED_SIZE) - 1);
@@ -140,7 +140,7 @@ void Internal::enlarge (int new_max_var) {
   if (!ntab.empty ())
     enlarge_zero (ntab, 2 * new_vsize);
   enlarge_only (vtab, new_vsize);
-  enlarge_zero (parents, new_vsize);
+  enlarge_init (parents, new_vsize, INVALID_LIT);
   enlarge_only (links, new_vsize);
   enlarge_zero (btab, new_vsize);
   enlarge_zero (gtab, new_vsize);
@@ -170,8 +170,10 @@ void Internal::enlarge (int new_max_var) {
 // watching. Therefore, we resize the watch lists, because we are watching
 // anyway.
 void Internal::reserve_vars (int new_min_vsize) {
-  if ((size_t)new_min_vsize < vsize)
+  if ((size_t)new_min_vsize < vsize) {
+    LOG ("already reserved %zd", vsize);
     return;
+  }
 #ifdef LOGGING
   int new_vars = new_min_vsize - max_var;
 #endif
@@ -1327,7 +1329,7 @@ void Internal::activating_all_new_imported_literals () {
     std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return i2e[vidx(l)] < i2e[vidx (o)];});
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
-  auto max_it = std::max_element(imports.begin(), imports.end(), std::less{});
+  auto max_it = std::max_element(imports.begin(), imports.end(), std::less<Lit>{});
   assert (max_it != imports.end ());
   int new_max_var = vidx(*max_it);
   enlarge (new_max_var);
@@ -1352,7 +1354,7 @@ void Internal::activating_all_new_imported_literals () {
     // due to propagation and backtracking, the literal might have already been
     // added
     if (!scores.contains (idx)) {
-      LOG ("pushing %s to the scores", LOGLIT (idx));
+      LOG ("pushing %d to the scores", idx);
       scores.push_back (idx);
     }
     assert (scores.contains(idx));

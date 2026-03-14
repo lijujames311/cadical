@@ -148,7 +148,7 @@ void Internal::strengthen_clause (Clause *c, Lit lit) {
     mark_garbage_external_forgettable (c->id);
   stats.strengthened++;
   assert (c->size > 2);
-  LOG (c, "removing %d in", lit);
+  LOG (c, "removing %s in", LOGLIT(lit));
   if (proof) {
     LOG (lrat_chain, "strengthening clause with chain");
     proof->strengthen_clause (c, lit, lrat_chain);
@@ -517,8 +517,8 @@ bool Internal::subsume_round () {
         continue;
 
       LOG (c,
-           "watching %d with %zd current and total %" PRId64 " occurrences",
-           minlit, minsize, minoccs);
+           "watching %s with %zd current and total %" PRId64 " occurrences",
+           LOGLIT(minlit), minsize, minoccs);
 
       occs (minlit).push_back (c);
 
@@ -541,9 +541,9 @@ bool Internal::subsume_round () {
         continue;
 
       LOG (c,
-           "watching %d with %zd current binary and total %" PRId64
+           "watching %s with %zd current binary and total %" PRId64
            " occurrences",
-           minlit, minsize, minoccs);
+           LOGLIT(minlit), minsize, minoccs);
 
       const int minlit_pos = (c->literals[1] == minlit);
       const Lit other = c->literals[!minlit_pos];

@@ -1,3 +1,4 @@
+#include "cadical_literals.hpp"
 #include "internal.hpp"
 
 namespace CaDiCaL {
@@ -33,11 +34,11 @@ inline void DratTracer::put_binary_zero () {
   file->put ((unsigned char) 0);
 }
 
-inline void DratTracer::put_binary_lit (Lit lit) {
+inline void DratTracer::put_binary_lit (int lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);
-  unsigned idx = abs (lit);
+  unsigned idx = std::abs (lit);
   assert (idx < (1u << 31));
   unsigned x = 2u * idx + (lit < 0);
   unsigned char ch;

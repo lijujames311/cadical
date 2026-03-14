@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -77,7 +78,7 @@ void Internal::transred () {
   // This working stack plays the same role as the 'trail' during standard
   // propagation.
   //
-  vector<int> work;
+  vector<Lit> work;
 
   int64_t propagations = 0, units = 0, removed = 0;
 
@@ -109,17 +110,17 @@ void Internal::transred () {
     // there is a path from '-dst' to '-src', we can do the reverse search
     // if the number of watches of '-dst' is larger than those of 'src'.
     //
-    int src = -c->literals[0];
-    int dst = c->literals[1];
+    Lit src = -c->literals[0];
+    Lit dst = c->literals[1];
     if (val (src) || val (dst))
       continue;
     if (watches (-src).size () < watches (dst).size ()) {
-      int tmp = dst;
+      Lit tmp = dst;
       dst = -src;
       src = -tmp;
     }
 
-    LOG ("searching path from %d to %d", src, dst);
+    LOG ("searching path from %s to %s", LOGLIT(src), LOGLIT(dst));
 
     // If the candidate clause is irredundant then we can not use redundant
     // binary clauses in the implication graph.  See our inprocessing rules
@@ -130,7 +131,7 @@ void Internal::transred () {
     assert (work.empty ());
     mark (src);
     work.push_back (src);
-    LOG ("transred assign %d", src);
+    LOG ("transred assign %s", LOGLIT(src));
 
     bool transitive = false; // found path from 'src' to 'dst'?
     bool failed = false;     // 'src' failed literal?
@@ -139,12 +140,12 @@ void Internal::transred () {
 
     assert (lrat_chain.empty ());
     assert (mini_chain.empty ());
-    vector<int> parents;
+    vector<Lit> parents;
 
     while (!transitive && !failed && j < work.size ()) {
-      const int lit = work[j++];
+      const Lit lit = work[j++];
       assert (marked (lit) > 0);
-      LOG ("transred propagating %d", lit);
+      LOG ("transred propagating %s", LOGLIT(lit));
       propagations++;
       const Watches &ws = watches (-lit);
       const const_watch_iterator eow = ws.end ();
@@ -173,7 +174,7 @@ void Internal::transred () {
               mini_chain.push_back (d->id);
               work.push_back (other);
             }
-            LOG ("found both %d and %d reachable", -other, other);
+            LOG ("found both %s and %s reachable", LOGLIT(-other), LOGLIT(other));
             failed = true;
           } else {
             if (lrat) {
@@ -182,25 +183,25 @@ void Internal::transred () {
             }
             mark (other);
             work.push_back (other);
-            LOG ("transred assign %d", other);
+            LOG ("transred assign %s", LOGLIT(other));
           }
         }
       }
     }
 
-    int failed_lit = work.back ();
-    int next_pos = 0;
-    int next_neg = 0;
+    Lit failed_lit = work.back ();
+    Lit next_pos = INVALID_LIT;
+    Lit next_neg = INVALID_LIT;
 
-    // Unassign all assigned literals (same as '[bp]acktrack').
+    // Unassign all assigned literals (Same as '[bp]acktrack').
     //
     while (!work.empty ()) {
-      const int lit = work.back ();
+      const Lit lit = work.back ();
       work.pop_back ();
       if (lrat && failed && !work.empty ()) {
         assert (!parents.empty () && !mini_chain.empty ());
-        LOG ("transred LRAT current lit %d next pos %d next neg %d", lit,
-             next_pos, next_neg);
+        LOG ("transred LRAT current lit %s next pos %s next neg %s", LOGLIT(lit),
+             LOGLIT(next_pos), LOGLIT(next_neg));
         if (lit == failed_lit || lit == next_pos) {
           lrat_chain.push_back (mini_chain.back ());
           next_pos = parents.back ();
@@ -226,7 +227,7 @@ void Internal::transred () {
       mark_garbage (c);
     } else if (failed) {
       units++;
-      LOG ("found failed literal %d during transitive reduction", src);
+      LOG ("found failed literal %s during transitive reduction", LOGLIT(-src));
       stats.failed++;
       stats.transredunits++;
       assign_unit (-src);

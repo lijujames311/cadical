@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -15,12 +16,11 @@ bool Internal::flip (Lit lit) {
   if (propergated < trail.size ())
     propergate ();
 
-  LOG ("trying to flip %d", lit);
+  LOG ("trying to flip %s", LOGLIT(lit));
 
-  const int idx = vidx (lit);
-  const signed char original_value = vals[idx];
+  const signed char original_value = val (lit);
   assert (original_value);
-  lit = original_value < 0 ? -idx : idx;
+  lit = original_value < 0 ? -lit : lit;
   assert (val (lit) > 0);
 
   // Here we go over all the clauses in which 'lit' is watched by 'lit' and
@@ -78,7 +78,7 @@ bool Internal::flip (Lit lit) {
       const const_literal_iterator end = lits + size;
       literal_iterator k = middle;
 
-      int r = 0;
+      Lit r = INVALID_LIT;
       signed char v = -1;
       while (k != end && (v = val (r = *k)) < 0)
         k++;
@@ -112,30 +112,29 @@ bool Internal::flip (Lit lit) {
   }
 #ifdef LOGGING
   if (res)
-    LOG ("literal %d can be flipped", lit);
+    LOG ("literal %s can be flipped", LOGLIT(lit));
   else
-    LOG ("literal %d can not be flipped", lit);
+    LOG ("literal %s can not be flipped", LOGLIT(lit));
 #endif
 
   if (res) {
 
-    const int idx = vidx (lit);
-    const signed char original_value = vals[idx];
+    const signed char original_value = val (lit);
     assert (original_value);
-    lit = original_value < 0 ? -idx : idx;
+    lit = original_value < 0 ? -lit : lit;
     assert (val (lit) > 0);
 
-    LOG ("flipping value of %d = 1 to %d = -1", lit, lit);
+    LOG ("flipping value of %s = 1 to %s = -1", LOGLIT(lit), LOGLIT(-lit));
 
-    set_val (idx, -original_value);
+    set_val (lit, true);
     assert (val (-lit) > 0);
     assert (val (lit) < 0);
 
-    Var &v = var (idx);
+    Var &v = var (lit);
     assert (trail[v.trail] == lit);
     trail[v.trail] = -lit;
     if (opts.ilb) {
-      if (!earliest_changed_val)
+      if (earliest_changed_val == INVALID_LIT)
         earliest_changed_val = lit;
       else {
         assert (val (earliest_changed_val));
@@ -145,7 +144,7 @@ bool Internal::flip (Lit lit) {
       }
     }
   } else
-    LOG ("flipping value of %d failed", lit);
+    LOG ("flipping value of %s failed", LOGLIT(lit));
 
   return res;
 }
@@ -163,12 +162,11 @@ bool Internal::flippable (Lit lit) {
   if (propergated < trail.size ())
     propergate ();
 
-  LOG ("checking whether %d is flippable", lit);
+  LOG ("checking whether %s is flippable", LOGLIT(lit));
 
-  const int idx = vidx (lit);
-  const signed char original_value = vals[idx];
+  const signed char original_value = val (lit);
   assert (original_value);
-  lit = original_value < 0 ? -idx : idx;
+  lit = original_value < 0 ? -lit : lit;
   assert (val (lit) > 0);
 
   // Here we go over all the clauses in which 'lit' is watched by 'lit' and
@@ -211,7 +209,7 @@ bool Internal::flippable (Lit lit) {
     const const_literal_iterator end = lits + size;
     literal_iterator k = middle;
 
-    int r = 0;
+    Lit r = INVALID_LIT;
     signed char v = -1;
     while (k != end && (v = val (r = *k)) < 0)
       k++;
@@ -236,9 +234,9 @@ bool Internal::flippable (Lit lit) {
 
 #ifdef LOGGING
   if (res)
-    LOG ("literal %d can be flipped", lit);
+    LOG ("literal %s can be flipped", LOGLIT(lit));
   else
-    LOG ("literal %d can not be flipped", lit);
+    LOG ("literal %s can not be flipped", LOGLIT(lit));
 #endif
 
   return res;

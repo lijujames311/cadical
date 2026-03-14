@@ -229,8 +229,8 @@ struct Walker_DDFW {
     assert (clause_info (pos).always_clause == clause);
 #endif
     assert (clause_info (pos).binary || clause_info (pos).clause == clause);
-    LOG (clause, "connecting clause on %d with already in occurrences %zu",
-         lit, occs (lit).size ());
+    LOG (clause, "connecting clause on %s with already in occurrences %zu",
+         LOGLIT (lit), occs (lit).size ());
     occs (lit).push_back (DDFW_Tagged (clause, pos));
   }
   void connect_clause (Clause *clause, position_type pos) {
@@ -588,14 +588,12 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, Lit lit) {
   ++ticks;
   if (d.binary) {
     for (auto l : {d.binary_clause.lit, d.binary_clause.other}) {
-      int idx = internal->vidx (l);
       remove_uvar(l);
       critical_unsat_weight (l) -= d.weight;
     }
   } else {
     ++ticks;
     for (auto l : *d.clause) {
-      int idx = internal->vidx (l);
       remove_uvar(l);
       critical_unsat_weight (l) -= d.weight;
     }
@@ -624,7 +622,7 @@ void Walker_DDFW::make_clauses_along_occurrences (Lit lit) {
     this->make_clause (c, lit);
     made++;
   }
-  LOG ("made %zu clauses by flipping %d, still %zu broken", made, lit,
+  LOG ("made %zu clauses by flipping %s, still %zu broken", made, LOGLIT (lit),
        broken.size ());
   LOG ("made %zu clauses with flipped %s", made, LOGLIT (lit));
   (void) made;
@@ -695,7 +693,7 @@ void Walker_DDFW::break_clauses (Lit lit) {
     broken++;
 #endif
   }
-  LOG ("broken %zd clauses by flipping %d", broken, lit);
+  LOG ("broken %zd clauses by flipping %s", broken, LOGLIT (lit));
   internal->stats.ticks.walkflipbroken += ticks - old;
   STOP (walkflipbroken);
 }
@@ -1066,9 +1064,9 @@ bool Walker_DDFW::import_clauses (bool &failed) {
          critical_var ^= internal->vidx (lit);
          swap (lits[satisfied], lits[i]);
          if (!satisfied++)
-           LOG ("first satisfying literal %d", lit);
+           LOG ("first satisfying literal %s", LOGLIT (lit));
        } else if (!satisfiable && internal->var (lit).level > 1) {
-         LOG ("non-assumption potentially satisfying literal %d", lit);
+         LOG ("non-assumption potentially satisfying literal %s", LOGLIT (lit));
          satisfiable = true;
        }
      }
@@ -1189,8 +1187,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       assert (tmp == 0);
       if (!active (lit))
         continue;
-      tmp = sign (lit);
-      LOG ("initial assign %d to assumption phase", tmp < 0 ? -idx : idx);
+      LOG ("initial assign %s to assumption phase", LOGLIT (lit));
       set_val (lit, true);
       assert (level == 1);
       var (lit).level = 1;
@@ -1205,12 +1202,12 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     const bool target = opts.warmup ? false : stable || opts.target == 2;
     for (auto idx : vars) {
       if (!active (idx)) {
-        LOG ("skipping inactive variable %d", idx);
+        LOG ("skipping inactive variable %s", LOGLIT (idx));
         continue;
       }
       if (val (idx)) {
         assert (var (idx).level == 1);
-        LOG ("skipping assumed variable %d", idx);
+        LOG ("skipping assumed variable %s", LOGLIT (idx));
         continue;
       }
       int tmp = 0;
@@ -1223,7 +1220,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       assert (level == 2);
       var (idx).level = 2;
       walker.best_values[idx.var ()] = tmp;
-      LOG ("initial assign %d to decision phase", tmp < 0 ? -idx : idx);
+      LOG ("initial assign %s to decision phase", LOGLIT (tmp < 0 ? -idx : idx));
     }
 
     LOG ("watching satisfied and registering broken clauses");

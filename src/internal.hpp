@@ -47,6 +47,7 @@ extern "C" {
 // number of header files included here.  The other benefit of having all
 // header files here is that '.cpp' files then only need to include this.
 
+#include "hash_literals.hpp"
 #include "arena.hpp"
 #include "averages.hpp"
 #include "bins.hpp"
@@ -109,6 +110,7 @@ extern "C" {
 extern "C" {
 #include "kitten.h"
 }
+
 /*------------------------------------------------------------------------*/
 
 namespace CaDiCaL {
@@ -124,6 +126,10 @@ class Tracer;
 class FileTracer;
 class StatTracer;
 
+struct InternalCubesWithStatus {
+  int status = 0;
+  std::vector<std::vector<Lit>> cubes;
+};
 struct CubesWithStatus {
   int status = 0;
   std::vector<std::vector<int>> cubes;
@@ -1338,34 +1344,34 @@ struct Internal {
   // factor
   void factor_mode ();
   void reset_factor_mode ();
-  double tied_next_factor_score (int);
-  Quotient *new_quotient (Factoring &, int);
+  double tied_next_factor_score (Lit);
+  Quotient *new_quotient (Factoring &, Lit);
   void release_quotients (Factoring &);
-  size_t first_factor (Factoring &, int);
-  void clear_nounted (vector<int> &);
+  size_t first_factor (Factoring &, Lit);
+  void clear_nounted (vector<Lit> &);
   void clear_flauses (vector<Clause *> &);
   Quotient *best_quotient (Factoring &, size_t *);
-  int next_factor (Factoring &, unsigned *);
-  void factorize_next (Factoring &, int, unsigned);
+  Lit next_factor (Factoring &, unsigned *);
+  void factorize_next (Factoring &, Lit, unsigned);
   void resize_factoring (Factoring &factoring, Lit lit);
   void flush_unmatched_clauses (Quotient *);
   void add_self_subsuming_factor (Quotient *, Quotient *);
   bool self_subsuming_factor (Quotient *);
-  void add_factored_divider (Quotient *, int);
-  void blocked_clause (Quotient *q, int);
-  void add_factored_quotient (Quotient *, int not_fresh);
+  void add_factored_divider (Quotient *, Lit);
+  void blocked_clause (Quotient *q, Lit);
+  void add_factored_quotient (Quotient *, Lit not_fresh);
   void eagerly_remove_from_occurences (Clause *c);
   void delete_unfactored (Quotient *q);
   void update_factored (Factoring &factoring, Quotient *q);
   bool apply_factoring (Factoring &factoring, Quotient *q);
-  void update_factor_candidate (Factoring &, int);
+  void update_factor_candidate (Factoring &, Lit);
   void schedule_factorization (Factoring &);
   bool run_factorization (int64_t limit);
   bool factor ();
   // returns a new fresh variable, enlarges all data structures required for
   // importing clauses, but not all. Does not add that literal to the decision
   // queue! You need to activate all new literals later.
-  int get_new_extension_variable ();
+  Lit get_new_extension_variable ();
   Clause *new_factor_clause (Lit);
   void adjust_scores_and_phases_of_fresh_variables (Factoring &);
 
@@ -1381,13 +1387,13 @@ struct Internal {
 
   // Hyper ternary resolution.
   //
-  bool ternary_find_binary_clause (int, int);
-  bool ternary_find_ternary_clause (int, int, int);
+  bool ternary_find_binary_clause (Lit, Lit);
+  bool ternary_find_ternary_clause (Lit, Lit, Lit);
   Clause *new_hyper_ternary_resolved_clause (bool red);
   Clause *new_hyper_ternary_resolved_clause_and_watch (bool red, bool);
-  bool hyper_ternary_resolve (Clause *, int, Clause *);
+  bool hyper_ternary_resolve (Clause *, Lit, Clause *);
   void ternary_lit (Lit pivot, int64_t &steps, int64_t &htrs);
-  void ternary_idx (int idx, int64_t &steps, int64_t &htrs);
+  void ternary_idx (Lit idx, int64_t &steps, int64_t &htrs);
   bool ternary_round (int64_t &steps, int64_t &htrs);
   bool ternary ();
 
@@ -1424,10 +1430,10 @@ struct Internal {
   void walk_save_minimum (Walker &);
   ClauseOrBinary walk_pick_clause (Walker &);
   unsigned walk_break_value (Lit lit, int64_t &ticks);
-  int walk_pick_lit (Walker &walker, ClauseOrBinary);
-  int walk_pick_lit (Walker &, Clause *);
+  Lit walk_pick_lit (Walker &walker, ClauseOrBinary);
+  Lit walk_pick_lit (Walker &, Clause *);
   bool walk_flip_lit (Walker &, Lit lit);
-  int walk_pick_lit (Walker &walker, TaggedBinary c);
+  Lit walk_pick_lit (Walker &walker, TaggedBinary c);
   int walk_round (int64_t limit, bool prev);
   void walk ();
 
@@ -1598,7 +1604,7 @@ struct Internal {
 
   //
   Lit lookahead ();
-  CubesWithStatus generate_cubes (int, int);
+  InternalCubesWithStatus generate_cubes (int, int);
   Lit most_occurring_literal ();
   Lit lookahead_probing ();
   Lit lookahead_next_probe ();
@@ -1690,6 +1696,9 @@ struct Internal {
       LOG ("variable %d frozen %u times", idx, ref);
     } else
       LOG ("variable %d remains frozen forever", idx);
+  }
+  unsigned &relevant (Lit lit) {
+    return relevanttab[lit.var ()];
   }
   void melt (Lit lit) {
     int idx = vidx (lit);

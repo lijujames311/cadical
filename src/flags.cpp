@@ -10,7 +10,7 @@ void Internal::mark_declared (Lit lit) {
   f.status = Flags::DECLARED;
   ++stats.declared;
   --stats.unused;
-  LOG ("declaring new %d (max_var: %d, unused: %" PRId64 ", active: %" PRId64 ")", lit, max_var, stats.unused, stats.active);
+  LOG ("declaring new %s (max_var: %d, unused: %" PRId64 ", active: %" PRId64 ")", LOGLIT(lit), max_var, stats.unused, stats.active);
 }
 
 void Internal::mark_fixed (Lit lit) {
@@ -26,7 +26,7 @@ void Internal::mark_fixed (Lit lit) {
     mark_active (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::FIXED;
-  LOG ("fixed %d", abs (lit));
+  LOG ("fixed %s", LOGLIT(lit));
   stats.all.fixed++;
   stats.now.fixed++;
   stats.inactive++;
@@ -48,7 +48,7 @@ void Internal::mark_eliminated (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::ELIMINATED;
-  LOG ("eliminated %d", abs (lit));
+  LOG ("eliminated %s", LOGLIT(lit));
   stats.all.eliminated++;
   stats.now.eliminated++;
   stats.inactive++;
@@ -62,7 +62,7 @@ void Internal::mark_pure (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::PURE;
-  LOG ("pure %d", abs (lit));
+  LOG ("pure %s", LOGLIT(lit));
   stats.all.pure++;
   stats.now.pure++;
   stats.inactive++;
@@ -76,7 +76,7 @@ void Internal::mark_substituted (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::SUBSTITUTED;
-  LOG ("substituted %d", abs (lit));
+  LOG ("substituted %s", LOGLIT(lit));
   stats.all.substituted++;
   stats.now.substituted++;
   stats.inactive++;
@@ -90,7 +90,7 @@ void Internal::mark_active (Lit lit) {
   Flags &f = flags (lit);
   assert (f.status == Flags::DECLARED);
   f.status = Flags::ACTIVE;
-  LOG ("activate %d previously declared", abs (lit));
+  LOG ("activate %s previously declared", LOGLIT(lit));
   assert (stats.inactive);
   stats.inactive--;
   assert (stats.declared);
@@ -134,7 +134,7 @@ void Internal::reactivate (Lit lit) {
   }
 #ifdef LOGGING
   assert (msg);
-  LOG ("reactivate previously %s %d", msg, abs (lit));
+  LOG ("reactivate previously %s %s", msg, LOGLIT(lit));
 #endif
   f.status = Flags::ACTIVE;
   f.sweep = false;

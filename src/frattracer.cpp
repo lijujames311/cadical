@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -33,11 +34,12 @@ inline void FratTracer::put_binary_zero () {
   file->put ((unsigned char) 0);
 }
 
-inline void FratTracer::put_binary_lit (Lit lit) {
+inline void FratTracer::put_binary_lit (int lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);
-  unsigned x = 2 * abs (lit) + (lit < 0);
+  unsigned idx = std::abs (lit);
+  unsigned x = 2u * idx + (lit < 0);
   unsigned char ch;
   while (x & ~0x7f) {
     ch = (x & 0x7f) | 0x80;
@@ -51,7 +53,7 @@ inline void FratTracer::put_binary_lit (Lit lit) {
 inline void FratTracer::put_binary_id (int64_t id, bool can_be_negative) {
   assert (binary);
   assert (file);
-  uint64_t x = abs (id);
+  uint64_t x = std::abs (id);
   if (can_be_negative) {
     x = 2 * x + (id < 0);
   }

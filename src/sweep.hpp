@@ -47,7 +47,7 @@ struct Sweeper {
   std::vector<Clause *> clauses;
   std::vector<sweep_blocked_clause> blocked_clauses;
   std::vector<Lit> blockable;
-  std::vector<int> clause;
+  std::vector<Lit> clause;
   std::vector<Lit> propagate;
   std::vector<Lit> backbone;
   std::vector<Lit> partition;

@@ -15,9 +15,9 @@ struct factor_occs_size {
 };
 
 struct Quotient {
-  Quotient (int f) : factor (f) {}
+  Quotient (Lit f) : factor (f) {}
   ~Quotient () {}
-  int factor;
+  Lit factor;
   size_t id;
   int64_t bid; // for LRAT
   Quotient *prev, *next;
@@ -37,12 +37,12 @@ struct Factoring {
   int64_t limit;
   FactorSchedule schedule;
 
-  int initial;
+  Lit initial;
   int bound;
   vector<unsigned> count;
-  vector<int> fresh;
-  vector<int> counted;
-  vector<int> nounted;
+  vector<Lit> fresh;
+  vector<Lit> counted;
+  vector<Lit> nounted;
   vector<Clause *> flauses;
   struct {
     Quotient *first, *last;

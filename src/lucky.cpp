@@ -41,7 +41,6 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
     require_mode (SEARCH);
   assert (!flags (lit).unused ());
 
-  const int idx = vidx (lit);
   assert (reason != external_reason);
   assert (!val (lit));
   assert (!flags (lit).eliminated () || reason == decision_reason ||
@@ -84,9 +83,9 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
   trail.push_back (lit);
 #ifdef LOGGING
   if (!lit_level)
-    LOG ("root-level unit assign %d @ 0", lit);
+    LOG ("root-level unit assign %s @ 0", LOGLIT(lit));
   else
-    LOG (reason, "search assign %d @ %d", lit, lit_level);
+    LOG (reason, "search assign %s @ %d", LOGLIT(lit), lit_level);
 #endif
 
   if (watching ()) {
@@ -103,7 +102,7 @@ void Internal::lucky_assume_decision (Lit lit) {
   require_mode (SEARCH);
   assert (propagated == trail.size ());
   new_trail_level (lit);
-  LOG ("lucky decide %d", lit);
+  LOG ("lucky decide %s", LOGLIT(lit));
   lucky_search_assign (lit, decision_reason);
 }
 

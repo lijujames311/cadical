@@ -49,9 +49,9 @@ void Internal::collect_instantiation_candidates (
           continue; // avoid learning units
         size_t negoccs = occs (-lit).size ();
         LOG (c,
-             "instantiation candidate literal %d "
+             "instantiation candidate literal %s "
              "with %zu negative occurrences in",
-             lit, negoccs);
+             LOGLIT(lit), negoccs);
         instantiator.candidate (lit, c, c->size, negoccs);
       }
     }
@@ -63,7 +63,7 @@ void Internal::collect_instantiation_candidates (
 // Specialized propagation and assignment routines for instantiation.
 
 inline void Internal::inst_assign (Lit lit) {
-  LOG ("instantiate assign %d", lit);
+  LOG ("instantiate assign %s", LOGLIT(lit));
   assert (!val (lit));
   assert ((int) num_assigned < max_var);
   num_assigned++;
@@ -82,7 +82,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
   bool ok = true;
   while (ok && propagated != trail.size ()) {
     const Lit lit = -trail[propagated++];
-    LOG ("instantiate propagating %d", -lit);
+    LOG ("instantiate propagating %s", LOGLIT(-lit));
     Watches &ws = watches (lit);
     const const_watch_iterator eow = ws.end ();
     const_watch_iterator i = ws.begin ();
@@ -133,7 +133,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
           if (v > 0) {
             j[-1].blit = r;
           } else if (!v) {
-            LOG (w.clause, "unwatch %d in", r);
+            LOG (w.clause, "unwatch %s in", LOGLIT(r));
             lits[1] = r;
             *k = lit;
             watch_literal (r, lit, w.clause);
@@ -207,7 +207,7 @@ bool Internal::instantiate_candidate (Lit lit, Clause *c) {
   assert (propagated == before);
   assert (active (lit));
   assert (inst_chain.empty ());
-  LOG (c, "trying to instantiate %d in", lit);
+  LOG (c, "trying to instantiate %s in", LOGLIT(lit));
   assert (!c->garbage);
   c->instantiated = true;
   assert (lrat_chain.empty ());
@@ -241,7 +241,7 @@ bool Internal::instantiate_candidate (Lit lit, Clause *c) {
   }
   while (trail.size () > before) { // Backtrack.
     const Lit other = trail.back ();
-    LOG ("instantiate unassign %d", other);
+    LOG ("instantiate unassign %s", LOGLIT(other));
     trail.pop_back ();
     assert (val (other) > 0);
     num_assigned--;
@@ -342,9 +342,9 @@ void Internal::instantiate (Instantiator &instantiator) {
     if (!active (cand.lit))
       continue;
     LOG (cand.clause,
-         "trying to instantiate %d with "
+         "trying to instantiate %s with "
          "%zd negative occurrences in",
-         cand.lit, cand.negoccs);
+         LOGLIT(cand.lit), cand.negoccs);
     if (!instantiate_candidate (cand.lit, cand.clause))
       continue;
     instantiated++;

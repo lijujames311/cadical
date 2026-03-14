@@ -12,25 +12,33 @@ namespace CaDiCaL {
 
 void External::check_solution_on_learned_clause () {
   assert (solution);
-  for (const auto &lit : internal->clause)
-    if (sol (internal->externalize (lit)) == lit)
+  for (const auto &lit : internal->clause) {
+    auto elit = internal->externalize (lit);
+    if (sol (elit) == elit)
       return;
+  }
   fatal_message_start ();
   fputs ("learned clause unsatisfied by solution:\n", stderr);
-  for (const auto &lit : internal->clause)
-    fprintf (stderr, "%d ", lit);
+  for (const auto &lit : internal->clause) {
+    auto elit = internal->externalize (lit);
+    fprintf (stderr, "%d ", elit.signed_representation());
+  }
   fputc ('0', stderr);
   fatal_message_end ();
 }
 
 void External::check_solution_on_shrunken_clause (Clause *c) {
   assert (solution);
-  for (const auto &lit : *c)
-    if (sol (internal->externalize (lit)) == lit)
+  for (const auto &lit : *c) {
+    auto elit = internal->externalize (lit);
+    if (sol (elit) == elit)
       return;
+  }
   fatal_message_start ();
-  for (const auto &lit : *c)
-    fprintf (stderr, "%d ", lit);
+  for (const auto &lit : *c) {
+    auto elit = internal->externalize (lit);
+    fprintf (stderr, "%d ", elit.signed_representation());
+  }
   fputc ('0', stderr);
   fatal_message_end ();
 }
@@ -40,11 +48,13 @@ void External::check_no_solution_after_learning_empty_clause () {
   FATAL ("learned empty clause but got solution");
 }
 
-void External::check_solution_on_learned_unit_clause (int unit) {
+void External::check_solution_on_learned_unit_clause (Lit unit) {
   assert (solution);
-  if (sol (internal->externalize (unit)) == unit)
+  auto eunit = internal->externalize (unit);
+  if (sol (eunit) == eunit)
     return;
-  FATAL ("learned unit %d contradicts solution", unit);
+  auto internal = this->internal;
+  FATAL ("learned unit %s contradicts solution", LOGLIT (eunit));
 }
 
 } // namespace CaDiCaL

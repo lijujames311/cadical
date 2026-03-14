@@ -1,5 +1,6 @@
 #include "walk.hpp"
 #include "internal.hpp"
+#include "literals.hpp"
 #include "random.hpp"
 
 namespace CaDiCaL {
@@ -29,7 +30,7 @@ struct Walker {
   double epsilon;                // smallest considered score
   vector<double> table;          // break value to score table
   vector<double> scores;         // scores of candidate literals
-  std::vector<int>
+  std::vector<Lit>
       flips; // remember the flips compared to the last best saved model
   int best_trail_pos;
   size_t minimum = (size_t)(-1);
@@ -52,7 +53,7 @@ struct Walker {
   // improves the current assignment.
 
   // Push the literal on the buffer of flipped literals
-  void push_flipped (int flipped);
+  void push_flipped (Lit flipped);
   // save the best assignment found so far, if any was found
   void save_walker_trail (bool);
   // export the best model from walk to the main solver
@@ -128,9 +129,9 @@ void Walker::populate_table (double size) {
 
 // Add the literal to flip to the queue
 
-void Walker::push_flipped (int flipped) {
+void Walker::push_flipped (Lit flipped) {
   LOG ("push literal %s on the flips", LOGLIT (flipped));
-  assert (flipped);
+  assert (flipped != INVALID_LIT);
   if (best_trail_pos < 0) {
     LOG ("not pushing flipped %s to already invalid trail",
          LOGLIT (flipped));
@@ -180,10 +181,10 @@ void Walker::save_walker_trail (bool keep) {
 
   auto it = begin;
   for (; it != best; ++it) {
-    const int lit = *it;
-    assert (lit);
+    const Lit lit = *it;
+    assert (lit != INVALID_LIT);
     const signed char value = sign (lit);
-    const int idx = std::abs (lit);
+    const int idx = abs (lit);
     best_values[idx] = value;
   }
   if (!keep) {
@@ -194,7 +195,7 @@ void Walker::save_walker_trail (bool keep) {
 #ifndef NDEBUG
   for (auto v : internal->vars) {
     if (internal->active (v))
-      assert (best_values[v] == current_best_model[v]);
+      assert (best_values[v.var ()] == current_best_model[v.var ()]);
   }
 #endif
   LOG ("flushed %u literals %.0f%% from trail", best_trail_pos,
@@ -230,8 +231,8 @@ void Walker::save_final_minimum (size_t old_init_minimum) {
 
   ++internal->stats.walk.improved;
   for (auto v : internal->vars) {
-    if (best_values[v])
-      internal->phases.saved[v] = best_values[v];
+    if (best_values[v.var ()])
+      internal->phases.saved[v.var ()] = best_values[v.var ()];
     else
       assert (!internal->active (v));
   }
@@ -273,7 +274,7 @@ ClauseOrBinary Internal::walk_pick_clause (Walker &walker) {
 // Compute the number of clauses which would be become unsatisfied if 'lit'
 // is flipped and set to false.  This is called the 'break-count' of 'lit'.
 
-unsigned Internal::walk_break_value (int lit, int64_t &ticks) {
+unsigned Internal::walk_break_value (Lit lit, int64_t &ticks) {
   require_mode (WALK);
   START (walkbreak);
   assert (val (lit) > 0);
@@ -308,7 +309,7 @@ unsigned Internal::walk_break_value (int lit, int64_t &ticks) {
     auto begin = c->begin () + 1;
     const auto end = c->end ();
     auto i = begin;
-    int prev = 0;
+    Lit prev = INVALID_LIT;
     while (i != end) {
       const Lit other = *i;
       *i++ = prev;
@@ -355,7 +356,7 @@ unsigned Internal::walk_break_value (int lit, int64_t &ticks) {
 // SAT solving we can not flip assumed variables.  Those are assigned at
 // decision level one, while the other variables are assigned at two.
 
-int Internal::walk_pick_lit (Walker &walker, Clause *c) {
+Lit Internal::walk_pick_lit (Walker &walker, Clause *c) {
   LOG ("picking literal by break-count");
   assert (walker.scores.empty ());
   const int64_t old = walker.ticks;
@@ -365,14 +366,14 @@ int Internal::walk_pick_lit (Walker &walker, Clause *c) {
   for (const auto lit : *c) {
     assert (active (lit));
     if (var (lit).level == 1) {
-      LOG ("skipping assumption %d for scoring", -lit);
+      LOG ("skipping assumption %s for scoring", LOGLIT (-lit));
       continue;
     }
     assert (active (lit));
     propagations++;
     unsigned tmp = walk_break_value (-lit, walker.ticks);
     double score = walker.score (tmp);
-    LOG ("literal %d break-count %u score %g", lit, tmp, score);
+    LOG ("literal %s break-count %u score %g", LOGLIT (lit), tmp, score);
     walker.scores.push_back (score);
     sum += score;
   }
@@ -385,47 +386,47 @@ int Internal::walk_pick_lit (Walker &walker, Clause *c) {
   const auto end = c->end ();
   auto i = c->begin ();
   auto j = walker.scores.begin ();
-  int res;
+  Lit res;
   for (;;) {
     assert (i != end);
     res = *i++;
     if (var (res).level > 1)
       break;
-    LOG ("skipping assumption %d without score", -res);
+    LOG ("skipping assumption %s without score", LOGLIT (-res));
   }
   sum = *j++;
   while (sum <= lim && i != end) {
     res = *i++;
     if (var (res).level == 1) {
-      LOG ("skipping assumption %d without score", -res);
+      LOG ("skipping assumption %s without score", LOGLIT (-res));
       continue;
     }
     sum += *j++;
   }
   walker.scores.clear ();
-  LOG ("picking literal %d by break-count", res);
+  LOG ("picking literal %s by break-count", LOGLIT (res));
   stats.ticks.walkpick += walker.ticks - old;
   return res;
 }
 
-int Internal::walk_pick_lit (Walker &walker, ClauseOrBinary c) {
+Lit Internal::walk_pick_lit (Walker &walker, ClauseOrBinary c) {
   if (c.is_binary ())
     return walk_pick_lit (walker, c.tagged_binary ());
   return walk_pick_lit (walker, c.clause ());
 }
 
-int Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
+Lit Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
   LOG ("picking literal by break-count on binary clause [%" PRIu64 "]%s %s",
        c.d->id, LOGLIT (c.lit), LOGLIT (c.other));
   assert (walker.scores.empty ());
   const int64_t old = walker.ticks;
   double sum = 0;
   int64_t propagations = 0;
-  const std::array<int, 2> clause = {c.lit, c.other};
+  const std::array<Lit, 2> clause = {c.lit, c.other};
   for (const auto lit : clause) {
     assert (active (lit));
     if (var (lit).level == 1) {
-      LOG ("skipping assumption %d for scoring", -lit);
+      LOG ("skipping assumption %s for scoring", LOGLIT (-lit));
       continue;
     }
     assert (active (lit));
@@ -433,7 +434,7 @@ int Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
     propagations++;
     unsigned tmp = walk_break_value (-lit, walker.ticks);
     double score = walker.score (tmp);
-    LOG ("literal %d break-count %u score %g", lit, tmp, score);
+    LOG ("literal %s break-count %u score %g", LOGLIT (lit), tmp, score);
     walker.scores.push_back (score);
     sum += score;
   }
@@ -446,26 +447,26 @@ int Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
   const auto end = clause.end ();
   auto i = clause.begin ();
   auto j = walker.scores.begin ();
-  int res = 0;
+  Lit res = INVALID_LIT;
   for (;;) {
     assert (i != end);
     res = *i++;
     if (var (res).level > 1)
       break;
-    LOG ("skipping assumption %d without score", -res);
+    LOG ("skipping assumption %s without score", LOGLIT (-res));
   }
   sum = *j++;
   while (sum <= lim && i != end) {
     res = *i++;
     if (var (res).level == 1) {
-      LOG ("skipping assumption %d without score", -res);
+      LOG ("skipping assumption %s without score", LOGLIT (-res));
       continue;
     }
     sum += *j++;
   }
-  assert (res);
+  assert (res != INVALID_LIT);
   walker.scores.clear ();
-  LOG ("picking literal %d by break-count", res);
+  LOG ("picking literal %s by break-count", LOGLIT (res));
   stats.ticks.walkpick += walker.ticks - old;
   return res;
 }
@@ -473,18 +474,18 @@ int Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
 /*------------------------------------------------------------------------*/
 
 // flips a literal unless we run out of ticks.
-bool Internal::walk_flip_lit (Walker &walker, int lit) {
+bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
   START (walkflip);
   const int64_t old = walker.ticks;
   require_mode (WALK);
-  LOG ("flipping assign %d", lit);
+  LOG ("flipping assign %s", LOGLIT (lit));
   assert (val (lit) < 0);
 
   // First flip the literal value.
   //
   const signed char tmp = sign (lit);
   const int idx = abs (lit);
-  set_val (idx, tmp);
+  set_val (Lit (idx), tmp);
   assert (val (lit) > 0);
 
   // we are going to need it anyway and it probably still is in memory
@@ -517,7 +518,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
 
       if (tagged.is_binary ()) {
         const TaggedBinary &b = tagged.tagged_binary ();
-        const int clit = b.lit;
+        const Lit clit = b.lit;
         const Lit other = b.other;
         assert (val (clit) < 0 || val (other) < 0);
 #if defined(LOGGING)
@@ -526,8 +527,8 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
 #endif
         if (clit == lit || other == lit) {
           LOG (b.d, "made");
-          const int first_lit = lit;
-          const int second_lit = clit ^ lit ^ other;
+          const Lit first_lit = lit;
+          const Lit second_lit = clit ^ lit ^ other;
 #ifdef LOGGING
           watch_binary_literal (first_lit, second_lit, b.d);
 #else
@@ -550,9 +551,9 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       // now the expansive part
       Clause *d = tagged.clause ();
       ++walker.ticks;
-      int *literals = d->literals;
+      Lit *literals = d->literals;
       LOG (d, "search for replacement");
-      int prev = 0;
+      Lit prev = INVALID_LIT;
       // Find 'lit' in 'd'.
       //
       const int size = d->size;
@@ -589,8 +590,8 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
     assert ((int64_t) (j - walker.broken.begin ()) + made ==
             (int64_t) walker.broken.size ());
     walker.broken.resize (j - walker.broken.begin ());
-    LOG ("made %" PRId64 " clauses by flipping %d, still %zu broken", made,
-         lit, walker.broken.size ());
+    LOG ("made %" PRId64 " clauses by flipping %s, still %zu broken", made,
+         LOGLIT (lit), walker.broken.size ());
 #ifndef NDEBUG
     for (auto d : walker.broken) {
       if (d.is_binary ()) {
@@ -630,7 +631,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
         const Lit other = w.blit;
         assert (w.blit != -lit);
         if (val (other) > 0) {
-          LOG (d, "unwatch %d in", -lit);
+          LOG (d, "unwatch %s in", LOGLIT (-lit));
           watch_binary_literal (other, -lit, d);
           ++walker.ticks;
           continue;
@@ -654,7 +655,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
       // now the expansive part
       assert (d->size != 2);
       ++walker.ticks;
-      int *literals = d->literals, replacement = 0, prev = -lit;
+      Lit *literals = d->literals, replacement = INVALID_LIT, prev = -lit;
       assert (d->size == w.size);
       const int size = d->size;
       assert (literals[0] == -lit);
@@ -670,7 +671,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
         replacement = other; // satisfying literal
         break;
       }
-      if (replacement) {
+      if (replacement != INVALID_LIT) {
         assert (-lit != replacement);
         literals[1] = -lit;
         literals[0] = replacement;
@@ -693,7 +694,7 @@ bool Internal::walk_flip_lit (Walker &walker, int lit) {
 #endif
       }
     }
-    LOG ("broken %" PRId64 " clauses by flipping %d", broken, lit);
+    LOG ("broken %" PRId64 " clauses by flipping %s", broken, LOGLIT (lit));
     ws.clear ();
   }
   STOP (walkflip);
@@ -721,9 +722,9 @@ inline void Internal::walk_save_minimum (Walker &walker) {
 
 #ifndef NDEBUG
   for (auto i : vars) {
-    const signed char tmp = vals[i];
+    const signed char tmp = val (i);
     if (tmp)
-      walker.current_best_model[i] = tmp;
+      walker.current_best_model[i.var ()] = tmp;
   }
   if (walker.minimum == 0) {
     for (auto c : clauses) {
@@ -735,7 +736,7 @@ inline void Internal::walk_save_minimum (Walker &walker) {
       for (const auto &lit : *c) {
         const int tmp = internal->val (lit);
         if (tmp > 0) {
-          LOG (c, "satisfied literal %d in", lit);
+          LOG (c, "satisfied literal %s in", LOGLIT (lit));
           satisfied++;
         }
       }
@@ -746,11 +747,11 @@ inline void Internal::walk_save_minimum (Walker &walker) {
   if (walker.best_trail_pos == -1) {
     VERBOSE (3, "saving the new walk minimum %zd", broken);
     for (auto i : vars) {
-      const signed char tmp = vals[i];
+      const signed char tmp = vals[i.var ()];
       if (tmp) {
-        walker.best_values[i] = tmp;
+        walker.best_values[i.var ()] = tmp;
 #ifndef NDEBUG
-        assert (tmp == walker.current_best_model[i]);
+        assert (tmp == walker.current_best_model[i.var ()]);
 #endif
       } else {
         assert (!active (i));
@@ -768,7 +769,7 @@ inline void Internal::walk_save_minimum (Walker &walker) {
 int Internal::walk_round (int64_t limit, bool prev) {
 
   stats.walk.count++;
-  std::vector<int> propagated;
+  std::vector<Lit> propagated;
   bool failed = false; // Inconsistent assumptions?
   int res = decide_and_propagate_all_assumptions (propagated);
   if (res) {
@@ -806,7 +807,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
     LOG ("no assumptions so assigning all variables to decision phase");
   } else {
     LOG ("assigning assumptions to their forced phase first");
-    std::vector<int> propagated;
+    std::vector<Lit> propagated;
     for (auto lit : trail)
     propagated.push_back(lit);
 
@@ -819,10 +820,10 @@ int Internal::walk_round (int64_t limit, bool prev) {
         continue;
       tmp = sign (lit);
       const int idx = abs (lit);
-      LOG ("initial assign %d to assumption phase", tmp < 0 ? -idx : idx);
-      set_val (idx, tmp);
+      LOG ("initial assign %s to assumption phase", LOGLIT (lit));
+      set_val (Lit (idx), tmp);
       assert (level == 1);
-      var (idx).level = 1;
+      var (lit).level = 1;
     }
     if (!failed)
       LOG ("now assigning remaining variables to their decision phase");
@@ -836,24 +837,24 @@ int Internal::walk_round (int64_t limit, bool prev) {
     const bool target = opts.warmup ? false : stable || opts.target == 2;
     for (auto idx : vars) {
       if (!active (idx)) {
-        LOG ("skipping inactive variable %d", idx);
+        LOG ("skipping inactive variable %s", LOGLIT (idx));
         continue;
       }
-      if (vals[idx]) {
+      if (val (idx)) {
         assert (var (idx).level == 1);
-        LOG ("skipping assumed variable %d", idx);
+        LOG ("skipping assumed variable %s", LOGLIT (idx));
         continue;
       }
       int tmp = 0;
       if (prev)
-        tmp = phases.prev[idx];
+        tmp = phases.prev[idx.var ()];
       if (!tmp)
         tmp = sign (decide_phase (idx, target));
       assert (tmp == 1 || tmp == -1);
       set_val (idx, tmp);
       assert (level == 2);
       var (idx).level = 2;
-      LOG ("initial assign %d to decision phase", tmp < 0 ? -idx : idx);
+      LOG ("initial assign %s to decision phase", LOGLIT (Lit (idx)));
     }
 
     LOG ("watching satisfied and registering broken clauses");
@@ -879,7 +880,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
       bool satisfiable = false; // contains not only assumptions
       int satisfied = 0;        // clause satisfied?
 
-      int *lits = c->literals;
+      Lit *lits = c->literals;
       size += c->size;
       n++;
       const int size = c->size;
@@ -888,14 +889,14 @@ int Internal::walk_round (int64_t limit, bool prev) {
       // is at least one (non-assumed) literal that can be flipped.
       //
       for (int i = 0; satisfied < 2 && i < size; i++) {
-        const int lit = lits[i];
+        const Lit lit = lits[i];
         assert (active (lit)); // Due to garbage collection.
         if (val (lit) > 0) {
           swap (lits[satisfied], lits[i]);
           if (!satisfied++)
-            LOG ("first satisfying literal %d", lit);
+            LOG ("first satisfying literal %s", LOGLIT (lit));
         } else if (!satisfiable && var (lit).level > 1) {
-          LOG ("non-assumption potentially satisfying literal %d", lit);
+          LOG ("non-assumption potentially satisfying literal %s", LOGLIT (lit));
           satisfiable = true;
         }
       }
@@ -972,7 +973,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
       stats.walk.flips++;
       stats.walk.broken += (int64_t)broken;
       ClauseOrBinary c = walk_pick_clause (walker);
-      const int lit = walk_pick_lit (walker, c);
+      const Lit lit = walk_pick_lit (walker, c);
       bool finished = walk_flip_lit (walker, lit);
       if (!finished)
         break;

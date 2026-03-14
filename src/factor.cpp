@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -114,7 +115,7 @@ Factoring::Factoring (Internal *i, int64_t l)
     : internal (i), limit (l), schedule (i) {
   const unsigned max_var = internal->max_var;
   const unsigned max_lit = 2 * (max_var + 1);
-  initial = max_var;
+  initial = Lit (max_var);
   bound = internal->lim.elimbound;
   enlarge_zero (count, max_lit);
   quotients.first = quotients.last = 0;
@@ -128,9 +129,9 @@ Factoring::~Factoring () {
   schedule.erase (); // actually not necessary
 }
 
-double Internal::tied_next_factor_score (int lit) {
+double Internal::tied_next_factor_score (Lit lit) {
   double res = occs (lit).size ();
-  LOG ("watches score %g of %d", res, lit);
+  LOG ("watches score %g of %s", res, LOGLIT(lit));
   return res;
 }
 
@@ -142,7 +143,7 @@ double Internal::tied_next_factor_score (int lit) {
 // otherwise we leftshift by 3 (>> 3) to get the bits 4,5,6
 // use markfact, unmarkfact, getfact for this purpose.
 //
-Quotient *Internal::new_quotient (Factoring &factoring, int factor) {
+Quotient *Internal::new_quotient (Factoring &factoring, Lit factor) {
   assert (!getfact (factor, FACTORS));
   markfact (factor, FACTORS);
   Quotient *res = new Quotient (factor);
@@ -162,14 +163,14 @@ Quotient *Internal::new_quotient (Factoring &factoring, int factor) {
   }
   factoring.quotients.last = res;
   res->prev = last;
-  LOG ("new quotient[%zu] with factor %d", res->id, factor);
+  LOG ("new quotient[%zu] with factor %s", res->id, LOGLIT(factor));
   return res;
 }
 
 void Internal::release_quotients (Factoring &factoring) {
   for (Quotient *q = factoring.quotients.first, *next; q; q = next) {
     next = q->next;
-    int factor = q->factor;
+    Lit factor = q->factor;
     assert (getfact (factor, FACTORS));
     unmarkfact (factor, FACTORS);
     delete q;
@@ -177,7 +178,7 @@ void Internal::release_quotients (Factoring &factoring) {
   factoring.quotients.first = factoring.quotients.last = 0;
 }
 
-size_t Internal::first_factor (Factoring &factoring, int factor) {
+size_t Internal::first_factor (Factoring &factoring, Lit factor) {
   assert (!factoring.quotients.first);
   Quotient *quotient = new_quotient (factoring, factor);
   vector<Clause *> &qlauses = quotient->qlauses;
@@ -187,14 +188,14 @@ size_t Internal::first_factor (Factoring &factoring, int factor) {
     ticks++;
   }
   size_t res = qlauses.size ();
-  LOG ("quotient[0] factor %d size %zu", factor, res);
+  LOG ("quotient[0] factor %s size %zu", LOGLIT(factor), res);
   // This invariant can of course be broken by previous factorings
   // assert (res > 1);
   stats.ticks.factor += ticks;
   return res;
 }
 
-void Internal::clear_nounted (vector<int> &nounted) {
+void Internal::clear_nounted (vector<Lit> &nounted) {
   for (const auto &lit : nounted) {
     assert (getfact (lit, NOUNTED));
     unmarkfact (lit, NOUNTED);
@@ -246,20 +247,20 @@ Quotient *Internal::best_quotient (Factoring &factoring,
   return best;
 }
 
-int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
+Lit Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
   Quotient *last_quotient = factoring.quotients.last;
   assert (last_quotient);
   vector<Clause *> &last_clauses = last_quotient->qlauses;
   vector<unsigned> &count = factoring.count;
-  vector<int> &counted = factoring.counted;
+  vector<Lit> &counted = factoring.counted;
   vector<Clause *> &flauses = factoring.flauses;
   assert (counted.empty ());
   assert (flauses.empty ());
-  const int initial = factoring.initial;
+  const Lit initial = factoring.initial;
   int64_t ticks = 1 + cache_lines (last_clauses.size (), sizeof (Clause *));
   for (auto c : last_clauses) {
     assert (!c->swept);
-    int min_lit = 0;
+    Lit min_lit = INVALID_LIT;
     unsigned factors = 0;
     size_t min_size = 0;
     ticks++;
@@ -271,7 +272,7 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
         assert (!getfact (other, QUOTIENT));
         markfact (other, QUOTIENT);
         const size_t other_size = occs (other).size ();
-        if (!min_lit || other_size < min_size) {
+        if (min_lit == INVALID_LIT || other_size < min_size) {
           min_lit = other;
           min_size = other_size;
         }
@@ -279,9 +280,9 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
     }
     assert (factors);
     if (factors == 1) {
-      assert (min_lit);
+      assert (min_lit != INVALID_LIT);
       const int c_size = c->size;
-      vector<int> &nounted = factoring.nounted;
+      vector<Lit> &nounted = factoring.nounted;
       assert (nounted.empty ());
       ticks += 1 + cache_lines (occs (min_lit).size (), sizeof (Clause *));
       for (auto d : occs (min_lit)) {
@@ -292,7 +293,7 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
           continue;
         if (d->size != c_size)
           continue;
-        int next = 0;
+        Lit next = INVALID_LIT;
         for (const auto &other : *d) {
           if (getfact (other, QUOTIENT))
             continue;
@@ -300,11 +301,11 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
             goto CONTINUE_WITH_NEXT_MIN_WATCH;
           if (getfact (other, NOUNTED))
             goto CONTINUE_WITH_NEXT_MIN_WATCH;
-          if (next)
+          if (next != INVALID_LIT)
             goto CONTINUE_WITH_NEXT_MIN_WATCH;
           next = other;
         }
-        assert (next);
+        assert (next != INVALID_LIT);
         if (abs (next) > abs (initial))
           continue;
         if (!active (next))
@@ -332,7 +333,7 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
   }
   clear_flauses (flauses);
   unsigned next_count = 0;
-  int next = 0;
+  Lit next = INVALID_LIT;
   if (stats.ticks.factor <= factoring.limit) {
     unsigned ties = 0;
     for (const auto &lit : counted) {
@@ -351,7 +352,7 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
     }
     if (next_count < 2) {
       LOG ("next factor count %u smaller than 2", next_count);
-      next = 0;
+      next = INVALID_LIT;
     } else if (ties > 1) {
       LOG ("found %u tied next factor candidate literals with count %u",
            ties, next_count);
@@ -362,29 +363,29 @@ int Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
           continue;
         double lit_score = tied_next_factor_score (lit);
         assert (lit_score >= 0);
-        LOG ("score %g of next factor candidate %d", lit_score, lit);
+        LOG ("score %g of next factor candidate %s", lit_score, LOGLIT(lit));
         if (lit_score <= next_score)
           continue;
         next_score = lit_score;
         next = lit;
       }
       assert (next_score >= 0);
-      assert (next);
-      LOG ("best score %g of next factor %d", next_score, next);
+      assert (next != INVALID_LIT);
+      LOG ("best score %g of next factor %s", next_score, LOGLIT(next));
     } else {
       assert (ties == 1);
-      LOG ("single next factor %d with count %u", next, next_count);
+      LOG ("single next factor %s with count %u", LOGLIT(next), next_count);
     }
   }
   for (const auto &lit : counted)
     count[vlit (lit)] = 0;
   counted.clear ();
-  assert (!next || next_count > 1);
+  assert (next == INVALID_LIT || next_count > 1);
   *next_count_ptr = next_count;
   return next;
 }
 
-void Internal::factorize_next (Factoring &factoring, int next,
+void Internal::factorize_next (Factoring &factoring, Lit next,
                                unsigned expected_next_count) {
   Quotient *last_quotient = factoring.quotients.last;
   Quotient *next_quotient = new_quotient (factoring, next);
@@ -402,7 +403,7 @@ void Internal::factorize_next (Factoring &factoring, int next,
 
   for (auto c : last_clauses) {
     assert (!c->swept);
-    int min_lit = 0;
+    Lit min_lit = INVALID_LIT;
     unsigned factors = 0;
     size_t min_size = 0;
     ticks++;
@@ -414,7 +415,7 @@ void Internal::factorize_next (Factoring &factoring, int next,
         assert (!getfact (other, QUOTIENT));
         markfact (other, QUOTIENT);
         const size_t other_size = occs (other).size ();
-        if (!min_lit || other_size < min_size) {
+        if (min_lit == INVALID_LIT || other_size < min_size) {
           min_lit = other;
           min_size = other_size;
         }
@@ -422,7 +423,7 @@ void Internal::factorize_next (Factoring &factoring, int next,
     }
     assert (factors);
     if (factors == 1) {
-      assert (min_lit);
+      assert (min_lit != INVALID_LIT);
       const int c_size = c->size;
       ticks += 1 + cache_lines (occs (min_lit).size (), sizeof (Clause *));
       for (auto d : occs (min_lit)) {
@@ -465,9 +466,9 @@ void Internal::factorize_next (Factoring &factoring, int next,
 
 // We only need to enlarge factoring.count as everything else is
 // initialized in internal
-void Internal::resize_factoring (Factoring &factoring, int lit) {
-  assert (lit > 0);
-  size_t new_var_size = lit + 1;
+void Internal::resize_factoring (Factoring &factoring, Lit lit) {
+  assert (lit.is_positive());
+  size_t new_var_size = lit.var () + 1;
   size_t new_lit_size = 2 * new_var_size;
   enlarge_zero (factoring.count, new_lit_size);
 }
@@ -504,8 +505,8 @@ void Internal::flush_unmatched_clauses (Quotient *q) {
 // can resolve the clauses of the two quotients.
 // this subsumes all clauses in all quotients.
 void Internal::add_self_subsuming_factor (Quotient *q, Quotient *p) {
-  const int factor = q->factor;
-  const int not_factor = p->factor;
+  const Lit factor = q->factor;
+  const Lit not_factor = p->factor;
   assert (-factor == not_factor);
   LOG (
       "adding self subsuming factor because blocked clause is a tautology");
@@ -536,9 +537,9 @@ void Internal::add_self_subsuming_factor (Quotient *q, Quotient *p) {
       assert (lrat_chain.size () == 2);
     }
     if (clause.size () > 1) {
-      new_factor_clause (0);
+      new_factor_clause (INVALID_LIT);
     } else {
-      const int unit = clause[0];
+      const Lit unit = clause[0];
       const signed char tmp = val (unit);
       if (!tmp)
         assign_unit (unit);
@@ -563,7 +564,7 @@ bool Internal::self_subsuming_factor (Quotient *q) {
   Quotient *x = 0, *y = 0;
   bool found = false;
   for (Quotient *p = q; p; p = p->prev) {
-    const int factor = p->factor;
+    const Lit factor = p->factor;
     Flags &f = flags (factor);
     if (f.seen) {
       assert (std::find (analyzed.begin (), analyzed.end (), -factor) !=
@@ -592,9 +593,9 @@ bool Internal::self_subsuming_factor (Quotient *q) {
 
 // this is a pure binary clauses containing fresh and one other literal
 // it is added for all applicable quotients.
-void Internal::add_factored_divider (Quotient *q, int fresh) {
-  const int factor = q->factor;
-  LOG ("factored %d divider %d", factor, fresh);
+void Internal::add_factored_divider (Quotient *q, Lit fresh) {
+  const Lit factor = q->factor;
+  LOG ("factored %s divider %s", LOGLIT(factor), LOGLIT(fresh));
   clause.push_back (fresh);
   clause.push_back (factor);
   new_factor_clause (fresh);
@@ -606,7 +607,7 @@ void Internal::add_factored_divider (Quotient *q, int fresh) {
 // this clause is blocked on fresh, i.e., it contains all literals from
 // the binaries above, but negated. This is only added to the proof, to
 // make checking easier.
-void Internal::blocked_clause (Quotient *q, int not_fresh) {
+void Internal::blocked_clause (Quotient *q, Lit not_fresh) {
   if (!proof)
     return;
   int64_t new_id = ++clause_id;
@@ -625,9 +626,9 @@ void Internal::blocked_clause (Quotient *q, int not_fresh) {
 // this is the other side of the factored clauses. To derive these,
 // one can resolved the blocked clause on all matching clauses of
 // one type
-void Internal::add_factored_quotient (Quotient *q, int not_fresh) {
+void Internal::add_factored_quotient (Quotient *q, Lit not_fresh) {
   LOG ("adding factored quotient[%zu] clauses", q->id);
-  const int factor = q->factor;
+  const Lit factor = q->factor;
   assert (lrat_chain.empty ());
   auto qlauses = q->qlauses;
   for (unsigned idx = 0; idx < qlauses.size (); idx++) {
@@ -651,7 +652,7 @@ void Internal::add_factored_quotient (Quotient *q, int not_fresh) {
       lrat_chain.push_back (q->bid);
     }
     clause.push_back (not_fresh);
-    new_factor_clause (0);
+    new_factor_clause (INVALID_LIT);
     clause.clear ();
     lrat_chain.clear ();
   }
@@ -696,7 +697,7 @@ void Internal::delete_unfactored (Quotient *q) {
 
 // update the priority queue for scheduling
 void Internal::update_factored (Factoring &factoring, Quotient *q) {
-  const int factor = q->factor;
+  const Lit factor = q->factor;
   update_factor_candidate (factoring, factor);
   update_factor_candidate (factoring, -factor);
   for (auto c : q->qlauses) {
@@ -717,27 +718,27 @@ bool Internal::apply_factoring (Factoring &factoring, Quotient *q) {
       update_factored (factoring, p);
     return true;
   }
-  const int fresh = get_new_extension_variable ();
+  const Lit fresh = get_new_extension_variable ();
   assert (!watching ());
-  if (!fresh)
+  if (fresh == INVALID_LIT)
     return false;
   stats.factored++;
   factoring.fresh.push_back (fresh);
   for (Quotient *p = q; p; p = p->prev)
     add_factored_divider (p, fresh);
-  const int not_fresh = -fresh;
+  const Lit not_fresh = -fresh;
   blocked_clause (q, not_fresh);
   add_factored_quotient (q, not_fresh);
   for (Quotient *p = q; p; p = p->prev)
     delete_unfactored (p);
   for (Quotient *p = q; p; p = p->prev)
     update_factored (factoring, p);
-  assert (fresh > 0);
+  assert (fresh.is_positive());
   resize_factoring (factoring, fresh);
   return true;
 }
 
-void Internal::update_factor_candidate (Factoring &factoring, int lit) {
+void Internal::update_factor_candidate (Factoring &factoring, Lit lit) {
   FactorSchedule &schedule = factoring.schedule;
   const size_t size = occs (lit).size ();
   const unsigned idx = vlit (lit);
@@ -780,7 +781,7 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
 #if 0 // the scores are very low anyway
   for (auto lit : factoring.fresh) {
     assert (lit > 0 && internal->max_var);
-    const double old_score = internal->stab[lit];
+    const double old_score = internal->stab[lit.var ()];
     // make the scores a little different from each other with the newest having the highest score
     const double new_score = 1.0 / (double)(internal->max_var - lit);
     if (old_score == new_score)
@@ -788,53 +789,53 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
     if (!scores.contains (lit))
       continue;
     LOG ("unbumping %s", LOGLIT(lit));
-    internal->stab[lit] = new_score;
+    internal->stab[lit.var ()] = new_score;
     scores.update (lit);
   }
 #endif
 
   for (auto lit : factoring.fresh) {
-    LOG ("dequeuing %s, last being %s", LOGLIT (lit), LOGLIT (queue.last));
+    LOG ("dequeuing %s, last being %d", LOGLIT(lit), queue.last);
     if (!flags (lit).fixed ())
-      queue.dequeue (links, lit);
+      queue.dequeue (links, lit.var ());
   }
 
   for (auto lit : factoring.fresh) {
-    LOG ("dequeuing %s", LOGLIT (lit));
+    LOG ("dequeuing %s", LOGLIT(lit));
     if (!flags (lit).fixed ())
-      queue.bury (links, lit);
+      queue.bury (links, lit.var ());
   }
 
   // fix the scores with negative numbers
-  Lit lit = queue.first;
+  int v = queue.first;
   queue.bumped = 0;
-  while (lit) {
-    btab[lit] = ++queue.bumped;
-    lit = links[lit].next;
+  while (v) {
+    btab[v] = ++queue.bumped;
+    v = links[v].next;
   }
   stats.bumped = queue.bumped;
   update_queue_unassigned (queue.last);
 
 #ifndef NDEBUG
   for (auto v : vars)
-    assert (!flags (v).active () || val (v) || scores.contains (v));
-  lit = queue.first;
-  int next_lit = links[lit].next;
+    assert (!flags (v).active () || val (v) || scores.contains (v.var ()));
+  v = queue.first;
+  int next_lit = links[v].next;
   while (next_lit) {
-    assert (btab[lit] < btab[next_lit]);
+    assert (btab[v] < btab[next_lit]);
     const int tmp = links[next_lit].next;
     assert (!tmp || links[tmp].prev == next_lit);
-    lit = next_lit;
+    v = next_lit;
     next_lit = tmp;
   }
 
-  lit = queue.last;
-  next_lit = links[lit].prev;
+  v = queue.last;
+  next_lit = links[v].prev;
   while (next_lit) {
-    assert (btab[lit] > btab[next_lit]);
+    assert (btab[v] > btab[next_lit]);
     const int tmp = links[next_lit].prev;
     assert (!tmp || links[tmp].next == next_lit);
-    lit = next_lit;
+    v = next_lit;
     next_lit = tmp;
   }
   assert (queue.first);
@@ -855,10 +856,9 @@ bool Internal::run_factorization (int64_t limit) {
 
   while (!unsat && !done && !factoring.schedule.empty ()) {
     const unsigned ufirst = factoring.schedule.pop_front ();
-    LOG ("next factor candidate %d", ufirst);
-    const int first = u2i (ufirst);
-    const int first_idx = vidx (first);
-    if (!active (first_idx))
+    LOG ("next factor candidate %s", LOGLIT(u2i(ufirst)));
+    const Lit first = u2i (ufirst);
+    if (!active (first))
       continue;
     if (!occs (first).size ()) {
       factoring.schedule.clear ();
@@ -870,8 +870,8 @@ bool Internal::run_factorization (int64_t limit) {
     }
     if (terminated_asynchronously ())
       break;
-    Flags &f = flags (first_idx);
-    const unsigned bit = 1u << (first < 0);
+    Flags &f = flags (first);
+    const unsigned bit = 1u << (first.is_negated());
     if (!(f.factor & bit))
       continue;
     f.factor &= ~bit;
@@ -879,8 +879,8 @@ bool Internal::run_factorization (int64_t limit) {
     if (first_count > 1) {
       for (;;) {
         unsigned next_count;
-        const int next = next_factor (factoring, &next_count);
-        if (next == 0)
+        const Lit next = next_factor (factoring, &next_count);
+        if (next == INVALID_LIT)
           break;
         assert (next_count > 1);
         if (next_count < 2)
@@ -915,10 +915,10 @@ bool Internal::run_factorization (int64_t limit) {
   return completed;
 }
 
-int Internal::get_new_extension_variable () {
+Lit Internal::get_new_extension_variable () {
   const int current_max_external = external->max_var;
   const int new_external = current_max_external + 1;
-  const int new_internal = external->internalize (new_external, true);
+  const Lit new_internal = external->internalize (ELit (new_external), true);
   assert (vlit (new_internal));
   return new_internal;
 }

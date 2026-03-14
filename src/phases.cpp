@@ -36,12 +36,12 @@ void Internal::phase (Lit lit) {
   signed char old_forced_phase = phases.forced[idx];
   signed char new_forced_phase = sign (lit);
   if (old_forced_phase == new_forced_phase) {
-    LOG ("forced phase remains at %d", old_forced_phase * idx);
+    LOG ("forced phase remains at %s", LOGLIT(lit));
     return;
   }
   if (old_forced_phase)
-    LOG ("overwriting old forced phase %d", old_forced_phase * idx);
-  LOG ("new forced phase %d", new_forced_phase * idx);
+    LOG ("overwriting old forced phase %s", LOGLIT(lit));
+  LOG ("new forced phase %s", LOGLIT(lit));
   phases.forced[idx] = new_forced_phase;
 }
 
@@ -49,10 +49,10 @@ void Internal::unphase (Lit lit) {
   const int idx = vidx (lit);
   signed char old_forced_phase = phases.forced[idx];
   if (!old_forced_phase) {
-    LOG ("forced phase of %d already reset", lit);
+    LOG ("forced phase of %s already reset", LOGLIT(lit));
     return;
   }
-  LOG ("clearing old forced phase %d", old_forced_phase * idx);
+  LOG ("clearing old forced phase %s", LOGLIT(lit));
   phases.forced[idx] = 0;
 }
 

@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -127,24 +128,24 @@ int Internal::reuse_trail () {
       assumptions.size ()
       // Plus 1 if the constraint is satisfied via implications of
       // assumptions and a pseudo-decision level was introduced.
-      + !control[assumptions.size () + 1].decision;
+      + (control[assumptions.size () + 1].decision == INVALID_LIT);
   if (!opts.restartreusetrail)
     return trivial_decisions;
-  int next_decision = next_decision_variable ();
-  assert (1 <= next_decision);
+  Lit next_decision = next_decision_variable ();
+  assert (next_decision.valid() && next_decision.is_positive ());
   int res = trivial_decisions;
   if (use_scores ()) {
     while (res < level) {
-      int decision = control[res + 1].decision;
-      if (decision && score_smaller (this) (abs (decision), next_decision))
+      Lit decision = control[res + 1].decision;
+      if (decision != INVALID_LIT && score_smaller (this) (abs (decision), next_decision.var ()))
         break;
       res++;
     }
   } else {
     int64_t limit = bumped (next_decision);
     while (res < level) {
-      int decision = control[res + 1].decision;
-      if (decision && bumped (decision) < limit)
+      Lit decision = control[res + 1].decision;
+      if (decision != INVALID_LIT && bumped (decision) < limit)
         break;
       res++;
     }

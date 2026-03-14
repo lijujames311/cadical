@@ -1,8 +1,9 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
-#define INVALID_LIT UINT_MAX
+#define KITTEN_INVALID_LIT UINT_MAX
 
 // functions below are passed to kitten
 //
@@ -63,7 +64,7 @@ static void traverse_one_sided_core_lemma (void *state, bool learned,
   Eliminator *eliminator = extractor->eliminator;
   Internal *internal = extractor->internal;
   Proof *proof = internal->proof;
-  const int unit = extractor->unit;
+  const Lit unit = extractor->unit;
   vector<proof_clause> &proof_clauses = eliminator->proof_clauses;
   if (size) {
     proof_clause pc;
@@ -93,7 +94,7 @@ static void traverse_one_sided_core_lemma_with_lrat (
   Eliminator *eliminator = extractor->eliminator;
   Internal *internal = extractor->internal;
   Proof *proof = internal->proof;
-  const int unit = extractor->unit;
+  const Lit unit = extractor->unit;
   const vector<Clause *> &clauses0 = extractor->clauses[0];
   const vector<Clause *> &clauses1 = extractor->clauses[1];
   vector<proof_clause> &proof_clauses = eliminator->proof_clauses;
@@ -187,7 +188,7 @@ void Internal::find_definition (Eliminator &eliminator, Lit lit) {
   assert (!val (lit));
   assert (!level);
   assert (citten);
-  const int not_lit = -lit;
+  const Lit not_lit = -lit;
   definition_extractor extractor;
   extractor.lit = lit;
   extractor.clauses[0] = occs (lit);
@@ -247,13 +248,13 @@ void Internal::find_definition (Eliminator &eliminator, Lit lit) {
     eliminator.definition_unit = 0;
     kitten_traverse_core_ids (citten, &extractor, traverse_definition_core);
     assert (eliminator.definition_unit);
-    int unit = 0;
+    Lit unit = INVALID_LIT;
     if (eliminator.definition_unit == 2) {
       unit = not_lit;
     } else if (eliminator.definition_unit == 1)
       unit = lit;
 
-    if (unit) {
+    if (unit != INVALID_LIT) {
       stats.definition_units++;
       VERBOSE (2, "one sided core "
                   "definition extraction yields "

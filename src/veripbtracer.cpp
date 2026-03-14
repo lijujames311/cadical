@@ -156,7 +156,7 @@ inline void VeripbTracer::put_binary_lit (int lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);
-  unsigned x = 2 * abs (lit) + (lit < 0);
+  unsigned x = 2 * std::abs (lit) + (lit < 0);
   unsigned char ch;
   while (x & ~0x7f) {
     ch = (x & 0x7f) | 0x80;
@@ -170,7 +170,7 @@ inline void VeripbTracer::put_binary_lit (int lit) {
 inline void VeripbTracer::put_binary_id (int64_t id, bool can_be_negative) {
   assert (binary);
   assert (file);
-  uint64_t x = abs (id);
+  uint64_t x = std::abs (id);
   if (can_be_negative) {
     x = 2 * x + (id < 0);
   }
@@ -196,12 +196,12 @@ void VeripbTracer::veripb_add_derived_clause (int64_t id, bool redundant,
     if (external_lit < 0)
       file->put ('~');
     file->put ('x');
-    file->put (abs (external_lit));
+    file->put (std::abs (external_lit));
     file->put (' ');
   }
   file->put (">= 1 : ");
   file->put ('x');
-  file->put (abs (witness));
+  file->put (std::abs (witness));
   file->put (" -> ");
   if (witness < 0)
     file->put ("0");
@@ -239,7 +239,7 @@ void VeripbTracer::veripb_add_derived_clause (
     if (external_lit < 0)
       file->put ('~');
     file->put ('x');
-    file->put (abs (external_lit));
+    file->put (std::abs (external_lit));
     file->put (' ');
   }
   file->put (">= 1 : ");
@@ -260,8 +260,7 @@ void VeripbTracer::veripb_add_derived_clause (int64_t id, bool redundant,
     if (external_lit < 0)
       file->put ('~');
     file->put ('x');
-    file->put (abs (external_lit));
-    file->put (' ');
+   file->put (' ');
   }
   file->put (">= 1;\n");
   if (!redundant && checked_deletions) {

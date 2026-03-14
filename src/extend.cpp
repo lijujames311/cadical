@@ -21,8 +21,7 @@ void External::push_clause_literal_on_extension_stack (Lit ilit) {
   const ELit elit = internal->externalize (ilit);
   assert (elit != INVALID_ELIT);
   extension.push_back (elit.signed_representation());
-  LOG ("pushing clause literal %d on extension stack (internal %d)", elit,
-       ilit);
+  LOG ("pushing clause literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT (ilit));
 }
 
 void External::push_witness_literal_on_extension_stack (Lit ilit) {
@@ -30,11 +29,10 @@ void External::push_witness_literal_on_extension_stack (Lit ilit) {
   const ELit elit = internal->externalize (ilit);
   assert (elit != INVALID_ELIT);
   extension.push_back (elit.signed_representation());
-  LOG ("pushing witness literal %d on extension stack (internal %d)", elit,
-       ilit);
+  LOG ("pushing witness literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT (ilit));
   if (marked (witness, elit))
     return;
-  LOG ("marking witness %d", elit);
+  LOG ("marking witness %s", LOGLIT(elit));
   mark (witness, elit);
 }
 
@@ -177,7 +175,7 @@ void External::extend () {
         ELit lit (p);
         const ELit tmp = ival (lit); // not 'signed char'!!!
         if (tmp != lit) {
-          LOG ("flipping blocking literal %d", lit);
+          LOG ("flipping blocking literal %s", LOGLIT(lit));
           assert (lit != INVALID_ELIT);
           assert (lit != OTHER_INVALID_ELIT);
           size_t idx = std::abs (p);

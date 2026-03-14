@@ -34,13 +34,13 @@ void External::enlarge (ELit new_max_var) {
 Lit External::declare_var (ELit new_var, bool extension) {
   assert (new_var != INVALID_ELIT);
   Lit ilit = internal_lit (new_var);
-  if (!ilit ()) {
+  if (ilit == INVALID_LIT) {
     if (!internal->opts.varkeepname)
       ilit = Lit (internal->max_var+1);
     else {
       ilit = Lit (new_var.signed_representation ());
-      if (internal->i2e.size () > (size_t)ilit.signed_representation () && internal->i2e[ilit.var ()] != INVALID_ELIT) {
-        LOG ("the slot is already used by %d, giving the next available name", internal->i2e[ilit]);
+      if (internal->i2e.size () > (size_t)ilit.var () && internal->i2e[ilit.var ()] != INVALID_ELIT) {
+        LOG ("the slot is already used by %s, giving the next available name", LOGLIT (internal->i2e[ilit.var ()]));
         ilit = Lit (internal->max_var+1);
       }
     }
@@ -48,7 +48,7 @@ Lit External::declare_var (ELit new_var, bool extension) {
       reserve_at_least (internal->i2e, ilit.var () + 1);
       internal->i2e.resize (ilit.var () + 1);
     }
-    LOG ("new mapping external %d to internal %d", new_var, ilit);
+    LOG ("new mapping external %s to internal %s", LOGLIT (new_var), LOGLIT (ilit));
     e2i[new_var] = ilit;
     internal->i2e[ilit.var ()] = new_var;
     internal->declare_variable (ilit);
@@ -74,7 +74,7 @@ void External::resize (ELit new_max_lit) {
     ext_flags.push_back (0);
     ervars.push_back (0);
     assert (internal->i2e.empty ());
-    internal->i2e.push_back (ELit ());
+    internal->i2e.push_back (INVALID_ELIT);
   }
   unsigned eidx;
   for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var;
@@ -94,7 +94,7 @@ void External::resize (ELit new_max_lit) {
 void External::init (ELit new_max_lit, bool extension) {
   ELit::base_type new_max_var = new_max_lit.var ();
   assert (!extended);
-  LOG ("%d external variables from %d", new_max_var, max_var);
+  LOG ("%s external variables from %s", LOGLIT (new_max_lit), LOGLIT (ELit (max_var)));
   assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
   if (new_max_var <= max_var) {
     declare_var (new_max_lit, extension);
@@ -149,12 +149,13 @@ void External::reset_limits () { internal->reset_limits (); }
 // never part of the input
 Lit External::internalize (ELit elit, bool extension) {
   Lit ilit;
+  LOG ("internalize found %s ===========", LOGLIT (elit));
   if (elit != INVALID_ELIT) {
     assert (elit != OTHER_INVALID_ELIT);
     const ELit eidx = elit.labs ();
     if (extension && eidx <= ELit (max_var))
-      FATAL ("can not add a definition for an already used variable %d",
-             eidx.signed_representation());
+      FATAL ("can not add a definition for an already used variable %s",
+        LOGLIT (eidx));
     if (eidx > ELit (max_var)) {
       init (eidx, extension);
     }
@@ -163,16 +164,18 @@ Lit External::internalize (ELit elit, bool extension) {
       ervars[eidx.var ()] = true;
     }
     ilit = e2i[eidx];
-    if (ilit != INVALID_LIT)
+    LOG ("already found %s ===========", LOGLIT (ilit));
+    if (ilit == INVALID_LIT)
       ilit = declare_var (eidx, false);
     if (elit.is_negated ())
       ilit = -ilit;
-    if (ilit != INVALID_LIT) {
+    assert (ilit != INVALID_LIT);
+    if (ilit == INVALID_LIT) {
       assert (internal->max_var < INT_MAX);
       ilit = Lit (internal->max_var + 1u);
       internal->reserve_vars (ilit.var ());
       e2i[eidx] = ilit;
-      LOG ("mapping external %d to internal %d", eidx, ilit);
+      LOG ("mapping external %s to internal %s", LOGLIT (eidx), LOGLIT (ilit));
       e2i[eidx] = ilit;
       internal->i2e.push_back (eidx);
       assert (internal->i2e[ilit.var ()] == eidx);
@@ -183,7 +186,7 @@ Lit External::internalize (ELit elit, bool extension) {
     if (internal->opts.checkfrozen) {
       assert (eidx.var () < (int64_t) moltentab.size ());
       if (moltentab[eidx.var ()])
-        FATAL ("can not reuse molten literal %d", eidx.var ());
+        FATAL ("can not reuse molten literal %s", LOGLIT (eidx));
     }
     Flags &f = internal->flags (ilit);
     if (f.status == Flags::UNUSED)
@@ -193,7 +196,7 @@ Lit External::internalize (ELit elit, bool extension) {
     }
     if (!marked (tainted, elit) && marked (witness, -elit)) {
       assert (!internal->opts.checkfrozen);
-      LOG ("marking tainted %d", elit);
+      LOG ("marking tainted %s", LOGLIT (elit));
       mark (tainted, elit);
     }
   } else
@@ -202,7 +205,7 @@ Lit External::internalize (ELit elit, bool extension) {
 }
 
 void External::add (ELit elit) {
-  assert (elit != INVALID_ELIT);
+  assert (elit != OTHER_INVALID_ELIT);
 
   if (elit != INVALID_ELIT)
     REQUIRE (is_valid_input (elit),
@@ -256,7 +259,7 @@ void External::add (ELit elit) {
   }
 
   if (elit != INVALID_ELIT)
-    LOG ("adding external %d as internal %d", elit, ilit);
+    LOG ("adding external %s as internal %s", LOGLIT (elit), LOGLIT (ilit));
   if (internal->external_prop)
     internal->activating_all_new_imported_literals ();
   internal->add_original_lit (ilit);
@@ -274,7 +277,7 @@ void External::assume (ELit elit) {
   assumptions.push_back (elit);
   const Lit ilit = internalize (elit);
   assert (ilit != INVALID_LIT);
-  LOG ("assuming external %d as internal %d", elit, ilit);
+  LOG ("assuming external %s as internal %s", LOGLIT (elit), LOGLIT (ilit));
   internal->assume (ilit);
 }
 
@@ -338,7 +341,7 @@ void External::constrain (ELit elit) {
   const Lit ilit = internalize (elit);
   assert ((elit != INVALID_ELIT) == (ilit != INVALID_LIT));
   if (elit != INVALID_ELIT)
-    LOG ("adding external %d as internal %d to constraint", elit, ilit);
+    LOG ("adding external %s as internal %s to constraint", LOGLIT (elit), LOGLIT (ilit));
   else if (elit == INVALID_ELIT && internal->proof) {
     internal->proof->add_constraint (constraint);
   }
@@ -373,7 +376,7 @@ void External::unphase (ELit elit) {
   int eidx = abs (elit);
   if (eidx > max_var) {
   UNUSED:
-    LOG ("resetting forced phase of unused external %d ignored", elit);
+    LOG ("resetting forced phase of unused external %s ignored", LOGLIT (elit));
     return;
   }
   Lit ilit = e2i[elit.labs ()];
@@ -421,7 +424,7 @@ void External::add_observed_var (ELit elit) {
   if (is_observed[eidx])
     return;
 
-  LOG ("marking %d as externally watched", eidx);
+  LOG ("marking %s as externally watched", LOGLIT (elit));
 
   Lit ilit = internalize (elit);
   // Will do the necessary internalization
@@ -447,8 +450,8 @@ void External::add_observed_var (ELit elit) {
     return;
   ELit unit = tmp < 0 ? -elit : elit;
 
-  LOG ("notify propagator about fixed assignment upon observe for %d",
-       unit);
+  LOG ("notify propagator about fixed assignment upon observe for %s",
+       LOGLIT (unit));
 
   // internal add-observed-var had to backtrack to root-level already
   assert (!internal->level);
@@ -476,7 +479,7 @@ void External::remove_observed_var (ELit elit) {
 
     is_observed[eidx] = false;
     melt (elit);
-    LOG ("unmarking %d as externally watched", eidx);
+    LOG ("unmarking %s as externally watched", LOGLIT (elit));
   }
 }
 
@@ -499,7 +502,7 @@ void External::reset_observed_vars () {
     if (is_observed[eidx]) {
       Lit ilit = internalize (elit);
       internal->remove_observed_var (ilit);
-      LOG ("unmarking %d as externally watched", eidx);
+      LOG ("unmarking %s as externally watched", LOGLIT (elit));
       is_observed[eidx] = false;
       melt (elit);
     }
@@ -639,14 +642,14 @@ void External::update_molten_literals () {
 #endif
   for (auto lit : vars) {
     if (moltentab[lit.var ()]) {
-      LOG ("skipping already molten literal %d", lit);
+      LOG ("skipping already molten literal %s", LOGLIT (lit));
 #ifdef LOGGING
       molten++;
 #endif
     } else if (frozen (lit))
-      LOG ("skipping currently frozen literal %d", lit);
+      LOG ("skipping currently frozen literal %s", LOGLIT (lit));
     else {
-      LOG ("new molten literal %d", lit);
+      LOG ("new molten literal %s", LOGLIT (lit));
       moltentab[lit.var ()] = true;
 #ifdef LOGGING
       registered++;
@@ -675,7 +678,7 @@ ELit External::lookahead () {
   Lit ilit = internal->lookahead ();
   const ELit elit =
       (ilit != INVALID_LIT && ilit != OTHER_INVALID_LIT) ? internal->externalize (ilit) : INVALID_ELIT;
-  LOG ("lookahead internal %d external %d", ilit, elit);
+  LOG ("lookahead internal %s external %s", LOGLIT (ilit), LOGLIT (elit));
   return elit;
 }
 
@@ -685,19 +688,18 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth,
   update_molten_literals ();
   reset_limits ();
   auto cubes = internal->generate_cubes (depth, min_depth);
-  auto externalize = [this] (Lit ilit) {
-    const ELit elit = ilit != INVALID_LIT ? internal->externalize (ilit) : INVALID_ELIT;
-    MSG ("lookahead internal %d external %d", ilit.signed_representation(), elit.signed_representation());
-    return elit;
-  };
-  auto externalize_map = [this, externalize] (std::vector<int> cube) {
-    (void) this;
-    MSG ("Cube : ");
-    std::for_each (begin (cube), end (cube), externalize);
-  };
-  std::for_each (begin (cubes.cubes), end (cubes.cubes), externalize_map);
-
-  return cubes;
+  CaDiCaL::CubesWithStatus external_cubes;
+  for (const auto & cube : cubes.cubes) {
+    std::vector<int> ecube;
+    for (auto ilit : cube) {
+      const ELit elit = ilit != INVALID_LIT ? internal->externalize (ilit) : INVALID_ELIT;
+      LOG ("lookahead internal %s external %s", LOGLIT (ilit), LOGLIT (elit));
+      ecube.push_back(elit.signed_representation());
+    }
+    cubes.cubes.push_back(std::move (cube));
+  }
+  external_cubes.status = cubes.status;
+  return external_cubes;
 }
 
 /*------------------------------------------------------------------------*/
@@ -711,10 +713,10 @@ void External::freeze (ELit elit) {
   unsigned &ref = frozentab[eidx];
   if (ref < UINT_MAX) {
     ref++;
-    LOG ("external variable %d frozen once and now frozen %u times", eidx,
+    LOG ("external variable %s frozen once and now frozen %u times", LOGLIT (elit),
          ref);
   } else
-    LOG ("external variable %d frozen but remains frozen forever", eidx);
+    LOG ("external variable %s frozen but remains frozen forever", LOGLIT (elit));
   internal->freeze (ilit);
 }
 
@@ -729,17 +731,17 @@ void External::melt (ELit elit) {
     if (!--ref) {
       if (observed (elit)) {
         ref++;
-        LOG ("external variable %d is observed, can not be completely "
+        LOG ("external variable %s is observed, can not be completely "
              "molten",
-             eidx);
+             LOGLIT (elit));
       } else
-        LOG ("external variable %d melted once and now completely melted",
-             eidx);
+        LOG ("external variable %s melted once and now completely melted",
+             LOGLIT (elit));
     } else
-      LOG ("external variable %d melted once but remains frozen %u times",
-           eidx, ref);
+      LOG ("external variable %s melted once but remains frozen %u times",
+           LOGLIT (elit), ref);
   } else
-    LOG ("external variable %d melted but remains frozen forever", eidx);
+    LOG ("external variable %s melted but remains frozen forever", LOGLIT (elit));
   internal->melt (ilit);
 }
 
@@ -751,7 +753,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
   //
   for (auto idx : vars) {
     if ((this->*a) (idx) == INVALID_ELIT)
-      FATAL ("unassigned variable: %d", idx.signed_representation());
+      FATAL ("unassigned variable: %s", LOGLIT (idx));
     ELit value_idx = (this->*a) (idx);
     ELit value_neg_idx = (this->*a) (-idx);
     if (value_idx == idx)
@@ -761,7 +763,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
       assert (value_neg_idx == -idx);
     }
     if (value_idx != value_neg_idx)
-      FATAL ("inconsistently assigned literals %d and %d", idx.signed_representation (), (-idx).signed_representation ());
+      FATAL ("inconsistently assigned literals %s and %s", LOGLIT (idx), LOGLIT (-idx));
   }
 
   // Then check that all (saved) original clauses are satisfied.
@@ -779,7 +781,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
         fatal_message_start ();
         fputs ("unsatisfied clause:\n", stderr);
         for (auto j = start; j != i; j++)
-          fprintf (stderr, "%d ", (*j).signed_representation());
+          fprintf (stderr, "%s ", LOGLIT((*j)));
         fputc ('0', stderr);
         fatal_message_end ();
       }
@@ -828,7 +830,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
       fatal_message_start ();
       fputs ("unsatisfied external forgettable clause:\n", stderr);
       for (size_t j = 1; j < forgettables.second.size (); j++)
-        fprintf (stderr, "%d ", forgettables.second[j].signed_representation ());
+        fprintf (stderr, "%s ", LOGLIT(forgettables.second[j]));
       fputc ('0', stderr);
       fatal_message_end ();
     }
@@ -846,7 +848,7 @@ void External::check_assumptions_satisfied () {
     // Not 'signed char' !!!!
     const ELit tmp = ival (lit);
     if (tmp != lit)
-      FATAL ("assumption %d falsified", lit.signed_representation());
+      FATAL ("assumption %s falsified", LOGLIT (lit));
     assert (tmp != ELit (0)); // checks if assigned
   }
   VERBOSE (1, "checked that %zd assumptions are satisfied",
@@ -876,7 +878,7 @@ void External::check_failing () {
   for (const auto lit : assumptions) {
     if (!failed (lit))
       continue;
-    LOG ("checking failed literal %d in core", lit);
+    LOG ("checking failed literal %s in core", LOGLIT (lit));
     checker->add (lit.signed_representation());
     checker->add (0);
   }

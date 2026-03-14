@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -54,10 +55,10 @@ void External::restore_clause (const vector<int>::const_iterator &begin,
   assert (eclause.empty ());
   assert (id);
   for (auto p = begin; p != end; p++) {
-    eclause.push_back (*p);
+    const auto &elit = ELit (*p);
+    eclause.push_back (elit);
     if (internal->proof && internal->lrat) {
-      const auto &elit = *p;
-      unsigned eidx = (elit > 0) + 2u * (unsigned) abs (elit);
+      unsigned eidx = elit.vlit ();
       assert ((size_t) eidx < ext_units.size ());
       const int64_t id = ext_units[eidx];
       bool added = ext_flags[abs (elit)];
@@ -66,7 +67,7 @@ void External::restore_clause (const vector<int>::const_iterator &begin,
         internal->lrat_chain.push_back (id);
       }
     }
-    int ilit = internalize (*p);
+    Lit ilit = internalize (elit);
     internal->add_original_lit (ilit), internal->stats.restoredlits++;
   }
   if (internal->proof && internal->lrat) {
@@ -126,16 +127,16 @@ void External::restore_clauses () {
 
     // Copy witness part and try to find a tainted witness literal in it.
     //
-    int tlit = 0; // Negation tainted.
-    int elit;
+    ELit tlit = INVALID_ELIT; // Negation tainted.
+    ELit elit;
     //
     assert (p != end_of_extension);
     //
-    while ((elit = *q++ = *p++)) {
+    while ((elit = ELit (*q++ = *p++)) != INVALID_ELIT) {
 
       if (marked (tainted, -elit)) {
         tlit = elit;
-        LOG ("negation of witness literal %d tainted", tlit);
+        LOG ("negation of witness literal %s tainted", LOGLIT (tlit));
       }
 
       assert (p != end_of_extension);
@@ -153,10 +154,10 @@ void External::restore_clauses () {
     // Now find 'end_of_clause' (clause starts at 'p') and at the same time
     // figure out whether the clause is actually root level satisfied.
     //
-    int satisfied = 0;
+    ELit satisfied = INVALID_ELIT;
     auto end_of_clause = p;
-    while (end_of_clause != end_of_extension && (elit = *end_of_clause)) {
-      if (!satisfied && fixed (elit) > 0)
+    while (end_of_clause != end_of_extension && (elit = ELit (*end_of_clause)) != INVALID_ELIT) {
+      if (satisfied == INVALID_ELIT && fixed (elit) > 0)
         satisfied = elit;
       end_of_clause++;
     }
@@ -165,18 +166,18 @@ void External::restore_clauses () {
     // Do not apply our 'FLUSH' rule to remove satisfied (implied) clauses
     // if the corresponding option is set simply by resetting 'satisfied'.
     //
-    if (satisfied && !internal->opts.restoreflush) {
-      LOG (p, end_of_clause, "forced to not remove %d satisfied",
-           satisfied);
-      satisfied = 0;
+    if (satisfied != INVALID_ELIT && !internal->opts.restoreflush) {
+      LOG (p, end_of_clause, "forced to not remove %s satisfied",
+           LOGLIT (satisfied));
+      satisfied = INVALID_ELIT;
     }
 
-    if (satisfied || tlit || internal->opts.restoreall) {
+    if (satisfied != INVALID_ELIT|| tlit != INVALID_ELIT|| internal->opts.restoreall) {
 
-      if (satisfied) {
+      if (satisfied != INVALID_ELIT) {
         LOG (p, end_of_clause,
-             "flushing implied clause satisfied by %d from extension stack",
-             satisfied);
+             "flushing implied clause satisfied by %s from extension stack",
+             LOGLIT (satisfied));
         clauses.satisfied++;
       } else {
         restore_clause (p, end_of_clause, id); // Might taint literals.
@@ -245,7 +246,7 @@ void External::restore_clauses () {
   while (p != begin_of_extension) {
     while (*--p)
       assert (p != begin_of_extension);
-    int elit;
+    ELit elit;
     assert (p != begin_of_extension);
     --p;
     assert (p != begin_of_extension);
@@ -255,7 +256,7 @@ void External::restore_clauses () {
     assert (!*p);
     --p;
     assert (p != begin_of_extension);
-    while ((elit = *--p)) {
+    while ((elit = ELit (*--p)) != INVALID_ELIT) {
       mark (witness, elit);
       assert (p != begin_of_extension);
     }

@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -32,9 +33,9 @@ struct Mapper {
 
   Internal *internal;
   int new_max_var;             // New 'max_var' after compacting.
-  int *table;                  // Old variable index to new literal map.
-  int first_fixed;             // First fixed variable index.
-  int map_first_fixed;         // Mapped literal of first fixed variable.
+  Lit *table;                  // Old variable index to new literal map.
+  Lit first_fixed;             // First fixed variable index.
+  Lit map_first_fixed;         // Mapped literal of first fixed variable.
   signed char first_fixed_val; // Value of first fixed variable.
   size_t new_vsize;
 
@@ -49,20 +50,22 @@ struct Mapper {
   Mapper (Internal *i)
       : internal (i), new_max_var (0), first_fixed (0), map_first_fixed (0),
         first_fixed_val (0) {
-    table = new int[internal->max_var + 1u];
-    clear_n (table, internal->max_var + 1u);
+    table = new Lit[internal->max_var + 1u];
+    for (Lit *t = table; t != table + (internal->max_var + 1u); ++t) {
+      *t = INVALID_LIT;
+    }
 
     assert (!internal->level);
 
     for (auto src : internal->vars) {
       const Flags &f = internal->flags (src);
       if (f.active ())
-        table[src] = ++new_max_var;
-      else if (f.fixed () && !first_fixed)
-        table[first_fixed = src] = map_first_fixed = ++new_max_var;
+        table[src.var ()] = Lit (++new_max_var);
+      else if (f.fixed () && first_fixed != INVALID_LIT)
+        table[(first_fixed = src).var ()] = map_first_fixed = Lit (++new_max_var);
     }
 
-    first_fixed_val = first_fixed ? internal->val (first_fixed) : 0;
+    first_fixed_val = first_fixed != INVALID_LIT ? internal->val (first_fixed) : 0;
     new_vsize = new_max_var + 1u;
   }
 
@@ -71,11 +74,11 @@ struct Mapper {
   /*----------------------------------------------------------------------*/
   // Map old variable indices.  A result of zero means not mapped.
   //
-  int map_idx (int src) {
-    assert (0 < src);
-    assert (src <= internal->max_var);
-    const int res = table[src];
-    assert (res <= new_max_var);
+  Lit map_idx (Lit src) {
+    assert (Lit (0) < src);
+    assert (src <= Lit (internal->max_var));
+    const Lit res = table[src.var ()];
+    assert (res <= Lit (new_max_var));
     return res;
   }
 
@@ -84,19 +87,19 @@ struct Mapper {
   // to care about signedness of 'src', and in addition that fixed variables
   // have all to be mapped to the first fixed variable 'first_fixed'.
   //
-  int map_lit (int src) {
-    int res = map_idx (abs (src));
-    if (!res) {
+  Lit map_lit (Lit src) {
+    Lit res = map_idx (src.labs ());
+    if (res == INVALID_LIT) {
       const signed char tmp = internal->val (src);
       if (tmp) {
-        assert (first_fixed);
+        assert (first_fixed != INVALID_LIT);
         res = map_first_fixed;
         if (tmp != first_fixed_val)
           res = -res;
       }
-    } else if ((src) < 0)
+    } else if (src.is_negated())
       res = -res;
-    assert (abs (res) <= new_max_var);
+    assert (res.var () <= new_max_var);
     return res;
   }
 
@@ -105,12 +108,13 @@ struct Mapper {
   //
   template <class T> void map_vector (vector<T> &v) {
     for (auto src : internal->vars) {
-      const int dst = map_idx (src);
-      if (!dst)
+      const Lit dst = map_idx (src);
+      if (dst == INVALID_LIT)
         continue;
-      assert (0 < dst);
+      assert (dst.is_positive());
+      assert (dst.valid());
       assert (dst <= src);
-      v[dst] = v[src];
+      v[dst.var ()] = v[src.var ()];
     }
     v.resize (new_vsize);
     shrink_vector (v);
@@ -121,13 +125,14 @@ struct Mapper {
   //
   template <class T> void map2_vector (vector<T> &v) {
     for (auto src : internal->vars) {
-      const int dst = map_idx (src);
-      if (!dst)
+      const Lit dst = map_idx (src);
+      if (dst == INVALID_LIT)
         continue;
-      assert (0 < dst);
+      assert (dst.is_positive());
+      assert (dst.valid());
       assert (dst <= src);
-      v[2 * dst] = v[2 * src];
-      v[2 * dst + 1] = v[2 * src + 1];
+      v[dst.vlit ()] = v[src.vlit ()];
+      v[(-dst).vlit ()] = v[(-src).vlit ()];
     }
     v.resize (2 * new_vsize);
     shrink_vector (v);
@@ -137,16 +142,16 @@ struct Mapper {
   // Map a vector of literals, flush inactive literals, then resize and
   // shrink it to fit the new size after flushing.
   //
-  void map_flush_and_shrink_lits (vector<int> &v) {
+  void map_flush_and_shrink_lits (vector<Lit> &v) {
     const auto end = v.end ();
     auto j = v.begin (), i = j;
     for (; i != end; i++) {
-      const int src = *i;
-      int dst = map_idx (abs (src));
+      const Lit src = *i;
+      Lit dst = map_idx (src.labs ());
       assert (abs (dst) <= abs (src));
-      if (!dst)
+      if (dst == INVALID_LIT)
         continue;
-      if (src < 0)
+      if (src.is_negated())
         dst = -dst;
       *j++ = dst;
     }
@@ -181,9 +186,8 @@ void Internal::compact () {
 
   Mapper mapper (this);
 
-  if (mapper.first_fixed)
-    LOG ("found first fixed %d",
-         sign (mapper.first_fixed_val) * mapper.first_fixed);
+  if (mapper.first_fixed != INVALID_LIT)
+    LOG ("found first fixed %s", LOGLIT (mapper.first_fixed));
   else
     LOG ("no variable fixed");
 
@@ -208,27 +212,27 @@ void Internal::compact () {
   // Also fixes external units.
   //
   for (auto eidx : external->vars) {
-    int src = external->e2i[eidx];
-    if (!src) {
+    Lit src = external->e2i[eidx];
+    if (src == INVALID_LIT) {
       continue;
     }
     if (lrat || frat) {
-      assert (eidx > 0);
-      assert (external->ext_units.size () >= (size_t) 2 * eidx + 1);
-      int64_t id1 = external->ext_units[2 * eidx];
-      int64_t id2 = external->ext_units[2 * eidx + 1];
+      assert (eidx.is_positive());
+      assert (external->ext_units.size () >= (size_t) (-eidx).vlit ());
+      int64_t id1 = external->ext_units[eidx.vlit ()];
+      int64_t id2 = external->ext_units[(-eidx).vlit ()];
       assert (!id1 || !id2);
       if (!id1 && !id2) {
-        int64_t new_id1 = unit_clauses (2 * src);
-        int64_t new_id2 = unit_clauses (2 * src + 1);
-        external->ext_units[2 * eidx] = new_id1;
-        external->ext_units[2 * eidx + 1] = new_id2;
+        int64_t new_id1 = unit_clauses (src.vlit ());
+        int64_t new_id2 = unit_clauses ((-src).vlit ());
+        external->ext_units[eidx.vlit ()] = new_id1;
+        external->ext_units[(-eidx).vlit ()] = new_id2;
       }
     }
-    int dst = mapper.map_lit (src);
+    Lit dst = mapper.map_lit (src);
     LOG ("compact %" PRId64
-         " maps external %d to internal %d from internal %d",
-         stats.compacts, eidx, dst, src);
+         " maps external %s to internal %s from internal %s",
+         stats.compacts, LOGLIT (eidx), LOGLIT (dst), LOGLIT (src));
     external->e2i[eidx] = dst;
   }
 
@@ -236,30 +240,30 @@ void Internal::compact () {
   //
   if (lrat || frat) {
     for (auto src : internal->vars) {
-      const int dst = mapper.map_idx (src);
+      const Lit dst = mapper.map_idx (src);
       assert (dst <= src);
       const signed char tmp = internal->val (src);
-      if (!dst && !tmp) {
-        unit_clauses (2 * src) = 0;
-        unit_clauses (2 * src + 1) = 0;
+      if (dst == INVALID_LIT && !tmp) {
+        unit_clauses (src.vlit ()) = 0;
+        unit_clauses ((-src).vlit ()) = 0;
         continue;
       }
       if (!tmp || src == mapper.first_fixed) {
-        assert (0 < dst);
+        assert (dst.is_positive());
         if (dst == src)
           continue;
-        assert (!unit_clauses (2 * dst) && !unit_clauses (2 * dst + 1));
-        unit_clauses (2 * dst) = unit_clauses (2 * src);
-        unit_clauses (2 * dst + 1) = unit_clauses (2 * src + 1);
-        unit_clauses (2 * src) = 0;
-        unit_clauses (2 * src + 1) = 0;
+        assert (!unit_clauses (dst.vlit ()) && !unit_clauses ((-dst).vlit ()));
+        unit_clauses (dst.vlit ()) = unit_clauses (src.vlit ());
+        unit_clauses ((-dst).vlit ()) = unit_clauses ((-src).vlit ());
+        unit_clauses (src.vlit ()) = 0;
+        unit_clauses ((-src).vlit ()) = 0;
         continue;
       }
-      int64_t id = unit_clauses (2 * src);
+      int64_t id = unit_clauses (src.vlit ());
       if (!id)
-        id = unit_clauses (2 * src + 1);
-      unit_clauses (2 * src) = 0;
-      unit_clauses (2 * src + 1) = 0;
+        id = unit_clauses ((-src).vlit ());
+      unit_clauses (src.vlit ()) = 0;
+      unit_clauses ((-src).vlit ()) = 0;
       assert (id);
     }
     unit_clauses_idx.resize (2 * mapper.new_vsize);
@@ -271,9 +275,9 @@ void Internal::compact () {
     assert (!c->garbage);
     for (auto &src : *c) {
       assert (!val (src));
-      int dst;
+      Lit dst;
       dst = mapper.map_lit (src);
-      assert (dst || c->garbage);
+      assert (dst != INVALID_LIT || c->garbage);
       src = dst;
     }
   }
@@ -290,19 +294,20 @@ void Internal::compact () {
   {
     int prev = 0, mapped_prev = 0, next;
     for (int idx = queue.first; idx; idx = next) {
+      Lit src = Lit (idx);
       next = links[idx].next;
-      if (idx == mapper.first_fixed)
+      if (src == mapper.first_fixed)
         continue;
-      const int dst = mapper.map_idx (idx);
-      if (!dst)
+      const Lit dst = mapper.map_idx (src);
+      if (dst == INVALID_LIT)
         continue;
-      assert (active (idx));
+      assert (active (src));
       if (prev)
-        links[prev].next = dst;
+        links[prev].next = dst.var ();
       else
-        queue.first = dst;
+        queue.first = dst.var ();
       links[idx].prev = mapped_prev;
-      mapped_prev = dst;
+      mapped_prev = dst.var ();
       prev = idx;
     }
     if (prev)
@@ -320,7 +325,7 @@ void Internal::compact () {
   mapper.map_flush_and_shrink_lits (trail);
   propagated = trail.size ();
   num_assigned = trail.size ();
-  if (mapper.first_fixed) {
+  if (mapper.first_fixed != INVALID_LIT) {
     assert (trail.size () == 1);
     var (mapper.first_fixed).trail = 0; // before mapping 'vtab'
   } else
@@ -351,18 +356,18 @@ void Internal::compact () {
   // Special code for 'frozentab'.
   //
   for (auto src : vars) {
-    const int dst = abs (mapper.map_lit (src));
-    if (!dst)
+    const Lit dst = mapper.map_lit (src).labs ();
+    if (dst == INVALID_LIT)
       continue;
     if (src == dst)
       continue;
     assert (dst < src);
-    if ((size_t) src >= frozentab.size ())
+    if ((size_t) src.var () >= frozentab.size ())
       break;
-    if ((size_t) dst >= frozentab.size ())
+    if ((size_t) dst.var () >= frozentab.size ())
       break;
-    frozentab[dst] += frozentab[src];
-    frozentab[src] = 0;
+    frozentab[dst.var ()] += frozentab[src.var ()];
+    frozentab[src.var ()] = 0;
   }
   frozentab.resize (min (frozentab.size (), mapper.new_vsize));
   shrink_vector (frozentab);
@@ -371,15 +376,15 @@ void Internal::compact () {
   //
   if (external) {
     for (auto src : vars) {
-      const int dst = abs (mapper.map_lit (src));
-      if (!dst)
+      const Lit dst = (mapper.map_lit (src)).labs ();
+      if (dst == INVALID_LIT)
         continue;
       if (src == dst)
         continue;
       assert (dst < src);
 
-      relevanttab[dst] += relevanttab[src];
-      relevanttab[src] = 0;
+      relevant (dst) = relevant (src);
+      relevant (src) = 0;
     }
     relevanttab.resize (mapper.new_vsize);
     shrink_vector (relevanttab);
@@ -390,13 +395,13 @@ void Internal::compact () {
   if (!external->assumptions.empty ()) {
 
     for (const auto &elit : external->assumptions) {
-      assert (elit);
-      assert (elit != INT_MIN);
-      int eidx = abs (elit);
-      assert (eidx <= external->max_var);
-      int ilit = external->e2i[eidx];
-      assert (ilit); // Because we froze all!!!
-      if (elit < 0)
+      assert (elit != INVALID_ELIT);
+      assert (elit != OTHER_INVALID_ELIT);
+      ELit eidx = elit.labs ();
+      assert (eidx.var () <= external->max_var);
+      Lit ilit = external->e2i[eidx];
+      assert (ilit != INVALID_LIT); // Because we froze all!!!
+      if (elit.is_negated())
         ilit = -ilit;
       assume (ilit);
     }
@@ -412,9 +417,9 @@ void Internal::compact () {
     ignore_clang_analyze_memory_leak_warning = new_vals;
     new_vals += mapper.new_vsize;
     for (auto src : vars)
-      new_vals[-mapper.map_idx (src)] = vals[-src];
+      new_vals[-mapper.map_idx (src).var ()] = vals[-src.var ()];
     for (auto src : vars)
-      new_vals[mapper.map_idx (src)] = vals[src];
+      new_vals[mapper.map_idx (src).var ()] = vals[src.var ()];
     new_vals[0] = 0;
     vals -= vsize;
     delete[] vals;
@@ -425,17 +430,16 @@ void Internal::compact () {
   // 'constrain' uses 'val', so this code has to be after remapping that
   if (is_constraint) {
     assert (!level);
-    assert (!external->constraint.back ());
+    assert (external->constraint.back () == INVALID_ELIT);
     for (auto elit : external->constraint) {
-      assert (elit != INT_MIN);
-      int eidx = abs (elit);
-      assert (eidx <= external->max_var);
-      int ilit = external->e2i[eidx];
-      assert (!ilit == !elit);
-      if (elit < 0)
+      assert (elit != OTHER_INVALID_ELIT);
+      ELit eidx = elit.labs ();
+      assert (eidx <= ELit (external->max_var));
+      Lit ilit = external->e2i[eidx];
+      assert ((ilit == INVALID_LIT) == (elit == INVALID_ELIT));
+      if (elit.is_negated ())
         ilit = -ilit;
-      LOG ("re adding lit external %d internal %d to constraint", elit,
-           ilit);
+      LOG ("re adding lit external %s internal %s to constraint", LOGLIT (elit), LOGLIT (ilit));
       constrain (ilit);
     }
     PHASE ("compact", stats.compacts,
@@ -474,14 +478,14 @@ void Internal::compact () {
   assert (saved.empty ());
   if (!scores.empty ()) {
     while (!scores.empty ()) {
-      const int src = scores.front ();
+      const Lit src = Lit (scores.front ());
       scores.pop_front ();
-      const int dst = mapper.map_idx (src);
-      if (!dst)
+      const Lit dst = mapper.map_idx (src);
+      if (dst == INVALID_LIT)
         continue;
       if (src == mapper.first_fixed)
         continue;
-      saved.push_back (dst);
+      saved.push_back (dst.var ());
     }
     scores.erase ();
   }
@@ -504,10 +508,10 @@ void Internal::compact () {
 
   size_t new_target_assigned = 0, new_best_assigned = 0;
 
-  for (auto idx : Range (mapper.new_max_var)) {
-    if (phases.target[idx])
+  for (auto idx : Range<Lit> (mapper.new_max_var)) {
+    if (phases.target[idx.var ()])
       new_target_assigned++;
-    if (phases.best[idx])
+    if (phases.best[idx.var ()])
       new_best_assigned++;
   }
 
@@ -529,7 +533,7 @@ void Internal::compact () {
   max_var = mapper.new_max_var;
 
   stats.unused = 0;
-  stats.inactive = stats.now.fixed = mapper.first_fixed ? 1 : 0;
+  stats.inactive = stats.now.fixed = mapper.first_fixed != INVALID_LIT ? 1 : 0;
   stats.now.substituted = stats.now.eliminated = stats.now.pure = 0;
 
   check_var_stats ();

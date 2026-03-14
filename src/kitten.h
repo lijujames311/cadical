@@ -6,9 +6,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cadical_literals.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 typedef struct kitten kitten;
 
@@ -30,7 +33,7 @@ void kitten_assume (kitten *, unsigned lit);
 void kitten_assume_signed (kitten *, int lit);
 
 void kitten_clause (kitten *, size_t size, unsigned *);
-void citten_clause_with_id (kitten *, unsigned id, size_t size, int *);
+void citten_clause_with_id (kitten *, unsigned id, size_t size, CaDiCaL_Lit *);
 void kitten_unit (kitten *, unsigned);
 void kitten_binary (kitten *, unsigned, unsigned);
 
@@ -39,10 +42,10 @@ void kitten_clause_with_id_and_exception (kitten *, unsigned id,
                                           unsigned except);
 
 void citten_clause_with_id_and_exception (kitten *, unsigned id,
-                                          size_t size, const int *,
+                                          size_t size, const CaDiCaL_Lit *,
                                           unsigned except);
 void citten_clause_with_id_and_equivalence (kitten *, unsigned id,
-                                            size_t size, const int *,
+                                            size_t size, const CaDiCaL_Lit *,
                                             unsigned, unsigned);
 void kitten_no_ticks_limit (kitten *);
 void kitten_set_ticks_limit (kitten *, uint64_t);

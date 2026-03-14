@@ -6,7 +6,7 @@ namespace CaDiCaL {
 void Internal::decompose_analyze_binary_chain (DFS *dfs, Lit from) {
   if (!lrat)
     return;
-  LOG ("binary chain starting at %d", from);
+  LOG ("binary chain starting at %s", LOGLIT (from));
   DFS &from_dfs = dfs[vlit (from)];
   Clause *reason = from_dfs.parent;
   if (!reason)
@@ -26,7 +26,7 @@ void Internal::decompose_analyze_binary_chain (DFS *dfs, Lit from) {
 vector<Clause *> Internal::decompose_analyze_binary_clauses (DFS *dfs,
                                                              Lit from) {
   vector<Clause *> result;
-  LOG ("binary chain starting at %d", from);
+  LOG ("binary chain starting at %s", LOGLIT (from));
   DFS &from_dfs = dfs[vlit (from)];
   Clause *reason = from_dfs.parent;
   while (reason) {
@@ -90,7 +90,7 @@ void Internal::build_lrat_for_clause (
       mark_decomposed (other);
       Lit implied = p->literals[0];
       implied = implied == other ? -p->literals[1] : -implied;
-      LOG ("ADDED %d -> %d (%" PRId64 ")", implied, other, p->id);
+      LOG ("ADDED %s -> %s (%" PRId64 ")", LOGLIT (implied), LOGLIT (other), p->id);
       other = implied;
       mini_chain.push_back (p->id);
       if (val (implied) <= 0)
@@ -148,7 +148,7 @@ bool Internal::decompose_round () {
   DeferDeleteArray<DFS> dfs_delete (dfs);
   Lit *reprs = new Lit[size_dfs];
   DeferDeleteArray<Lit> reprs_delete (reprs);
-  clear_n (reprs, size_dfs);
+  std::fill (reprs, reprs + size_dfs, INVALID_LIT);
   vector<vector<Clause *>> dfs_chains;
   if (lrat) {
     dfs_chains.resize (size_dfs, {});
@@ -176,7 +176,7 @@ bool Internal::decompose_round () {
       Lit root = root_sign > 0 ? root_idx : -root_idx;
       if (dfs[vlit (root)].min == TRAVERSED)
         continue; // skip traversed
-      LOG ("new dfs search starting at root %d", root);
+      LOG ("new dfs search starting at root %s", LOGLIT (root));
       assert (work.empty ());
       assert (scc.empty ());
       work.push_back (root);
@@ -221,8 +221,8 @@ bool Internal::decompose_round () {
                 new_min = child_dfs.min;
             }
 
-            LOG ("post-fix work dfs search %d index %u reaches minimum %u",
-                 parent, parent_dfs.idx, new_min);
+            LOG ("post-fix work dfs search %s index %u reaches minimum %u",
+                 LOGLIT (parent), parent_dfs.idx, new_min);
 
             if (parent_dfs.idx == new_min) { // entry to SCC
 
@@ -256,7 +256,7 @@ bool Internal::decompose_round () {
                 assert (!conflicting || !first.is_negated());
                 vector<Lit> to_justify;
                 if (conflicting) {
-                  LOG ("conflicting scc simulating up at %d", parent);
+                  LOG ("conflicting scc simulating up at %s", LOGLIT (-parent));
                   to_justify.push_back (-parent);
                 } else
                   to_justify.push_back (first);
@@ -293,7 +293,7 @@ bool Internal::decompose_round () {
                 assert (j > 0);
                 other = scc[--j];
                 if (other == -parent) {
-                  LOG ("both %d and %d in one SCC", parent, -parent);
+                  LOG ("both %s and %s in one SCC", LOGLIT (parent), LOGLIT (-parent));
                   if (lrat) {
                     Flags &f = flags (-parent);
                     f.seen = true;
@@ -323,7 +323,7 @@ bool Internal::decompose_round () {
               if (unsat)
                 break;
 #ifndef QUIET
-              LOG ("SCC of representative %d of size %d", repr, size);
+              LOG ("SCC of representative %s of size %d", LOGLIT (repr), size);
 #endif
               do {
                 assert (!scc.empty ());
@@ -334,7 +334,7 @@ bool Internal::decompose_round () {
                 if (other == repr)
                   continue;
                 substituted++;
-                LOG ("literal %d in SCC of %d", other, repr);
+                LOG ("literal %s in SCC of %s", LOGLIT (other), LOGLIT (repr));
                 if (!lrat)
                   continue;
                 assert (mini_chain.empty ());
@@ -369,7 +369,7 @@ bool Internal::decompose_round () {
             parent_dfs.idx = parent_dfs.min = dfs_idx;
             scc.push_back (parent);
 
-            LOG ("pre-fix work dfs search %d index %u", parent, dfs_idx);
+            LOG ("pre-fix work dfs search %s index %u", LOGLIT (parent), dfs_idx);
 
             // Now traverse all the children in the binary implication
             // graph but keep 'parent' on the stack for 'post-fix' work.
@@ -430,7 +430,7 @@ bool Internal::decompose_round () {
     assert (!flags (other).eliminated ());
     assert (!flags (other).substituted ());
     const bool idx_frozen = frozen (idx);
-    LOG ("marking equivalence of %d and %d", idx, other);
+    LOG ("marking equivalence of %s and %s", LOGLIT (idx), LOGLIT (other));
     assert (clause.empty ());
     assert (lrat_chain.empty ());
     clause.push_back (other);
@@ -615,7 +615,7 @@ bool Internal::decompose_round () {
       LOG ("learned empty clause during decompose");
       learn_empty_clause ();
     } else if (clause.size () == 1) {
-      LOG (c, "unit %d after substitution", clause[0]);
+      LOG (c, "unit %s after substitution", LOGLIT (clause[0]));
       assign_unit (clause[0]);
       mark_garbage (c);
       new_unit = true;

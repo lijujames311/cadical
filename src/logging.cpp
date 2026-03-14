@@ -60,12 +60,12 @@ void Logger::log (Internal *internal, const Clause *c, const char *fmt,
       printf (" ... (moved)");
     else {
       if (internal->opts.logsort) {
-        vector<int> s;
+        vector<Lit> s;
         for (const auto &lit : *c)
           s.push_back (lit);
-        sort (s.begin (), s.end (), clause_lit_less_than ());
+        sort (s.begin (), s.end (), std::less<Lit> ());
         for (const auto &lit : s)
-          printf (" %d", lit);
+          printf (" %s", LOGLIT (lit));
       } else {
         for (const auto &lit : *c) {
           printf (" %s", loglit (internal, lit).c_str ());
@@ -118,7 +118,7 @@ void Logger::log (Internal *internal, const vector<int> &c, const char *fmt,
     vector<int> s;
     for (const auto &lit : c)
       s.push_back (lit);
-    sort (s.begin (), s.end (), clause_lit_less_than ());
+    sort (s.begin (), s.end (), std::less <int> ());
     for (const auto &lit : s)
       printf (" %d", lit);
   } else {
@@ -139,15 +139,39 @@ void Logger::log (Internal *internal, const vector<Lit> &c, const char *fmt,
   vprintf (fmt, ap);
   va_end (ap);
   if (internal->opts.logsort) {
-    vector<int> s;
+    vector<Lit> s;
     for (const auto &lit : c)
       s.push_back (lit);
     sort (s.begin (), s.end (), clause_lit_less_than ());
     for (const auto &lit : s)
-      printf (" %d", lit.signed_representative ());
+      printf (" %s", LOGLIT (lit));
   } else {
     for (const auto &lit : c)
-      printf (" %d", lit);
+      printf (" %s", LOGLIT (lit));
+  }
+  fputc ('\n', stdout);
+  tout.normal ();
+  fflush (stdout);
+}
+
+void Logger::log (Internal *internal, const vector<ELit> &c, const char *fmt,
+                  ...) {
+  print_log_prefix (internal);
+  tout.magenta ();
+  va_list ap;
+  va_start (ap, fmt);
+  vprintf (fmt, ap);
+  va_end (ap);
+  if (internal->opts.logsort) {
+    vector<ELit> s;
+    for (const auto &lit : c)
+      s.push_back (lit);
+    sort (s.begin (), s.end (), std::less <ELit> ());
+    for (const auto &lit : s)
+      printf (" %s", LOGLIT (lit));
+  } else {
+    for (const auto &lit : c)
+      printf (" %s", LOGLIT (lit));
   }
   fputc ('\n', stdout);
   tout.normal ();
@@ -170,7 +194,7 @@ void Logger::log (Internal *internal,
     vector<int> s;
     for (auto p = begin; p != end; p++)
       s.push_back (*p);
-    sort (s.begin (), s.end (), clause_lit_less_than ());
+    sort (s.begin (), s.end (), std::less<int> ());
     for (const auto &lit : s)
       printf (" %d", lit);
   } else {
@@ -210,7 +234,7 @@ void Logger::log (Internal *internal, const int *literals,
   vprintf (fmt, ap);
   va_end (ap);
   for (unsigned i = 0; i < size; i++) {
-    const Lit lit = literals[i];
+    const int lit = literals[i];
     printf (" %d", lit);
   }
   fputc ('\n', stdout);
@@ -219,8 +243,8 @@ void Logger::log (Internal *internal, const int *literals,
 }
 
 string Logger::loglit (Internal *internal, Lit lit) {
-  std::string v = std::to_string (lit);
-  if (lit && -internal->max_var <= lit && internal->max_var >= lit) {
+  std::string v = std::to_string (lit.signed_representation ());
+  if (lit != INVALID_LIT && internal->max_var >= lit.var ()) {
     const int va = internal->val (lit);
     if (va) {
       v = v + "@" + std::to_string (internal->var (lit).level);
@@ -234,6 +258,13 @@ string Logger::loglit (Internal *internal, Lit lit) {
   }
   return v;
 }
+
+string Logger::loglit (Internal *internal, ELit lit) {
+  (void)internal;
+  std::string v = "e" + std::to_string (lit.signed_representation ());
+  return v;
+}
+
 } // namespace CaDiCaL
 
 #endif

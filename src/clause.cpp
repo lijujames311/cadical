@@ -378,7 +378,7 @@ void Internal::assign_original_unit (int64_t id, Lit lit) {
   const unsigned uidx = vlit (lit);
   if (lrat || frat)
     unit_clauses (uidx) = id;
-  LOG ("original unit assign %d", lit);
+  LOG ("original unit assign %s", LOGLIT (lit));
   assert (num_assigned == trail.size () || level);
   mark_fixed (lit);
   if (level)
@@ -402,7 +402,7 @@ void Internal::add_new_original_clause (int64_t id) {
     assert (new_level >= 0);
     backtrack_without_updating_phases (new_level);
   }
-  assert (earliest_changed_val != INVALID_LIT);
+  assert (earliest_changed_val == INVALID_LIT);
   LOG (original, "original clause");
   assert (clause.empty ());
   bool skip = false;
@@ -417,15 +417,15 @@ void Internal::add_new_original_clause (int64_t id) {
     for (const auto &lit : original) {
       int tmp = marked (lit);
       if (tmp > 0) {
-        LOG ("removing duplicated literal %d", lit);
+        LOG ("removing duplicated literal %s", LOGLIT (lit));
       } else if (tmp < 0) {
-        LOG ("tautological since both %d and %d occur", -lit, lit);
+        LOG ("tautological since both %s and %s occur", LOGLIT (-lit), LOGLIT (lit));
         skip = true;
       } else {
         mark (lit);
         tmp = fixed (lit);
         if (tmp < 0) {
-          LOG ("removing falsified literal %d", lit);
+          LOG ("removing falsified literal %s", LOGLIT (lit));
           if (lrat) {
             ELit elit = externalize (lit);
             unsigned eidx = elit.vlit ();
@@ -436,7 +436,7 @@ void Internal::add_new_original_clause (int64_t id) {
             }
           }
         } else if (tmp > 0) {
-          LOG ("satisfied since literal %d true", lit);
+          LOG ("satisfied since literal %s true", LOGLIT (lit));
           skip = true;
         } else {
           clause.push_back (lit);
@@ -505,7 +505,6 @@ void Internal::add_new_original_clause (int64_t id) {
       if (force_no_backtrack) {
         assert (level);
         const Lit lit = clause[0];
-        const int idx = vidx (lit);
         assert (val (lit) >= 0);
         assert (!flags (lit).eliminated ());
         Var &v = var (lit);

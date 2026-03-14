@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -167,7 +168,22 @@ inline void LidrupTracer::put_binary_lit (int lit) {
   assert (binary);
   assert (file);
   assert (lit != INT_MIN);
-  unsigned x = 2 * abs (lit) + (lit < 0);
+  unsigned x = 2 * std::abs (lit) + (lit < 0);
+  unsigned char ch;
+  while (x & ~0x7f) {
+    ch = (x & 0x7f) | 0x80;
+    file->put (ch);
+    x >>= 7;
+  }
+  ch = x;
+  file->put (ch);
+}
+
+inline void LidrupTracer::put_binary_lit (ELit lit) {
+  assert (binary);
+  assert (file);
+  assert (lit != OTHER_INVALID_ELIT);
+  unsigned x = lit.vlit ();
   unsigned char ch;
   while (x & ~0x7f) {
     ch = (x & 0x7f) | 0x80;
@@ -181,7 +197,7 @@ inline void LidrupTracer::put_binary_lit (int lit) {
 inline void LidrupTracer::put_binary_id (int64_t id, bool can_be_negative) {
   assert (binary);
   assert (file);
-  uint64_t x = abs (id);
+  uint64_t x = std::abs (id);
   if (can_be_negative) {
     x = 2 * x + (id < 0);
   }

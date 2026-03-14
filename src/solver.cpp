@@ -663,7 +663,7 @@ void Solver::add (int dimacs_lit) {
     STATE (ADDING);
   else if (!adding_constraint)
     STATE (STEADY);
-  LOG_API_CALL_END ("add", lit);
+  LOG_API_CALL_END ("add", dimacs_lit);
 }
 
 void Solver::clause (int a) {
@@ -752,7 +752,7 @@ int Solver::lookahead () {
   REQUIRE_VALID_OR_SOLVING_STATE ();
   transition_to_steady_state ();
   ELit lit = external->lookahead ();
-  LOG_API_CALL_END ("lookahead", lit);
+  LOG_API_CALL_END ("lookahead", lit.signed_representation ());
   return lit.signed_representation();
 }
 
@@ -907,7 +907,7 @@ int Solver::val (
   ELit res = external->ival (ELit (lit));
   LOG_API_CALL_RETURNS (
       "val", lit, use_default_value_for_declared_but_not_used_variable,
-      res);
+      res.signed_representation ());
   assert (state () == SATISFIED);
   assert (res == ELit (lit) || res == -ELit (lit));
   return res.signed_representation ();

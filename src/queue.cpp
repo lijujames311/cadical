@@ -8,9 +8,9 @@ namespace CaDiCaL {
 
 void Internal::init_enqueue (int idx) {
   Link &l = links[idx];
-  assert (flags (idx).active () || flags (idx).fixed ());
+  assert (flags (Lit (idx)).active () || flags (Lit (idx)).fixed ());
   if (opts.varprioritizeswap) {
-    LOG ("enqueueing %s at the beginning", LOGLIT(idx));
+    LOG ("enqueueing %s at the beginning", LOGLIT(Lit (idx)));
     l.prev = 0;
     if (queue.first) {
       assert (!links[queue.first].prev);
@@ -24,12 +24,12 @@ void Internal::init_enqueue (int idx) {
     assert (btab[idx] <= stats.bumped);
     l.next = queue.first;
     queue.first = idx;
-    LOG ("enqueueing %s at the beginning, next: %d, last: %d", LOGLIT(idx), l.next, queue.last);
+    LOG ("enqueueing %s at the beginning, next: %d, last: %d", LOGLIT(Lit (idx)), l.next, queue.last);
     //due to interactions with IPASIR-UP, we need to update it every time.
     //if (!queue.unassigned)
     update_queue_unassigned (queue.last);
   } else {
-    LOG ("enqueueing %s at the end", LOGLIT(idx));
+    LOG ("enqueueing %s at the end", LOGLIT(Lit (idx)));
     l.next = 0;
     if (queue.last) {
       assert (!links[queue.last].next);
@@ -72,9 +72,10 @@ void Internal::shuffle_queue () {
   LOG ("shuffling queue");
   vector<int> shuffle;
   if (opts.shufflerandom) {
-    for (int idx = max_var; idx; idx--)
-      if (!flags (idx).unused ())
-	shuffle.push_back (idx);
+    for (auto it = vars.rbegin(); it != vars.rend(); ++it) {
+      if (!flags (*it).unused ())
+        shuffle.push_back ((*it).var ());
+    }
     Random random (opts.seed); // global seed
     random += stats.shuffled;  // different every time
     const int highest_var = shuffle.size ();
@@ -102,7 +103,7 @@ void Internal::check_queue () {
   std::vector<bool> seen;
   seen.resize (max_var+1, false);
   while (res) {
-    assert (!flags (res).declared () && !flags (res).unused ());
+    assert (!flags (Lit (res)).declared () && !flags (Lit (res)).unused ());
     seen [res] = true;
     int next = links[res].next;
     if (!next) break;
@@ -113,8 +114,8 @@ void Internal::check_queue () {
 
   res = queue.last;
   while (res != queue.unassigned) {
-    assert (!flags (res).declared () && !flags (res).unused ());
-    assert (internal->val (res));
+    assert (!flags (Lit (res)).declared () && !flags (Lit (res)).unused ());
+    assert (internal->val (Lit (res)));
     res = links[res].prev;
     assert (res);
   }
@@ -122,7 +123,7 @@ void Internal::check_queue () {
   for (auto v : vars) {
     if (!active (v))
       continue;
-    assert (seen[v]);
+    assert (seen[v.var ()]);
   }
 #endif
 }

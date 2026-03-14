@@ -166,8 +166,8 @@ template <typename T> struct DeferDeletePtr {
 
 /*------------------------------------------------------------------------*/
 
-template <class T> inline void clear_n (T *base, size_t n) {
-  memset (base, 0, sizeof (T) * n);
+template <class T> inline void clear_n (T *base, size_t n, int def = 0) {
+  memset (base, def, sizeof (T) * n);
 }
 
 /*------------------------------------------------------------------------*/

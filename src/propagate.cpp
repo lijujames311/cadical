@@ -154,9 +154,9 @@ inline void Internal::search_assign (Lit lit, Clause *reason) {
   trail.push_back (lit);
 #ifdef LOGGING
   if (!lit_level)
-    LOG ("root-level unit assign %d @ 0", lit);
+    LOG ("root-level unit assign %s @ 0", LOGLIT(lit));
   else
-    LOG (reason, "search assign %d @ %d", lit, lit_level);
+    LOG (reason, "search assign %s @ %d", LOGLIT(lit), lit_level);
 #endif
 
   if (watching ()) {
@@ -190,7 +190,7 @@ void Internal::search_assume_decision (Lit lit) {
   assert (propagated == trail.size ());
   new_trail_level (lit);
   notify_decision ();
-  LOG ("search decide %d", lit);
+  LOG ("search decide %s", LOGLIT(lit));
   search_assign (lit, decision_reason);
 }
 
@@ -247,7 +247,7 @@ bool Internal::propagate () {
   while (!conflict && propagated != trail.size ()) {
 
     const Lit lit = -trail[propagated++];
-    LOG ("propagating %d", -lit);
+    LOG ("propagating %s", LOGLIT(lit));
     Watches &ws = watches (lit);
 
     const const_watch_iterator eow = ws.end ();
@@ -383,7 +383,7 @@ bool Internal::propagate () {
 
             // Found new unassigned replacement literal to be watched.
 
-            LOG (w.clause, "unwatch %d in", lit);
+            LOG (w.clause, "unwatch %s in", LOGLIT(lit));
 
             lits[0] = other;
             lits[1] = r;
@@ -434,7 +434,7 @@ bool Internal::propagate () {
                 assert (s != INVALID_LIT);
                 assert (pos < size);
 
-                LOG (w.clause, "unwatch %d in", lit);
+                LOG (w.clause, "unwatch %s in", LOGLIT(lit));
                 lits[pos] = lit;
                 lits[0] = other;
                 lits[1] = s;
@@ -514,7 +514,7 @@ void Internal::propergate () {
   while (propergated != trail.size ()) {
 
     const Lit lit = -trail[propergated++];
-    LOG ("propergating %d", -lit);
+    LOG ("propergating %s", LOGLIT(lit));
     Watches &ws = watches (lit);
 
     const const_watch_iterator eow = ws.end ();
@@ -567,7 +567,7 @@ void Internal::propergate () {
 
       assert (v > 0);
 
-      LOG (w.clause, "unwatch %d in", lit);
+      LOG (w.clause, "unwatch %s in", LOGLIT(lit));
 
       lits[0] = other;
       lits[1] = r;

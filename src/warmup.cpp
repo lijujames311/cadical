@@ -1,5 +1,6 @@
 #include "cadical.hpp"
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -11,7 +12,7 @@ namespace CaDiCaL {
 // the target phases so that local search can pick them up later
 
 // specific warmup version with saving of the target.
-inline void Internal::warmup_assign (int lit, Clause *reason) {
+inline void Internal::warmup_assign (Lit lit, Clause *reason) {
 
   assert (level); // no need to learn unit clauses here
   require_mode (SEARCH);
@@ -19,10 +20,10 @@ inline void Internal::warmup_assign (int lit, Clause *reason) {
   const int idx = vidx (lit);
   assert (reason != external_reason);
   assert (!vals[idx]);
-  assert (!flags (idx).eliminated () || reason == decision_reason);
+  assert (!flags (lit).eliminated () || reason == decision_reason);
   assert (!searching_lucky_phases);
   assert (lrat_chain.empty ());
-  Var &v = var (idx);
+  Var &v = var (lit);
   int lit_level;
   assert (
       !(reason == external_reason &&
@@ -40,16 +41,16 @@ inline void Internal::warmup_assign (int lit, Clause *reason) {
   num_assigned++;
   const signed char tmp = sign (lit);
   phases.saved[idx] = tmp;
-  set_val (idx, tmp);
+  set_val (Lit (idx), tmp);
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
 
   trail.push_back (lit);
 #ifdef LOGGING
   if (!lit_level)
-    LOG ("root-level unit assign %d @ 0", lit);
+    LOG ("root-level unit assign %s @ 0", LOGLIT (lit));
   else
-    LOG (reason, "search assign %d @ %d", lit, lit_level);
+    LOG (reason, "search assign %s @ %d", LOGLIT (lit), lit_level);
 #endif
 
   assert (watching ());
@@ -71,8 +72,8 @@ void Internal::warmup_propagate_beyond_conflict () {
 
   while (propagated != trail.size ()) {
 
-    const int lit = -trail[propagated++];
-    LOG ("propagating %d", -lit);
+    const Lit lit = -trail[propagated++];
+    LOG ("propagating %s", LOGLIT (-lit));
     Watches &ws = watches (lit);
 
     const const_watch_iterator eow = ws.end ();
@@ -144,7 +145,7 @@ void Internal::warmup_propagate_beyond_conflict () {
           const literal_iterator middle = lits + w.clause->pos;
           literal_iterator k = middle;
           signed char v = -1;
-          int r = 0;
+          Lit r = INVALID_LIT;
           while (k != end && (v = val (r = *k)) < 0)
             k++;
           if (v < 0) {
@@ -168,7 +169,7 @@ void Internal::warmup_propagate_beyond_conflict () {
 
             // Found new unassigned replacement literal to be watched.
 
-            LOG (w.clause, "unwatch %d in", lit);
+            LOG (w.clause, "unwatch %s in", LOGLIT (r));
 
             lits[0] = other;
             lits[1] = r;
@@ -214,69 +215,69 @@ int Internal::warmup_decide_assumptions () {
   START (decide);
   int res = 0;
   if ((size_t) level < assumptions.size ()) {
-    const int lit = assumptions[level];
+    const Lit lit = assumptions[level];
     assert (assumed (lit));
     const signed char tmp = val (lit);
     if (tmp < 0) {
-      LOG ("assumption %d falsified", lit);
+      LOG ("assumption %s falsified", LOGLIT (lit));
       res = 20;
     } else if (tmp > 0) {
-      LOG ("assumption %d already satisfied", lit);
-      new_trail_level (0);
+      LOG ("assumption %s already satisfied", LOGLIT (lit));
+      new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level");
     } else {
-      LOG ("deciding assumption %d", lit);
+      LOG ("deciding assumption %s", LOGLIT (lit));
       search_assume_decision (lit);
     }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
 
-    int satisfied_lit = 0;  // The literal satisfying the constrain.
-    int unassigned_lit = 0; // Highest score unassigned literal.
-    int previous_lit = 0;   // Move satisfied literals to the front.
+    Lit satisfied_lit = INVALID_LIT;  // The literal satisfying the constrain.
+    Lit unassigned_lit = INVALID_LIT; // Highest score unassigned literal.
+    Lit previous_lit = INVALID_LIT;   // Move satisfied literals to the front.
 
     const size_t size_constraint = constraint.size ();
 
 #ifndef NDEBUG
     unsigned sum = 0;
     for (auto lit : constraint)
-      sum += lit;
+      sum += lit.signed_representation();
 #endif
     for (size_t i = 0; i != size_constraint; i++) {
 
       // Get literal and move 'constraint[i] = constraint[i-1]'.
 
-      int lit = constraint[i];
+      Lit lit = constraint[i];
       constraint[i] = previous_lit;
       previous_lit = lit;
 
       const signed char tmp = val (lit);
       if (tmp < 0) {
-        LOG ("constraint literal %d falsified", lit);
+        LOG ("constraint literal %s falsified", LOGLIT (lit));
         continue;
       }
 
       if (tmp > 0) {
-        LOG ("constraint literal %d satisfied", lit);
+        LOG ("constraint literal %s satisfied", LOGLIT (lit));
         satisfied_lit = lit;
         break;
       }
 
       assert (!tmp);
-      LOG ("constraint literal %d unassigned", lit);
+      LOG ("constraint literal %s unassigned", LOGLIT (lit));
 
-      if (!unassigned_lit || better_decision (lit, unassigned_lit))
+      if (unassigned_lit == INVALID_LIT || better_decision (lit, unassigned_lit))
         unassigned_lit = lit;
     }
 
-    if (satisfied_lit) {
+    if (satisfied_lit != INVALID_LIT) {
 
       constraint[0] = satisfied_lit; // Move satisfied to the front.
 
-      LOG ("literal %d satisfies constraint and "
+      LOG ("literal %s satisfies constraint and "
            "is implied by assumptions",
-           satisfied_lit);
+           LOGLIT (satisfied_lit));
 
-      new_trail_level (0);
+      new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level for constraint");
       notify_decision ();
 
@@ -294,9 +295,9 @@ int Internal::warmup_decide_assumptions () {
         constraint[size_constraint - 1] = previous_lit;
       }
 
-      if (unassigned_lit) {
+      if (unassigned_lit != INVALID_LIT) {
 
-        LOG ("deciding %d to satisfy constraint", unassigned_lit);
+        LOG ("deciding %s to satisfy constraint", LOGLIT (unassigned_lit));
         search_assume_decision (unassigned_lit);
 
       } else {
@@ -309,7 +310,7 @@ int Internal::warmup_decide_assumptions () {
 
 #ifndef NDEBUG
     for (auto lit : constraint)
-      sum -= lit;
+      sum -= lit.signed_representation();
     assert (!sum); // Checksum of literal should not change!
 #endif
 
@@ -329,16 +330,16 @@ void Internal::warmup_decide () {
   assert (!constraint.size () || (size_t) level > assumptions.size ());
   const bool target = (stable || opts.target == 2);
   stats.warmup.decision++;
-  int idx = next_decision_variable ();
+  Lit idx = next_decision_variable ();
   if (flags (idx).eliminated ())
     ++stats.warmup.dummydecision;
-  int decision = decide_phase (idx, target);
+  Lit decision = decide_phase (idx, target);
   new_trail_level (decision);
   warmup_assign (decision, decision_reason);
   STOP (decide);
 }
 
-int Internal::decide_and_propagate_all_assumptions (std::vector<int> &set_literals) {
+int Internal::decide_and_propagate_all_assumptions (std::vector<Lit> &set_literals) {
   LOG ("decide and propagate all assumptions to fill the vectors");
   assert (!private_steps);
   int res = 0;

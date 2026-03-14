@@ -22,19 +22,19 @@ namespace CaDiCaL {
 // Check whether a binary clause consisting of the permutation of the given
 // literals already exists.
 
-bool Internal::ternary_find_binary_clause (int a, int b) {
+bool Internal::ternary_find_binary_clause (Lit a, Lit b) {
   assert (occurring ());
   assert (active (a));
   assert (active (b));
   size_t s = occs (a).size ();
   size_t t = occs (b).size ();
-  int lit = s < t ? a : b;
+  Lit lit = s < t ? a : b;
   if (opts.ternaryocclim < (int) occs (lit).size ())
     return true;
   for (const auto &c : occs (lit)) {
     if (c->size != 2)
       continue;
-    const int *lits = c->literals;
+    const Lit *lits = c->literals;
     if (lits[0] == a && lits[1] == b)
       return true;
     if (lits[0] == b && lits[1] == a)
@@ -48,7 +48,7 @@ bool Internal::ternary_find_binary_clause (int a, int b) {
 // Check whether a ternary clause consisting of the permutation of the given
 // literals already exists or is subsumed by an existing binary clause.
 
-bool Internal::ternary_find_ternary_clause (int a, int b, int c) {
+bool Internal::ternary_find_ternary_clause (Lit a, Lit b, Lit c) {
   assert (occurring ());
   assert (active (a));
   assert (active (b));
@@ -56,7 +56,7 @@ bool Internal::ternary_find_ternary_clause (int a, int b, int c) {
   size_t r = occs (a).size ();
   size_t s = occs (b).size ();
   size_t t = occs (c).size ();
-  int lit;
+  Lit lit;
   if (r < s)
     lit = (t < r) ? c : a;
   else
@@ -64,7 +64,7 @@ bool Internal::ternary_find_ternary_clause (int a, int b, int c) {
   if (opts.ternaryocclim < (int) occs (lit).size ())
     return true;
   for (const auto &d : occs (lit)) {
-    const int *lits = d->literals;
+    const Lit *lits = d->literals;
     if (d->size == 2) {
       if (lits[0] == a && lits[1] == b)
         return true;
@@ -107,7 +107,7 @@ bool Internal::ternary_find_ternary_clause (int a, int b, int c) {
 // needs to be cleared in any case.
 
 bool Internal::hyper_ternary_resolve (Clause *c, Lit pivot, Clause *d) {
-  LOG ("hyper binary resolving on pivot %d", pivot);
+  LOG ("hyper binary resolving on pivot %s", LOGLIT (pivot));
   LOG (c, "1st antecedent");
   LOG (d, "2nd antecedent");
   stats.ternres++;
@@ -150,7 +150,7 @@ bool Internal::hyper_ternary_resolve (Clause *c, Lit pivot, Clause *d) {
 // propagation step during search.
 
 void Internal::ternary_lit (Lit pivot, int64_t &steps, int64_t &htrs) {
-  LOG ("starting hyper ternary resolutions on pivot %d", pivot);
+  LOG ("starting hyper ternary resolutions on pivot %s", LOGLIT (pivot));
   steps -= 1 + cache_lines (occs (pivot).size (), sizeof (Clause *));
   for (const auto &c : occs (pivot)) {
     if (steps < 0)
@@ -234,9 +234,9 @@ void Internal::ternary_lit (Lit pivot, int64_t &steps, int64_t &htrs) {
 // Same as 'ternary_lit' but pick the phase of the variable based on the
 // number of positive and negative occurrence.
 
-void Internal::ternary_idx (int idx, int64_t &steps, int64_t &htrs) {
-  assert (0 < idx);
-  assert (idx <= max_var);
+void Internal::ternary_idx (Lit idx, int64_t &steps, int64_t &htrs) {
+  assert (idx.is_positive());
+  assert (idx.var () <= max_var);
   steps -= 3;
   if (!active (idx))
     return;
@@ -245,7 +245,7 @@ void Internal::ternary_idx (int idx, int64_t &steps, int64_t &htrs) {
   int pos = occs (idx).size ();
   int neg = occs (-idx).size ();
   if (pos <= opts.ternaryocclim && neg <= opts.ternaryocclim) {
-    LOG ("index %d has %zd positive and %zd negative occurrences", idx,
+    LOG ("index %s has %zd positive and %zd negative occurrences", LOGLIT (idx),
          occs (idx).size (), occs (-idx).size ());
     Lit pivot = (neg < pos ? -idx : idx);
     ternary_lit (pivot, steps, htrs);

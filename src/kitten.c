@@ -1,3 +1,5 @@
+#include "literals.hpp"
+#include "cadical_literals.hpp"
 #include "kitten.h"
 #include "random.h"
 #include "stack.h"
@@ -1728,7 +1730,7 @@ static bool flip_literal (kitten *kitten, unsigned lit) {
 // this cadical specific clause addition avoids copying clauses multiple
 // times just to convert literals to unsigned representation.
 //
-static unsigned int2u (Lit lit) {
+static unsigned int2u (int lit) {
   assert (lit != 0);
   int idx = abs (lit) - 1;
   return (lit < 0) + 2u * (unsigned) idx;
@@ -1777,15 +1779,15 @@ void kitten_clause_with_id_and_exception (kitten *kitten, unsigned id,
 }
 
 void citten_clause_with_id_and_exception (kitten *kitten, unsigned id,
-                                          size_t size, const int *elits,
+                                          size_t size, const CaDiCaL_Lit *elits,
                                           unsigned except) {
   REQUIRE_INITIALIZED ();
   if (kitten->status)
     reset_incremental (kitten);
   assert (EMPTY_STACK (kitten->klause));
-  const int *const end = elits + size;
-  for (const int *p = elits; p != end; p++) {
-    const unsigned elit = int2u (*p); // this is the conversion
+  const CaDiCaL_Lit *const end = elits + size;
+  for (const CaDiCaL_Lit *p = elits; p != end; p++) {
+    const unsigned elit = int2u (signed_representation (*p)); // this is the conversion
     if (elit == except)
       continue;
     const unsigned ilit = import_literal (kitten, elit);
@@ -1804,16 +1806,16 @@ void citten_clause_with_id_and_exception (kitten *kitten, unsigned id,
 }
 
 void citten_clause_with_id_and_equivalence (kitten *kitten, unsigned id,
-                                            size_t size, const int *elits,
+                                            size_t size, const CaDiCaL_Lit *elits,
                                             unsigned lit, unsigned other) {
   REQUIRE_INITIALIZED ();
   if (kitten->status)
     reset_incremental (kitten);
   assert (EMPTY_STACK (kitten->klause));
   bool sat = false;
-  const int *const end = elits + size;
-  for (const int *p = elits; p != end; p++) {
-    const unsigned elit = int2u (*p); // this is the conversion
+  const CaDiCaL_Lit *const end = elits + size;
+  for (const CaDiCaL_Lit* p = elits; p != end; p++) {
+    const unsigned elit = int2u (signed_representation (*p)); // this is the conversion
     if (elit == (lit ^ 1u) || elit == (other ^ 1u))
       continue;
     if (elit == lit || elit == other) {
@@ -1842,7 +1844,7 @@ void kitten_clause (kitten *kitten, size_t size, unsigned *elits) {
 }
 
 void citten_clause_with_id (kitten *kitten, unsigned id, size_t size,
-                            int *elits) {
+                            CaDiCaL_Lit *elits) {
   citten_clause_with_id_and_exception (kitten, id, size, elits, INVALID);
 }
 

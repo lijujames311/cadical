@@ -342,7 +342,7 @@ inline bool ite_flags_cond_lhs (int8_t flag) {
 struct my_dummy_optional {
   LitClausePair content;
   my_dummy_optional () : content (Lit(0), nullptr) {}
-  bool operator() () const { return content.current_lit (); }
+  bool operator() () const { return content.current_lit != INVALID_LIT; }
   my_dummy_optional operator= (LitClausePair p) {
     content = p;
     return *this;

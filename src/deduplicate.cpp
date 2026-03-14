@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -36,7 +37,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
   assert (!level);
   assert (watching ());
 
-  vector<int> stack; // To save marked literals and unmark them later.
+  vector<Lit> stack; // To save marked literals and unmark them later.
 
   int64_t subsumed = 0;
   int64_t units = 0;
@@ -47,9 +48,9 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
       break;
     if (!active (idx))
       continue;
-    int unit = 0;
+    Lit unit = INVALID_LIT;
 
-    for (int sign = -1; !unit && sign <= 1; sign += 2) {
+    for (int sign = -1; unit == INVALID_LIT && sign <= 1; sign += 2) {
 
       const Lit lit = sign * idx; // Consider all literals.
 
@@ -62,7 +63,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
       watch_iterator j = ws.begin ();
       const_watch_iterator i;
 
-      for (i = j; !unit && i != end; i++) {
+      for (i = j; unit == INVALID_LIT && i != end; i++) {
         Watch w = *j++ = *i;
         if (!w.binary ())
           continue;
@@ -108,8 +109,8 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
 
         } else if (tmp < 0) { // Hyper unary resolution.
 
-          LOG ("found %d %d and %d %d which produces unit %d", lit, -other,
-               lit, other, lit);
+          LOG ("found %s %s and %s %s which produces unit %s", LOGLIT(lit), LOGLIT(-other),
+               LOGLIT(lit), LOGLIT(other), LOGLIT(lit));
           unit = lit;
           if (lrat) {
             // taken from fradical
@@ -155,7 +156,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
     // propagate the unit immediately after finding it.  Instead we break
     // out of both loops and assign and propagate the unit here.
 
-    if (unit) {
+    if (unit != INVALID_LIT) {
 
       stats.failed++;
       stats.hyperunary++;

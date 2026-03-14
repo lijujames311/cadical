@@ -114,7 +114,7 @@ void Internal::set_probehbr_lrat (Lit lit, Lit uip) {
 void Internal::probe_dominator_lrat (Lit dom, Clause *reason) {
   if (!lrat || dom == INVALID_LIT)
     return;
-  LOG (reason, "probe dominator LRAT for %d from", dom);
+  LOG (reason, "probe dominator LRAT for %s from", LOGLIT(dom));
   for (const auto lit : *reason) {
     if (val (lit) >= 0)
       continue;
@@ -129,7 +129,7 @@ void Internal::probe_dominator_lrat (Lit dom, Clause *reason) {
     Var u = var (other);
     if (u.level) {
       if (!u.reason) {
-        LOG ("this may be a problem %d", other);
+        LOG ("this may be a problem %s", LOGLIT(other));
         continue;
       }
       probe_dominator_lrat (dom, u.reason);
@@ -164,7 +164,7 @@ Lit Internal::probe_dominator (Lit a, Lit b) {
     v = &var (k = parent);
     assert (v->level == 1);
   }
-  LOG ("dominator %d of %d and %d", l, a, b);
+  LOG ("dominator %s of %s and %s", LOGLIT(l), LOGLIT(a), LOGLIT(b));
   assert (val (l) > 0);
   return l;
 }
@@ -251,8 +251,8 @@ inline Lit Internal::hyper_binary_resolve (Clause *reason) {
     const bool red = !contained || reason->redundant;
     if (red)
       stats.hbreds++;
-    LOG ("new %s hyper binary resolvent %d %d",
-         (red ? "redundant" : "irredundant"), -dom, lits[0]);
+    LOG ("new %s hyper binary resolvent %s %s",
+         (red ? "redundant" : "irredundant"), LOGLIT(-dom), LOGLIT(lits[0]));
     assert (clause.empty ());
     clause.push_back (-dom);
     clause.push_back (lits[0]);
@@ -292,7 +292,6 @@ inline Lit Internal::hyper_binary_resolve (Clause *reason) {
 
 inline void Internal::probe_assign (Lit lit, Lit parent) {
   require_mode (PROBE);
-  int idx = vidx (lit);
   assert (!val (lit));
   assert (!flags (lit).eliminated () || parent == INVALID_LIT);
   assert (parent == INVALID_LIT || val (parent) > 0);
@@ -322,11 +321,11 @@ inline void Internal::probe_assign (Lit lit, Lit parent) {
     propfixed (lit) = stats.all.fixed;
 
   if (parent != INVALID_LIT)
-    LOG ("probe assign %d parent %d", lit, parent);
+    LOG ("probe assign %s parent %s", LOGLIT(lit), LOGLIT(parent));
   else if (level)
-    LOG ("probe assign %d probe", lit);
+    LOG ("probe assign %s probe", LOGLIT(lit));
   else
-    LOG ("probe assign %d negated failed literal UIP", lit);
+    LOG ("probe assign %s negated failed literal UIP", LOGLIT(lit));
 }
 
 void Internal::probe_assign_decision (Lit lit) {
@@ -385,7 +384,7 @@ inline void Internal::probe_propagate2 () {
   int64_t &ticks = stats.ticks.probe;
   while (propagated2 != trail.size ()) {
     const Lit lit = -trail[propagated2++];
-    LOG ("probe propagating %d over binary clauses", -lit);
+    LOG ("probe propagating %s over binary clauses", LOGLIT(-lit));
     Watches &ws = watches (lit);
     ticks += 1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
     for (const auto &w : ws) {
@@ -420,7 +419,7 @@ bool Internal::probe_propagate () {
       probe_propagate2 ();
     else if (propagated != trail.size ()) {
       const Lit lit = -trail[propagated++];
-      LOG ("probe propagating %d over large clauses", -lit);
+      LOG ("probe propagating %s over large clauses", LOGLIT(-lit));
       Watches &ws = watches (lit);
       ticks +=
           1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
@@ -462,7 +461,7 @@ bool Internal::probe_propagate () {
             ws[j - 1].blit = r;
           else if (!v) {
             ticks++;
-            LOG (w.clause, "unwatch %d in", r);
+            LOG (w.clause, "unwatch %s in", LOGLIT(r));
             *k = lit;
             lits[0] = other;
             lits[1] = r;
@@ -512,7 +511,7 @@ bool Internal::probe_propagate () {
 
 void Internal::failed_literal (Lit failed) {
 
-  LOG ("analyzing failed literal probe %d", failed);
+  LOG ("analyzing failed literal probe %s", LOGLIT(failed));
   stats.failed++;
   stats.probefailed++;
 
@@ -539,7 +538,7 @@ void Internal::failed_literal (Lit failed) {
   if (lrat)
     clear_analyzed_literals ();
 
-  LOG ("found probing UIP %d", uip);
+  LOG ("found probing UIP %s", LOGLIT(uip));
   assert (uip != INVALID_LIT);
 
   vector<Lit> work;
@@ -570,11 +569,11 @@ void Internal::failed_literal (Lit failed) {
     if (tmp > 0) {
       assert (!opts.probehbr); // ... assertion should hold here
       get_probehbr_lrat (parent, uip);
-      LOG ("clashing failed parent %d", parent);
+      LOG ("clashing failed parent %s", LOGLIT(parent));
       learn_empty_clause ();
     } else if (tmp == 0) {
       assert (!opts.probehbr); // ... and here
-      LOG ("found unassigned failed parent %d", parent);
+      LOG ("found unassigned failed parent %s", LOGLIT(parent));
       get_probehbr_lrat (parent, uip); // this is computed during
       probe_assign_unit (-parent);     // propagation and can include
       lrat_chain.clear ();             // multiple chains where only one
@@ -677,7 +676,7 @@ void Internal::generate_probes () {
     if (propfixed (probe) >= stats.all.fixed)
       continue;
 
-    LOG ("scheduling probe %d negated occs %" PRId64 "", probe,
+    LOG ("scheduling probe %s negated occs %" PRId64 "", LOGLIT(probe),
          noccs (-probe));
     probes.push_back (probe);
   }
@@ -727,7 +726,7 @@ void Internal::flush_probes () {
     assert (!noccs (lit)), assert (noccs (-lit) > 0);
     if (propfixed (lit) >= stats.all.fixed)
       continue;
-    LOG ("keeping probe %d negated occs %" PRId64 "", lit, noccs (-lit));
+    LOG ("keeping probe %s negated occs %" PRId64 "", LOGLIT(lit), noccs (-lit));
     *j++ = lit;
   }
   size_t remain = j - probes.begin ();
@@ -831,7 +830,7 @@ bool Internal::probe () {
   while (!unsat && !terminated_asynchronously () &&
          stats.ticks.probe < limit && (probe = next_probe ()) != INVALID_LIT) {
     stats.probed++;
-    LOG ("probing %d", probe);
+    LOG ("probing %s", LOGLIT(probe));
     probe_assign_decision (probe);
     if (probe_propagate ())
       backtrack_without_updating_phases ();

@@ -78,9 +78,9 @@ bool Internal::elimfast_resolvents_are_bounded (Eliminator &eliminator,
   if (bound > sum)
     bound = sum;
 
-  LOG ("checking number resolvents on %d bounded by "
+  LOG ("checking number resolvents on %s bounded by "
        "%" PRId64 " = %" PRId64 " + %" PRId64 " + %d",
-       pivot, bound, pos, neg, opts.fastelimbound);
+       LOGLIT (pivot), bound, pos, neg, opts.fastelimbound);
 
   if (product <= bound) {
     LOG ("fast elimination occurrence limits sufficiently small enough");
@@ -107,16 +107,16 @@ bool Internal::elimfast_resolvents_are_bounded (Eliminator &eliminator,
         int size = clause.size ();
         clause.clear ();
         LOG ("now at least %" PRId64
-             " non-tautological resolvents on pivot %d",
-             resolvents, pivot);
+             " non-tautological resolvents on pivot %s",
+             resolvents, LOGLIT (pivot));
         if (size > opts.fastelimclslim) {
           LOG ("resolvent size %d too big after %" PRId64
-               " resolvents on %d",
-               size, resolvents, pivot);
+               " resolvents on %s",
+               size, resolvents, LOGLIT (pivot));
           return false;
         }
         if (resolvents > bound) {
-          LOG ("too many non-tautological resolvents on %d", pivot);
+          LOG ("too many non-tautological resolvents on %s", LOGLIT (pivot));
           return false;
         }
       } else if (unsat)
@@ -142,7 +142,7 @@ inline void Internal::elimfast_add_resolvents (Eliminator &eliminator,
   assert (eliminator.gates.empty ());
   assert (!eliminator.definition_unit);
 
-  LOG ("adding all resolvents on %d", pivot);
+  LOG ("adding all resolvents on %s", LOGLIT (pivot));
 
   assert (!val (pivot));
   assert (!flags (pivot).eliminated ());
@@ -176,7 +176,7 @@ inline void Internal::elimfast_add_resolvents (Eliminator &eliminator,
     }
   }
 
-  LOG ("added %" PRId64 " resolvents to eliminate %d", resolvents, pivot);
+  LOG ("added %" PRId64 " resolvents to eliminate %s", resolvents, LOGLIT (pivot));
 }
 
 /*------------------------------------------------------------------------*/
@@ -198,13 +198,13 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
   int64_t pos = flush_elimfast_occs (pivot);
   int64_t neg = flush_elimfast_occs (-pivot);
   if (neg && pos > occ_bound) {
-    LOG ("too many occurrences thus not eliminated %d", pivot);
+    LOG ("too many occurrences thus not eliminated %s", LOGLIT (pivot));
     assert (!eliminator.schedule.contains (abs (pivot)));
     return;
   }
 
   if (pos && neg > occ_bound) {
-    LOG ("too many occurrences thus not eliminated %d", -pivot);
+    LOG ("too many occurrences thus not eliminated %s", LOGLIT (-pivot));
     assert (!eliminator.schedule.contains (abs (pivot)));
     return;
   }
@@ -219,14 +219,14 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
     swap (pos, neg);
   }
 
-  LOG ("pivot %d occurs positively %" PRId64
+  LOG ("pivot %s occurs positively %" PRId64
        " times and negatively %" PRId64 " times",
-       pivot, pos, neg);
+       LOGLIT (pivot), pos, neg);
 
   assert (!eliminator.schedule.contains (abs (pivot)));
   assert (pos <= neg);
 
-  LOG ("trying to eliminate %d", pivot);
+  LOG ("trying to eliminate %s", LOGLIT (pivot));
   assert (!flags (pivot).eliminated ());
 
   // Sort occurrence lists, such that shorter clauses come first.
@@ -238,7 +238,7 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
   if (!unsat && !val (pivot)) {
     if (product <= bound ||
         elimfast_resolvents_are_bounded (eliminator, pivot)) {
-      LOG ("number of resolvents on %d are bounded", pivot);
+      LOG ("number of resolvents on %s are bounded", LOGLIT (pivot));
       elimfast_add_resolvents (eliminator, pivot);
       if (!unsat)
         mark_eliminated_clauses_as_garbage (eliminator, pivot,
@@ -246,7 +246,7 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
       if (active (pivot))
         mark_eliminated (pivot);
     } else {
-      LOG ("too many resolvents on %d so not eliminated", pivot);
+      LOG ("too many resolvents on %s so not eliminated", LOGLIT (pivot));
     }
   }
 
@@ -342,7 +342,7 @@ int Internal::elimfast_round (bool &completed,
       continue;
     if (!flags (idx).elim)
       continue;
-    LOG ("scheduling %d for elimination initially", idx);
+    LOG ("scheduling %s for elimination initially", LOGLIT (Lit (idx)));
     schedule.push_back (idx.var ());
   }
 

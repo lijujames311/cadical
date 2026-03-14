@@ -7,7 +7,7 @@ namespace CaDiCaL {
 inline unsigned LratChecker::l2u (int lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  unsigned res = 2 * (abs (lit) - 1);
+  unsigned res = 2 * (std::abs (lit) - 1);
   if (lit < 0)
     res++;
   return res;
@@ -170,7 +170,7 @@ void LratChecker::enlarge_vars (int64_t idx) {
 inline void LratChecker::import_literal (int lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  int idx = abs (lit);
+  int idx = std::abs (lit);
   if (idx >= size_vars)
     enlarge_vars (idx);
   imported_clause.push_back (lit);
@@ -510,7 +510,7 @@ void LratChecker::add_derived_clause (int64_t id, bool, int w,
     LOG (proof_chain, "LRAT CHECKER check failed with chain");
 #ifdef LOGGING
     for (const auto &pid : proof_chain) {
-      const int64_t aid = abs (pid);
+      const int64_t aid = std::abs (pid);
       LratCheckerClause **p = find (aid), *d = *p;
       LOG (d->literals, d->size, "clause[%" PRId64 "]", pid);
     }
@@ -817,8 +817,8 @@ void LratChecker::dump () {
   for (uint64_t i = 0; i < size_clauses; i++)
     for (LratCheckerClause *c = clauses[i]; c; c = c->next)
       for (unsigned i = 0; i < c->size; i++)
-        if (abs (c->literals[i]) > max_var)
-          max_var = abs (c->literals[i]);
+        if (std::abs (c->literals[i]) > max_var)
+          max_var = std::abs (c->literals[i]);
   printf ("p cnf %d %" PRIu64 "\n", max_var, num_clauses);
   for (uint64_t i = 0; i < size_clauses; i++)
     for (LratCheckerClause *c = clauses[i]; c; c = c->next) {

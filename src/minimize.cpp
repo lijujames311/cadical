@@ -16,7 +16,7 @@ namespace CaDiCaL {
 // also aborting if the earliest seen literal was assigned afterwards.
 
 bool Internal::minimize_literal (Lit lit, int depth) {
-  LOG ("attempt to minimize lit %d at depth %d", lit, depth);
+  LOG ("attempt to minimize lit %s at depth %d", LOGLIT(lit), depth);
   assert (val (lit) > 0);
   Flags &f = flags (lit);
   Var &v = var (lit);
@@ -58,7 +58,7 @@ bool Internal::minimize_literal (Lit lit, int depth) {
     f.poison = true;
   minimized.push_back (lit);
   if (!depth) {
-    LOG ("minimizing %d %s", lit, res ? "succeeded" : "failed");
+    LOG ("minimizing %s %s", LOGLIT(lit), res ? "succeeded" : "failed");
   }
   return res;
 }
@@ -186,7 +186,7 @@ void Internal::calculate_minimize_chain (Lit lit, std::vector<Lit> &stack) {
     assert (v.reason && f.removable);
     const const_literal_iterator end = v.reason->end ();
     const_literal_iterator i;
-    LOG (v.reason, "LRAT chain for lit %d at depth %zd by going over", lit,
+    LOG (v.reason, "LRAT chain for lit %s at depth %zd by going over", LOGLIT(lit),
          stack.size ());
     stack.push_back (-idx);
     for (i = v.reason->begin (); i != end; i++) {
