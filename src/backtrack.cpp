@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -12,10 +13,10 @@ inline void Internal::unassign (Lit lit) {
   set_val (lit, 0);
 
   int idx = vidx (lit);
-  LOG ("unassign %d @ %d", lit, var (idx).level);
+  LOG ("unassign %s @ %d", LOGLIT (lit), var (lit).level);
   num_assigned--;
 
-  if (flags (idx).declared ())
+  if (flags (lit).declared ())
     return;
 
   // In the standard EVSIDS variable decision heuristic of MiniSAT, we need
@@ -112,8 +113,8 @@ void Internal::backtrack_without_updating_phases (int new_level) {
 
   const size_t assigned = control[new_level + 1].trail;
 
-  LOG ("backtracking to decision level %d with decision %d and trail %zd",
-       new_level, control[new_level].decision, assigned);
+  LOG ("backtracking to decision level %d with decision %s and trail %zd",
+       new_level, LOGLIT (control[new_level].decision), assigned);
 
   const size_t end_of_trail = trail.size ();
   size_t i = assigned, j = i;
@@ -149,9 +150,9 @@ void Internal::backtrack_without_updating_phases (int new_level) {
               did_external_prop);
 #ifdef LOGGING
       if (!v.level)
-        LOG ("reassign %d @ 0 unit clause %d", lit, lit);
+        LOG ("reassign %s @ 0 unit clause %s", LOGLIT (lit), LOGLIT (lit));
       else
-        LOG (v.reason, "reassign %d @ %d", lit, v.level);
+        LOG (v.reason, "reassign %s @ %d", LOGLIT (lit), v.level);
 #endif
       trail[j] = lit;
       v.trail = j++;
@@ -180,10 +181,10 @@ void Internal::backtrack_without_updating_phases (int new_level) {
 
   control.resize (new_level + 1);
   level = new_level;
-  if (earliest_changed_val) {
+  if (earliest_changed_val != INVALID_LIT) {
     assert (opts.ilb);
     if (!val (earliest_changed_val)) {
-      earliest_changed_val = 0;
+      earliest_changed_val = INVALID_LIT;
     }
   }
   assert (num_assigned == trail.size ());

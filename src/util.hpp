@@ -18,6 +18,7 @@ using namespace std;
 inline double relative (double a, double b) { return b ? a / b : 0; }
 inline double percent (double a, double b) { return relative (100 * a, b); }
 inline signed char sign (Lit lit) { return lit.sign (); }
+inline signed char sign (int lit) { return (lit > 0) - (lit < 0); }
 inline unsigned bign (Lit lit) { return lit.bign (); }
 
 /*------------------------------------------------------------------------*/

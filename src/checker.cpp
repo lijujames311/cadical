@@ -7,7 +7,7 @@ namespace CaDiCaL {
 inline unsigned Checker::l2u (int lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  unsigned res = 2 * (abs (lit) - 1);
+  unsigned res = 2 * (std::abs (lit) - 1);
   if (lit < 0)
     res++;
   return res;
@@ -16,7 +16,7 @@ inline unsigned Checker::l2u (int lit) {
 inline signed char Checker::val (int lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  assert (abs (lit) < size_vars);
+  assert (std::abs (lit) < size_vars);
   assert (vals[lit] == -vals[-lit]);
   return vals[lit];
 }
@@ -63,7 +63,7 @@ CheckerClause *Checker::new_clause () {
     if (!val (lit))
       continue;
     for (unsigned j = i + 1; j < size; j++) {
-      Lit other = literals[j];
+      int other = literals[j];
       if (val (other))
         continue;
       swap (literals[i], literals[j]);
@@ -250,7 +250,7 @@ void Checker::enlarge_vars (int64_t idx) {
 inline void Checker::import_literal (int lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  int idx = abs (lit);
+  int idx = std::abs (lit);
   if (idx >= size_vars)
     enlarge_vars (idx);
   simplified.push_back (lit);
@@ -264,7 +264,7 @@ void Checker::import_clause (const vector<int> &c) {
 
 struct lit_smaller {
   bool operator() (int a, int b) const {
-    int c = abs (a), d = abs (b);
+    int c = std::abs (a), d = std::abs (b);
     if (c < d)
       return true;
     if (c > d)
@@ -394,7 +394,7 @@ bool Checker::propagate () {
     int lit = trail[next_to_propagate++];
     stats.propagations++;
     assert (val (lit) > 0);
-    assert (abs (lit) < size_vars);
+    assert (std::abs (lit) < size_vars);
     CheckerWatcher &ws = watcher (-lit);
     const auto end = ws.end ();
     auto j = ws.begin (), i = j;
@@ -420,7 +420,7 @@ bool Checker::propagate () {
         } // skip garbage clauses
         assert (size == c->size);
         int *lits = c->literals;
-        Lit other = lits[0] ^ lits[1] ^ (-lit);
+        int other = lits[0] ^ lits[1] ^ (-lit);
         assert (other != -lit);
         signed char other_val = val (other);
         if (other_val > 0) {
@@ -642,8 +642,8 @@ void Checker::dump () {
   for (uint64_t i = 0; i < size_clauses; i++)
     for (CheckerClause *c = clauses[i]; c; c = c->next)
       for (unsigned i = 0; i < c->size; i++)
-        if (abs (c->literals[i]) > max_var)
-          max_var = abs (c->literals[i]);
+        if (std::abs (c->literals[i]) > max_var)
+          max_var = std::abs (c->literals[i]);
   printf ("p cnf %d %" PRIu64 "\n", max_var, num_clauses);
   for (uint64_t i = 0; i < size_clauses; i++)
     for (CheckerClause *c = clauses[i]; c; c = c->next) {

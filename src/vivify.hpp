@@ -29,13 +29,13 @@ struct vivify_ref {
 struct Vivifier {
   std::vector<vivify_ref> refs_schedule;
   std::array<std::vector<Clause *>, 4> schedules;
-  std::vector<int> sorted;
+  std::vector<Lit> sorted;
   Vivify_Mode tier;
   char tag = '\0';
   int tier1_limit = 0;
   int tier2_limit = 0;
   int64_t ticks = 0;
-  std::vector<std::tuple<int, Clause *, bool>> lrat_stack;
+  std::vector<std::tuple<Lit, Clause *, bool>> lrat_stack;
   Vivifier (Vivify_Mode mode_tier)
       : tier (mode_tier) {}
   std::vector<Clause *> &schedule_tier1 () {return schedules [0];}

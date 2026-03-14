@@ -77,10 +77,11 @@ void External::push_binary_clause_on_extension_stack (int64_t id, Lit pivot,
 /*------------------------------------------------------------------------*/
 
 void External::push_external_clause_and_witness_on_extension_stack (
-    const vector<ELit> &c, const vector<ELit> &w, int64_t id) {
+    const vector<int> &c, const vector<int> &w, int64_t id) {
   assert (id);
   extension.push_back (0);
-  for (const auto &elit : w) {
+  for (const auto &dimacs_lit : w) {
+    ELit elit (dimacs_lit);
     assert (elit != OTHER_INVALID_ELIT);
     init (elit);
     extension.push_back (elit.signed_representation());
@@ -92,7 +93,8 @@ void External::push_external_clause_and_witness_on_extension_stack (
   extension.push_back (higher_bits);
   extension.push_back (lower_bits);
   extension.push_back (0);
-  for (const auto &elit : c) {
+  for (const auto &dimacs_lit : c) {
+    ELit elit (dimacs_lit);
     assert (elit != OTHER_INVALID_ELIT);
     init (elit);
     extension.push_back (elit.signed_representation());

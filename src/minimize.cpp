@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -36,7 +37,7 @@ bool Internal::minimize_literal (Lit lit, int depth) {
     stats.ticks.search[stable]++;
   if (v.reason == external_reason) {
     assert (!opts.exteagerreasons);
-    v.reason = learn_external_reason_clause (lit, 0, true);
+    v.reason = learn_external_reason_clause (lit, INVALID_ELIT, true);
     if (!v.reason) {
       assert (!v.level);
       return true;
@@ -79,7 +80,7 @@ struct minimize_trail_positive_rank {
 struct minimize_trail_smaller {
   Internal *internal;
   minimize_trail_smaller (Internal *s) : internal (s) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     return internal->var (a).trail < internal->var (b).trail;
   }
 };
@@ -88,7 +89,7 @@ struct minimize_trail_level_positive_rank {
   Internal *internal;
   minimize_trail_level_positive_rank (Internal *s) : internal (s) {}
   typedef uint64_t Type;
-  Type operator() (const int &a) const {
+  Type operator() (const Lit &a) const {
     assert (internal->val (a));
     Var &v = internal->var (a);
     uint64_t res = v.level;
@@ -101,7 +102,7 @@ struct minimize_trail_level_positive_rank {
 struct minimize_trail_level_smaller {
   Internal *internal;
   minimize_trail_level_smaller (Internal *s) : internal (s) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     return minimize_trail_level_positive_rank (internal) (a) <
            minimize_trail_level_positive_rank (internal) (b);
   }
@@ -118,7 +119,7 @@ void Internal::minimize_clause () {
   assert (minimize_chain.empty ());
   const auto end = clause.end ();
   auto j = clause.begin (), i = j;
-  std::vector<int> stack;
+  std::vector<Lit> stack;
   for (; i != end; i++) {
     if (minimize_literal (-*i)) {
       if (lrat) {
@@ -152,20 +153,20 @@ void Internal::minimize_clause () {
 // We have to use the non-recursive as we cannot limit the depth like the
 // minimize version. Unlike the minimize version, we have to keep literals
 // on the stack in order to push its reason later.
-void Internal::calculate_minimize_chain (Lit lit, std::vector<int> &stack) {
+void Internal::calculate_minimize_chain (Lit lit, std::vector<Lit> &stack) {
   assert (stack.empty ());
-  stack.push_back (vidx (lit));
+  stack.push_back (lit.labs ());
 
   while (!stack.empty ()) {
-    const int idx = stack.back ();
-    assert (idx);
+    const Lit idx = stack.back ();
+    assert (idx != INVALID_LIT);
     stack.pop_back ();
-    if (idx < 0) {
+    if (idx.is_negated()) {
       Var &v = var (idx);
       mini_chain.push_back (v.reason->id);
       continue;
     }
-    assert (idx);
+    assert (idx != INVALID_LIT);
     Flags &f = flags (idx);
     Var &v = var (idx);
     if (f.keep || f.added || f.poison) {
@@ -192,7 +193,7 @@ void Internal::calculate_minimize_chain (Lit lit, std::vector<int> &stack) {
       const Lit other = *i;
       if (other == idx)
         continue;
-      stack.push_back (vidx (other));
+      stack.push_back (other.labs ());
     }
   }
   assert (stack.empty ());

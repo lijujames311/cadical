@@ -1,6 +1,9 @@
 #ifndef _instantiate_hpp_INCLUDED
 #define _instantiate_hpp_INCLUDED
 
+#include "literals.hpp"
+#include <vector>
+
 namespace CaDiCaL {
 
 // We are trying to remove literals in clauses, which occur in few clauses
@@ -14,6 +17,7 @@ namespace CaDiCaL {
 // described in [AnderssonBjesseCookHanna-DAC'02] and apparently
 // successfully used in the 'Oepir' SAT solver.
 
+
 struct Clause;
 struct Internal;
 
@@ -26,14 +30,14 @@ class Instantiator {
     int size;
     size_t negoccs;
     Clause *clause;
-    Candidate (int l, Clause *c, int s, size_t n)
+    Candidate (Lit l, Clause *c, int s, size_t n)
         : lit (l), size (s), negoccs (n), clause (c) {}
   };
 
-  vector<Candidate> candidates;
+  std::vector<Candidate> candidates;
 
 public:
-  void candidate (int l, Clause *c, int s, size_t n) {
+  void candidate (Lit l, Clause *c, int s, size_t n) {
     candidates.push_back (Candidate (l, c, s, n));
   }
 

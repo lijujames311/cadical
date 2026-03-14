@@ -154,6 +154,29 @@ public:
       return put (buffer + i);
     }
   }
+  bool put (int lit) {
+    assert (writing);
+    if (!lit)
+      return put ('0');
+    else if (lit == -2147483648) {
+      assert (lit == INT_MIN);
+      return put ("-2147483648");
+    } else {
+      char buffer[11];
+      int i = sizeof buffer;
+      buffer[--i] = 0;
+      assert (lit != INT_MIN);
+      unsigned idx = std::abs (lit);
+      while (idx) {
+        assert (i > 0);
+        buffer[--i] = '0' + idx % 10;
+        idx /= 10;
+      }
+      if (lit < 0 && !put ('-'))
+        return false;
+      return put (buffer + i);
+    }
+  }
 
   bool put (int64_t l) {
     assert (writing);

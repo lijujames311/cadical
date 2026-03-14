@@ -279,7 +279,7 @@ struct ExtendMap {
   // either return the external literal from CaDiCaL, create one if
   // `declare_new_var` is one, or return any literal.
   int map_arg (Solver *s, int arg, bool declare_new_var = true) {
-    const int abs_arg = abs (arg);
+    const int abs_arg = std::abs (arg);
     const int sign = arg > 0 ? 1 : -1;
     const int map_size = map.size ();
     bool already_declared = (abs_arg < map_size && abs_arg && map[abs_arg]);
@@ -308,7 +308,7 @@ struct ExtendMap {
       map.push_back (0); // 0 is always mapped to 0
     if (!arg)
       return;
-    const unsigned abs_arg = abs (arg);
+    const unsigned abs_arg = std::abs (arg);
     if (abs_arg < map.size ())
       return; // arg is already mapped
     map.resize (abs_arg + 1, 0);
@@ -523,7 +523,7 @@ public:
     }
 
     if (!new_ovars) {
-      const int abs_lit = abs (lit);
+      const int abs_lit = std::abs (lit);
       extend_map (lit);
       assert ((size_t)abs_lit < extendmap->map.size());
       const int elit = map_arg (abs_lit);
@@ -532,7 +532,7 @@ public:
         observed_variables.insert (elit);
       }
     } else {
-      new_observed_variables.push_back (abs (lit));
+      new_observed_variables.push_back (std::abs (lit));
     }
   }
 
@@ -561,10 +561,9 @@ public:
   }
 
   bool is_observed_now (int lit) {
-    return (observed_variables.find (abs (lit)) !=
+    return (observed_variables.find (std::abs (lit)) !=
             observed_variables.end ());
   }
-
   bool compare_trails () {
 #ifndef NDEBUG
     std::set<int> etrail = {}; // Trail of the solver
@@ -590,8 +589,8 @@ public:
 
     // 2. Collect all other variables from trail
     for (; idx < s->internal->trail.size (); idx++) {
-      int ilit = s->internal->trail[idx];
-      int elit = s->internal->externalize (ilit);
+      Lit ilit = s->internal->trail[idx];
+      int elit = s->internal->externalize (ilit).signed_representation ();
       if (is_observed_now (elit)) {
         etrail.insert (elit);
       }
@@ -982,7 +981,7 @@ public:
           continue;
 
         satisfied_literals.insert (lit);
-        lit_sum += abs (lit);
+        lit_sum += std::abs (lit);
 
         if (!lowest_lit)
           lowest_lit = lit;
@@ -2330,7 +2329,7 @@ public:
     int res = 0;
     for (size_t i = 0; i < calls.size (); i++) {
       Call *c = calls[i];
-      int tmp = abs (c->arg);
+      int tmp = std::abs (c->arg);
       if (tmp > res)
         res = tmp;
     }
@@ -2821,7 +2820,7 @@ static int pick_literal (Random &random, int minvars, int maxvars,
     if (prop > 0.001) {
       bool duplicated = false;
       for (size_t i = 0; !duplicated && i < clause.size (); i++)
-        duplicated = (abs (clause[i]) == idx);
+        duplicated = (std::abs (clause[i]) == idx);
       if (duplicated)
         continue;
     }
@@ -2885,7 +2884,7 @@ void Trace::generate_propagator (Random &random, int minvars, int maxvars) {
       continue;
     int lit = random.generate_bool () ? -idx : idx;
     push_back (new ObserveCall (lit));
-    observed_vars.push_back (abs (lit));
+    observed_vars.push_back (std::abs (lit));
   }
   push_back (new ObserveCall (0));
   for (int idx = maxvars + 1; idx <= maxvars * 1.5; idx++) {
@@ -2893,7 +2892,7 @@ void Trace::generate_propagator (Random &random, int minvars, int maxvars) {
       continue;
     int lit = random.generate_bool () ? -idx : idx;
     push_back (new ObserveCall (lit));
-    observed_vars.push_back (abs (lit));
+    observed_vars.push_back (std::abs (lit));
   }
 }
 
@@ -3087,12 +3086,12 @@ void Trace::generate_melt (Random &random) {
   for (size_t i = 0; i < size (); i++) {
     Call *c = calls[i];
     if (c->type == Call::MELT) {
-      int idx = abs (c->arg);
+      int idx = std::abs (c->arg);
       assert (idx > 0), assert (idx <= m);
       assert (frozen[idx] > 0);
       frozen[idx]--;
     } else if (c->type == Call::FREEZE) {
-      int idx = abs (c->arg);
+      int idx = std::abs (c->arg);
       assert (idx > 0), assert (idx <= m);
       frozen[idx]++;
     }
@@ -4252,7 +4251,7 @@ void Trace::map_variables (int expected) {
         continue;
       if (c->arg == INT_MIN)
         continue;
-      int idx = abs (c->arg);
+      int idx = std::abs (c->arg);
       if (variables.size () <= (size_t) idx)
         variables.resize (1 + (size_t) idx, 0);
       variables[idx]++;
@@ -4279,7 +4278,7 @@ void Trace::map_variables (int expected) {
       if (!c->arg || c->arg == INT_MIN)
         mapped.push_back (c->copy ());
       else if (has_lit_arg_type (c)) {
-        int new_lit = variables[abs (c->arg)];
+        int new_lit = variables[std::abs (c->arg)];
         assert (0 < new_lit), assert (new_lit <= max_idx);
         if (c->arg < 0)
           new_lit = -new_lit;

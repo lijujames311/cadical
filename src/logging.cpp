@@ -1,5 +1,6 @@
 #ifdef LOGGING
 
+#include "literals.hpp"
 #include "internal.hpp"
 
 namespace CaDiCaL {
@@ -120,6 +121,30 @@ void Logger::log (Internal *internal, const vector<int> &c, const char *fmt,
     sort (s.begin (), s.end (), clause_lit_less_than ());
     for (const auto &lit : s)
       printf (" %d", lit);
+  } else {
+    for (const auto &lit : c)
+      printf (" %d", lit);
+  }
+  fputc ('\n', stdout);
+  tout.normal ();
+  fflush (stdout);
+}
+
+void Logger::log (Internal *internal, const vector<Lit> &c, const char *fmt,
+                  ...) {
+  print_log_prefix (internal);
+  tout.magenta ();
+  va_list ap;
+  va_start (ap, fmt);
+  vprintf (fmt, ap);
+  va_end (ap);
+  if (internal->opts.logsort) {
+    vector<int> s;
+    for (const auto &lit : c)
+      s.push_back (lit);
+    sort (s.begin (), s.end (), clause_lit_less_than ());
+    for (const auto &lit : s)
+      printf (" %d", lit.signed_representative ());
   } else {
     for (const auto &lit : c)
       printf (" %d", lit);

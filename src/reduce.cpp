@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -172,8 +173,8 @@ void Internal::mark_useless_redundant_clauses_as_garbage () {
 bool Internal::propagate_out_of_order_units () {
   if (!level)
     return true;
-  int oou = 0;
-  for (int i = control[1].trail; !oou && i < get_trail_size (); i++) {
+  Lit oou = INVALID_LIT;
+  for (int i = control[1].trail; oou != INVALID_LIT && i < get_trail_size (); i++) {
     const Lit lit = trail[i];
     assert (val (lit) > 0);
     if (var (lit).level)
@@ -181,7 +182,7 @@ bool Internal::propagate_out_of_order_units () {
     LOG ("found out-of-order assigned unit %d", oou);
     oou = lit;
   }
-  if (!oou)
+  if (oou != INVALID_LIT)
     return true;
   assert (opts.chrono || external_prop || did_external_prop);
   backtrack (0);

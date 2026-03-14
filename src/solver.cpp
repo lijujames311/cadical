@@ -1,5 +1,6 @@
 #include "cadical.hpp"
 #include "internal.hpp"
+#include "literals.hpp"
 #include <atomic>
 
 /*------------------------------------------------------------------------*/
@@ -485,7 +486,7 @@ void Solver::resize (int min_max_var) {
     if (state () != SOLVING)
       transition_to_steady_state ();
     external->reset_extended ();
-    external->init (min_max_var);
+    external->init (ELit (min_max_var));
   }
   LOG_API_CALL_END ("resize", min_max_var);
 }
@@ -499,7 +500,7 @@ int Solver::declare_more_variables (int number_of_vars) {
   external->reset_extended ();
   int new_max_var = external->max_var + number_of_vars;
   if (number_of_vars)
-    external->init (new_max_var);
+    external->init (ELit (new_max_var));
   LOG_API_CALL_END ("declare_more_variables", number_of_vars);
   return new_max_var;
 }
@@ -511,7 +512,7 @@ int Solver::declare_one_more_variable () {
     transition_to_steady_state ();
   external->reset_extended ();
   int new_max_var = external->max_var + 1;
-  external->init (new_max_var);
+  external->init (ELit (new_max_var));
   LOG_API_CALL_END ("declare_one_more_variable");
   return new_max_var;
 }
@@ -633,30 +634,31 @@ bool Solver::configure (const char *name) {
 
 /*===== IPASIR BEGIN =====================================================*/
 
-void Solver::add (int lit) {
-  TRACE ("add", lit);
+void Solver::add (int dimacs_lit) {
+  TRACE ("add", dimacs_lit);
+  ELit lit (dimacs_lit);
   REQUIRE_VALID_STATE ();
-  if (lit) {
+  if (dimacs_lit) {
     if (internal->opts.factor && internal->opts.factorcheck == 1)
       REQUIRE (
-          abs (lit) <= external->max_var,
+          lit.var () <= external->max_var,
           "adding literal '%d' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as both 'factor' and 'factorcheck' are enabled)",
-          lit, (int) abs (lit));
+          lit.signed_representation(), (int) lit.var ());
     if (internal->opts.factorcheck == 2)
       REQUIRE (
-          abs (lit) <= external->max_var,
+          lit.var () <= external->max_var,
           "adding literal '%d' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as 'factorcheck == 2' even if 'factor' is disabled)",
-          lit, (int) abs (lit));
+          lit.signed_representation(), (int) lit.var ());
   }
-  if (lit)
+  if (dimacs_lit)
     REQUIRE_VALID_LIT (lit);
   transition_to_steady_state ();
   external->add (lit);
-  adding_clause = lit;
+  adding_clause = (lit != INVALID_ELIT);
   if (adding_clause)
     STATE (ADDING);
   else if (!adding_constraint)
@@ -665,37 +667,37 @@ void Solver::add (int lit) {
 }
 
 void Solver::clause (int a) {
-  REQUIRE_VALID_LIT (a);
+  REQUIRE_VALID_LIT (ELit (a));
   add (a), add (0);
 }
 
 void Solver::clause (int a, int b) {
-  REQUIRE_VALID_LIT (a);
-  REQUIRE_VALID_LIT (b);
+  REQUIRE_VALID_LIT (ELit (a));
+  REQUIRE_VALID_LIT (ELit (b));
   add (a), add (b), add (0);
 }
 
 void Solver::clause (int a, int b, int c) {
-  REQUIRE_VALID_LIT (a);
-  REQUIRE_VALID_LIT (b);
-  REQUIRE_VALID_LIT (c);
+  REQUIRE_VALID_LIT (ELit (a));
+  REQUIRE_VALID_LIT (ELit (b));
+  REQUIRE_VALID_LIT (ELit (c));
   add (a), add (b), add (c), add (0);
 }
 
 void Solver::clause (int a, int b, int c, int d) {
-  REQUIRE_VALID_LIT (a);
-  REQUIRE_VALID_LIT (b);
-  REQUIRE_VALID_LIT (c);
-  REQUIRE_VALID_LIT (d);
+  REQUIRE_VALID_LIT (ELit (a));
+  REQUIRE_VALID_LIT (ELit (b));
+  REQUIRE_VALID_LIT (ELit (c));
+  REQUIRE_VALID_LIT (ELit (d));
   add (a), add (b), add (c), add (d), add (0);
 }
 
 void Solver::clause (int a, int b, int c, int d, int e) {
-  REQUIRE_VALID_LIT (a);
-  REQUIRE_VALID_LIT (b);
-  REQUIRE_VALID_LIT (c);
-  REQUIRE_VALID_LIT (d);
-  REQUIRE_VALID_LIT (e);
+  REQUIRE_VALID_LIT (ELit (a));
+  REQUIRE_VALID_LIT (ELit (b));
+  REQUIRE_VALID_LIT (ELit (c));
+  REQUIRE_VALID_LIT (ELit (d));
+  REQUIRE_VALID_LIT (ELit (e));
   add (a), add (b), add (c), add (d), add (e), add (0);
 }
 
@@ -705,7 +707,7 @@ void Solver::clause (const int *lits, size_t size) {
   const int *end = lits + size;
   for (const int *p = lits; p != end; p++) {
     const int lit = *p;
-    REQUIRE_VALID_LIT (lit);
+    REQUIRE_VALID_LIT (ELit (lit));
     add (lit);
   }
   add (0);
@@ -713,7 +715,7 @@ void Solver::clause (const int *lits, size_t size) {
 
 void Solver::clause (const std::vector<int> &lits) {
   for (auto lit : lits) {
-    REQUIRE_VALID_LIT (lit);
+    REQUIRE_VALID_LIT (ELit (lit));
     add (lit);
   }
   add (0);
@@ -725,9 +727,9 @@ void Solver::constrain (int lit) {
   TRACE ("constrain", lit);
   REQUIRE_VALID_STATE ();
   if (lit)
-    REQUIRE_VALID_LIT (lit);
+    REQUIRE_VALID_LIT (ELit (lit));
   transition_to_steady_state ();
-  external->constrain (lit);
+  external->constrain (ELit (lit));
   adding_constraint = lit;
   if (adding_constraint)
     STATE (ADDING);
@@ -739,9 +741,9 @@ void Solver::constrain (int lit) {
 void Solver::assume (int lit) {
   TRACE ("assume", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
   transition_to_steady_state ();
-  external->assume (lit);
+  external->assume (ELit (lit));
   LOG_API_CALL_END ("assume", lit);
 }
 
@@ -749,9 +751,9 @@ int Solver::lookahead () {
   TRACE ("lookahead");
   REQUIRE_VALID_OR_SOLVING_STATE ();
   transition_to_steady_state ();
-  int lit = external->lookahead ();
+  ELit lit = external->lookahead ();
   LOG_API_CALL_END ("lookahead", lit);
-  return lit;
+  return lit.signed_representation();
 }
 
 Solver::CubesWithStatus Solver::generate_cubes (int depth, int min_depth) {
@@ -895,30 +897,30 @@ int Solver::val (
       "val", lit,
       (int) use_default_value_for_declared_but_not_used_variable);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
   REQUIRE (state () == SATISFIED, "can only get value in satisfied state");
   if (!use_default_value_for_declared_but_not_used_variable)
     REQUIRE (lit < external->max_var, "lit of undeclare variable");
   if (!external->extended)
     external->extend ();
   external->conclude_sat ();
-  int res = external->ival (lit);
+  ELit res = external->ival (ELit (lit));
   LOG_API_CALL_RETURNS (
       "val", lit, use_default_value_for_declared_but_not_used_variable,
       res);
   assert (state () == SATISFIED);
-  assert (res == lit || res == -lit);
-  return res;
+  assert (res == ELit (lit) || res == -ELit (lit));
+  return res.signed_representation ();
 }
 
 bool Solver::flip (int lit) {
   TRACE ("flip", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
   REQUIRE (state () == SATISFIED, "can only flip value in satisfied state");
   REQUIRE (!external->propagator,
            "can only flip when no external propagator is present");
-  bool res = external->flip (lit);
+  bool res = external->flip (ELit (lit));
   LOG_API_CALL_RETURNS ("flip", lit, res);
   assert (state () == SATISFIED);
   return res;
@@ -927,11 +929,11 @@ bool Solver::flip (int lit) {
 bool Solver::flippable (int lit) {
   TRACE ("flippable", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
   REQUIRE (state () == SATISFIED, "can only flip value in satisfied state");
   REQUIRE (!external->propagator,
            "can only flip when no external propagator is present");
-  bool res = external->flippable (lit);
+  bool res = external->flippable (ELit (lit));
   LOG_API_CALL_RETURNS ("flippable", lit, res);
   assert (state () == SATISFIED);
   return res;
@@ -940,10 +942,10 @@ bool Solver::flippable (int lit) {
 bool Solver::failed (int lit) {
   TRACE ("failed", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
   REQUIRE (state () == UNSATISFIED,
            "can only get failed assumptions in unsatisfied state");
-  bool res = external->failed (lit);
+  bool res = external->failed (ELit (lit));
   LOG_API_CALL_RETURNS ("failed", lit, res);
   assert (state () == UNSATISFIED);
   return res;
@@ -963,8 +965,8 @@ bool Solver::constraint_failed () {
 int Solver::fixed (int lit) const {
   TRACE ("fixed", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  int res = external->fixed (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  int res = external->fixed (ELit (lit));
   LOG_API_CALL_RETURNS ("fixed", lit, res);
   return res;
 }
@@ -972,16 +974,16 @@ int Solver::fixed (int lit) const {
 void Solver::phase (int lit) {
   TRACE ("phase", lit);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  external->phase (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  external->phase (ELit (lit));
   LOG_API_CALL_END ("phase", lit);
 }
 
 void Solver::unphase (int lit) {
   TRACE ("unphase", lit);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  external->unphase (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  external->unphase (ELit (lit));
   LOG_API_CALL_END ("unphase", lit);
 }
 
@@ -1126,20 +1128,20 @@ void Solver::disconnect_external_propagator () {
 void Solver::add_observed_var (int idx) {
   TRACE ("observe", idx);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (idx);
+  REQUIRE_VALID_LIT (ELit (idx));
   REQUIRE (external->propagator,
            "can not observe variables without a connected propagator");
-  external->add_observed_var (idx);
+  external->add_observed_var (ELit (idx));
   LOG_API_CALL_END ("observe", idx);
 }
 
 void Solver::remove_observed_var (int idx) {
   TRACE ("unobserve", idx);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (idx);
+  REQUIRE_VALID_LIT (ELit (idx));
   REQUIRE (external->propagator,
            "can not unobserve variables without a connected propagator");
-  external->remove_observed_var (idx);
+  external->remove_observed_var (ELit (idx));
   LOG_API_CALL_END ("unobserve", idx);
 }
 
@@ -1184,26 +1186,26 @@ int64_t Solver::irredundant () const {
 void Solver::freeze (int lit) {
   TRACE ("freeze", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  external->freeze (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  external->freeze (ELit (lit));
   LOG_API_CALL_END ("freeze", lit);
 }
 
 void Solver::melt (int lit) {
   TRACE ("melt", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  REQUIRE (external->frozen (lit),
+  REQUIRE_VALID_LIT (ELit (lit));
+  REQUIRE (external->frozen (ELit (lit)),
            "can not melt completely melted literal '%d'", lit);
-  external->melt (lit);
+  external->melt (ELit (lit));
   LOG_API_CALL_END ("melt", lit);
 }
 
 bool Solver::frozen (int lit) const {
   TRACE ("frozen", lit);
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  bool res = external->frozen (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  bool res = external->frozen (ELit (lit));
   LOG_API_CALL_RETURNS ("frozen", lit, res);
   return res;
 }
@@ -1557,8 +1559,8 @@ ExternalPropagator *Solver::get_propagator () {
 bool Solver::observed (int lit) {
   TRACE ("observed", lit);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  bool res = external->observed (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  bool res = external->observed (ELit (lit));
   LOG_API_CALL_RETURNS ("observed", lit, res);
   return res;
 }
@@ -1566,8 +1568,8 @@ bool Solver::observed (int lit) {
 bool Solver::is_witness (int lit) {
   TRACE ("is_witness", lit);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  bool res = external->is_witness (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  bool res = external->is_witness (ELit (lit));
   LOG_API_CALL_RETURNS ("is_witness", lit, res);
   return res;
 }
@@ -1575,8 +1577,8 @@ bool Solver::is_witness (int lit) {
 bool Solver::is_decision (int lit) {
   TRACE ("is_decision", lit);
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  REQUIRE_VALID_LIT (lit);
-  bool res = external->is_decision (lit);
+  REQUIRE_VALID_LIT (ELit (lit));
+  bool res = external->is_decision (ELit (lit));
   LOG_API_CALL_RETURNS ("is_decision", lit, res);
   return res;
 }
@@ -1629,7 +1631,7 @@ public:
   bool clause (const vector<int> &c) {
     for (const auto &lit : c) {
       assert (lit != INT_MIN);
-      int idx = abs (lit);
+      int idx = std::abs (lit);
       if (idx > vars)
         vars = idx;
     }

@@ -270,7 +270,7 @@ void External::assume (ELit elit) {
   assert (elit.var ());
   reset_extended ();
   if (internal->proof)
-    internal->proof->add_assumption (elit.signed_representation());
+    internal->proof->add_assumption (elit);
   assumptions.push_back (elit);
   const Lit ilit = internalize (elit);
   assert (ilit != INVALID_LIT);

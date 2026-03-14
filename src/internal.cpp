@@ -35,7 +35,7 @@ Internal::Internal ()
       arena (this), prefix ("c "), internal (this), external (0),
       termination_forced (false), vars (this->max_var),
       lits (this->max_var) {
-  control.emplace_back (0, 0);
+  control.emplace_back (INVALID_LIT, 0);
 
   // The 'dummy_binary' is used in 'try_to_subsume_clause' to fake a real
   // clause (which then can be used to subsume or strengthen the given
@@ -203,7 +203,7 @@ void Internal::reserve_vars (int new_min_vsize) {
 
 void Internal::add_original_lit (Lit lit) {
   assert (lit.var () <= max_var);
-  if (lit) {
+  if (lit != INVALID_LIT) {
     original.push_back (lit);
   } else {
     const int64_t id =
@@ -221,7 +221,7 @@ void Internal::add_original_lit (Lit lit) {
         assert (!original.size () || !external->eclause.empty ());
 
         // First integer is the presence-flag (even if the clause is empty)
-        external->forgettable_original[id] = {1};
+        external->forgettable_original[id] = {ELit (1)};
 
         for (auto const &elit : external->eclause)
           external->forgettable_original[id].push_back (elit);
@@ -1160,13 +1160,13 @@ void Internal::finalize (int res) {
         id = external->ext_units[eidx.var () + 1];
       }
       if (id) {
-        proof->finalize_external_unit (id, evar * sign);
+        proof->finalize_external_unit (id, sign * evar);
       }
     }
     // finalize internal units
     for (const auto &lit : lits) {
       const auto elit = externalize (lit);
-      if (elit) {
+      if (elit != INVALID_ELIT) {
         const unsigned eidx = elit.vlit ();
         const int64_t id = external->ext_units[eidx];
         if (id) {
@@ -1324,7 +1324,7 @@ void Internal::activating_all_new_imported_literals () {
   if (imports.empty ())
     return;
   if (opts.varindexorder)
-    std::sort (begin (imports), end (imports), [&] (int l, int o) {return i2e[vidx(l)] < i2e[vidx (o)];});
+    std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return i2e[vidx(l)] < i2e[vidx (o)];});
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
   auto max_it = std::max_element(imports.begin(), imports.end(), std::less{});
@@ -1372,9 +1372,9 @@ void Internal::activating_all_new_imported_literals () {
   }
   for (auto v : vars) {
     assert (flags (Lit (v)).unused () || internal->val (Lit (v)) ||
-            scores.contains (v));
+            scores.contains (v.var ()));
     if (flags (Lit (v)).unused ())
-      assert (!scores.contains (v));
+      assert (!scores.contains (v.var ()));
   }
   check_queue ();
 #endif

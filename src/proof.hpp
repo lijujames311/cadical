@@ -27,7 +27,7 @@ class Proof {
   std::vector<int64_t> proof_chain; // LRAT style proof chain of clause
   int64_t clause_id;                // id of added clause
   bool redundant;
-  ELit witness;
+  int witness;
 
   // the 'tracers'
   std::vector<Tracer *> tracers;          // tracers (ie checker)
@@ -60,10 +60,10 @@ public:
   //
   void add_original_clause (int64_t, bool, const std::vector<Lit> &);
 
-  void add_assumption_clause (int64_t, const std::vector<Lit> &,
+  void add_assumption_clause (int64_t, const std::vector<ELit> &,
                               const std::vector<int64_t> &);
-  void add_assumption_clause (int64_t, int, const std::vector<int64_t> &);
-  void add_assumption (int);
+  void add_assumption_clause (int64_t, ELit, const std::vector<int64_t> &);
+  void add_assumption (ELit);
   void add_constraint (const std::vector<ELit> &);
   void reset_assumptions ();
 
@@ -71,7 +71,7 @@ public:
   //  external literals (from external->eclause)
   //
   void add_external_original_clause (int64_t, bool,
-                                     const std::vector<Lit> &,
+                                     const std::vector<ELit> &,
                                      bool restore = false);
   void delete_external_original_clause (int64_t, bool,
                                         const std::vector<ELit> &);

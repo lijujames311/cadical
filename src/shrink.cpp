@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 #include "reap.hpp"
 
 namespace CaDiCaL {
@@ -78,7 +79,7 @@ int inline Internal::shrink_literal (Lit lit, int blevel,
 
   if (v.reason == external_reason) {
     assert (!opts.exteagerreasons);
-    v.reason = learn_external_reason_clause (-lit, 0, true);
+    v.reason = learn_external_reason_clause (-lit, INVALID_ELIT, true);
     if (!v.reason) {
       assert (!v.level);
       return 0;
@@ -458,7 +459,7 @@ void Internal::shrink_and_minimize_clause () {
 #if defined(LOGGING) || !defined(NDEBUG)
   const unsigned old_size = clause.size ();
 #endif
-  std::vector<int> stack;
+  std::vector<Lit> stack;
   {
     std::vector<int>::size_type i = 1;
     for (std::vector<int>::size_type j = 1; j < clause.size (); ++j) {

@@ -244,7 +244,7 @@ struct External {
   /*----------------------------------------------------------------------*/
 
   void push_external_clause_and_witness_on_extension_stack (
-      const vector<ELit> &clause, const vector<ELit> &witness, int64_t id);
+      const vector<int> &clause, const vector<int> &witness, int64_t id);
 
   void push_id_on_extension_stack (int64_t id);
 

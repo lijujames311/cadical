@@ -27,7 +27,7 @@ void Internal::shuffle_scores () {
   if (opts.shufflerandom) {
     scores.erase ();
     for (int idx = max_var; idx; idx--)
-      if (!flags (idx).unused ())
+      if (!flags (Lit (idx)).unused ())
       shuffle.push_back (idx);
     Random random (opts.seed); // global seed
     random += stats.shuffled;  // different every time

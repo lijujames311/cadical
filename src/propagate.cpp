@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -72,7 +73,7 @@ void Internal::build_chain_for_units (Lit lit, Clause *reason,
     assert (val (reason_lit));
     if (!val (reason_lit))
       continue;
-    const int signed_reason_lit = val (reason_lit) * reason_lit;
+    const Lit signed_reason_lit = val (reason_lit) * reason_lit;
     int64_t id = unit_id (signed_reason_lit);
     lrat_chain.push_back (id);
   }
@@ -107,10 +108,10 @@ inline void Internal::search_assign (Lit lit, Clause *reason) {
   assert (!flags (lit).unused());
   const int idx = vidx (lit);
   const bool from_external = reason == external_reason;
-  assert (!val (idx));
-  assert (!flags (idx).eliminated () || reason == decision_reason ||
+  assert (!val (lit));
+  assert (!flags (lit).eliminated () || reason == decision_reason ||
           reason == external_reason);
-  Var &v = var (idx);
+  Var &v = var (lit);
   int lit_level;
   assert (!lrat || level || reason == external_reason ||
           reason == decision_reason || !lrat_chain.empty ());
@@ -145,7 +146,7 @@ inline void Internal::search_assign (Lit lit, Clause *reason) {
     learn_unit_clause (lit); // increases 'stats.fixed'
   assert (lit_level || !from_external);
   const signed char tmp = sign (lit);
-  set_val (idx, tmp);
+  set_val (lit, true);
   assert (val (lit) > 0);  // Just a bit paranoid but useful.
   assert (val (-lit) < 0); // Ditto.
   if (!searching_lucky_phases)
@@ -354,7 +355,7 @@ bool Internal::propagate () {
           // Find replacement watch 'r' at position 'k' with value 'v'.
           assert (lits + 2 <= k);
           LOG (w.clause, "search starting at %d", w.clause->pos);
-          int r = 0;
+          Lit r = INVALID_LIT;
           signed char v = -1;
 
           while (k != end && (v = val (r = *k)) < 0)
@@ -413,7 +414,7 @@ bool Internal::propagate () {
             //
             if (opts.chrono > 1) {
 
-              const Lit other_level = var (other).level;
+              const int other_level = var (other).level;
 
               if (other_level > var (lit).level) {
 
@@ -424,13 +425,13 @@ bool Internal::propagate () {
 
                 assert (size > 2);
 
-                int pos, s = 0;
+                int pos; Lit s = INVALID_LIT;
 
                 for (pos = 2; pos < size; pos++)
                   if (var (s = lits[pos]).level == other_level)
                     break;
 
-                assert (s);
+                assert (s != INVALID_LIT);
                 assert (pos < size);
 
                 LOG (w.clause, "unwatch %d in", lit);
@@ -548,7 +549,7 @@ void Internal::propergate () {
       const const_literal_iterator end = lits + size;
       literal_iterator k = middle;
 
-      int r = 0;
+      Lit r = INVALID_LIT;
       signed char v = -1;
 
       while (k != end && (v = val (r = *k)) < 0)

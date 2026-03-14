@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -229,7 +230,7 @@ void Proof::add_original_clause (int64_t id, bool r, const vector<Lit> &c) {
 }
 
 void Proof::add_external_original_clause (int64_t id, bool r,
-                                          const vector<Lit> &c,
+                                          const vector<ELit> &c,
                                           bool restore) {
   // literals of c are already external
   assert (clause.empty ());
@@ -241,7 +242,7 @@ void Proof::add_external_original_clause (int64_t id, bool r,
 }
 
 void Proof::delete_external_original_clause (int64_t id, bool r,
-                                             const vector<Lit> &c) {
+                                             const vector<ELit> &c) {
   // literals of c are already external
   assert (clause.empty ());
   for (auto const &lit : c)
@@ -300,11 +301,11 @@ void Proof::add_derived_rat_clause (Clause *c, ELit w,
     proof_chain.push_back (cid);
   clause_id = c->id;
   redundant = c->redundant;
-  witness = w;
+  witness = w.signed_representation();
   add_derived_clause ();
 }
 
-void Proof::add_derived_clause (int64_t id, bool r, const vector<int> &c,
+void Proof::add_derived_clause (int64_t id, bool r, const vector<Lit> &c,
                                 const vector<int64_t> &chain) {
   LOG (c, "PROOF adding derived clause");
   assert (clause.empty ());
@@ -318,8 +319,8 @@ void Proof::add_derived_clause (int64_t id, bool r, const vector<int> &c,
   add_derived_clause ();
 }
 
-void Proof::add_derived_rat_clause (int64_t id, bool r, int l,
-                                    const vector<int> &c,
+void Proof::add_derived_rat_clause (int64_t id, bool r, ELit l,
+                                    const vector<Lit> &c,
                                     const vector<int64_t> &chain) {
   LOG (c, "PROOF adding derived witness %d clause", l);
   assert (clause.empty ());
@@ -330,28 +331,28 @@ void Proof::add_derived_rat_clause (int64_t id, bool r, int l,
     proof_chain.push_back (cid);
   clause_id = id;
   redundant = r;
-  witness = l;
+  witness = l.signed_representation ();
   add_derived_clause ();
 }
 
-void Proof::add_assumption_clause (int64_t id, const vector<int> &c,
+void Proof::add_assumption_clause (int64_t id, const vector<ELit> &c,
                                    const vector<int64_t> &chain) {
   // literals of c are already external
   assert (clause.empty ());
   assert (proof_chain.empty ());
   for (const auto &lit : c)
-    clause.push_back (lit);
+    clause.push_back (lit.signed_representation());
   for (const auto &cid : chain)
     proof_chain.push_back (cid);
   clause_id = id;
   add_assumption_clause ();
 }
 
-void Proof::add_assumption (int a) {
+void Proof::add_assumption (ELit a) {
   // a is already external
   assert (clause.empty ());
   assert (proof_chain.empty ());
-  clause.push_back (a);
+  clause.push_back (a.signed_representation());
   add_assumption ();
 }
 
@@ -364,11 +365,11 @@ void Proof::add_constraint (const vector<ELit> &c) {
   add_constraint ();
 }
 
-void Proof::add_assumption_clause (int64_t id, int lit,
+void Proof::add_assumption_clause (int64_t id, ELit lit,
                                    const vector<int64_t> &chain) {
   assert (clause.empty ());
   assert (proof_chain.empty ());
-  clause.push_back (lit);
+  clause.push_back (lit.signed_representation ());
   for (const auto &cid : chain)
     proof_chain.push_back (cid);
   clause_id = id;

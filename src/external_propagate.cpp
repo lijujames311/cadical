@@ -96,7 +96,7 @@ void Internal::set_changed_val () {
       continue;
     if (var (idx).reason != external_reason)
       continue;
-    if (!earliest_changed_val) {
+    if (earliest_changed_val == INVALID_LIT) {
       earliest_changed_val = idx;
       continue;
     }
@@ -299,8 +299,8 @@ bool Internal::external_propagate () {
     ELit elit;
     if (dimacs_elit)
       elit = ELit (dimacs_elit);
-      else
-        elit = INVALID_ELIT;
+    else
+      elit = INVALID_ELIT;
 
 
     REQUIRE (
@@ -312,7 +312,7 @@ bool Internal::external_propagate () {
     stats.ext_prop.eprop_call++;
     while (elit != INVALID_ELIT) {
       assert (external->is_observed[abs (elit)]);
-      Lit ilit = external->e2i[abs (elit)];
+      Lit ilit = external->e2i[elit.labs ()];
       if (elit.is_negated ())
         ilit = -ilit;
       int tmp = val (ilit);
@@ -592,7 +592,7 @@ void Internal::add_external_clause (ELit propagated_elit,
   }
   external->add (elit);
 
-  REQUIRE (!propagated_elit || propagated_lit_found,
+  REQUIRE (propagated_elit == INVALID_ELIT || propagated_lit_found,
            "external reason clause must contain the propagated literal.");
 #ifdef NCONTRACTS
   (void) propagated_lit_found;
@@ -668,7 +668,7 @@ void Internal::explain_external_propagations () {
   std::vector<Lit> seen_lits;
   int open = 0; // Seen but not explained literal
 
-  explain_reason (0, reason, open); // marks conflict clause lits as seen
+  explain_reason (INVALID_LIT, reason, open); // marks conflict clause lits as seen
   int i = trail.size ();            // Start at end-of-trail
   while (i > 0) {
     const Lit lit = trail[--i];
@@ -802,7 +802,7 @@ Clause *Internal::wrapped_learn_external_reason_clause (Lit ilit) {
   } else {
     std::vector<Lit> clause_tmp{std::move (clause)};
     clause.clear ();
-    res = learn_external_reason_clause (ilit, 0, true);
+    res = learn_external_reason_clause (ilit, INVALID_ELIT, true);
     // The learn_external_reason clause can leave a literal in clause when
     // there is a falsified elit arg. Here it is not allowed to
     // happen.
@@ -979,7 +979,7 @@ bool Internal::external_check_solution () {
     while (has_external_clause) {
       level_before = level;
       assigned = num_assigned;
-      add_external_clause (0);
+      add_external_clause (INVALID_ELIT);
       bool trail_changed =
           (num_assigned != assigned || level != level_before ||
            propagated < trail.size ());
@@ -1131,7 +1131,7 @@ Lit Internal::ask_decision () {
 
   assert (external->is_observed[abs (elit)]);
 
-  Lit ilit = external->e2i[abs (elit)];
+  Lit ilit = external->e2i[elit.labs ()];
   if (elit.is_negated ())
     ilit = -ilit;
 

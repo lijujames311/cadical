@@ -288,7 +288,7 @@ inline void Internal::analyze_literal (Lit lit, int &open,
   assert (v.level <= level);
   if (v.reason == external_reason) {
     assert (!opts.exteagerreasons);
-    v.reason = learn_external_reason_clause (-lit, 0, true);
+    v.reason = learn_external_reason_clause (-lit, INVALID_ELIT, true);
     if (!v.reason) { // actually a unit
       --antecedent_size;
       LOG ("%s unit after explanation", LOGLIT (-lit));
@@ -1085,7 +1085,7 @@ void Internal::analyze () {
       if (!reason) {
         uip = -other;
         assert (open == 1);
-        LOG ("clause is actually unit %d, stopping", -uip);
+        LOG ("clause is actually unit %s, stopping", LOGLIT (-uip));
         reverse (begin (mini_chain), end (mini_chain));
         for (auto id : mini_chain)
           lrat_chain.push_back (id);
@@ -1116,7 +1116,7 @@ void Internal::analyze () {
         UPDATE_AVERAGE (averages.current.level, new_level);
         backtrack (new_level);
 
-        LOG ("forcing %d", forced);
+        LOG ("forcing %s", LOGLIT (forced));
         search_assign_driving (forced, conflict);
 
         // Clean up.
@@ -1179,15 +1179,15 @@ void Internal::analyze () {
     reason = var (uip).reason;
     if (reason == external_reason) {
       assert (!opts.exteagerreasons);
-      reason = learn_external_reason_clause (-uip, 0, true);
+      reason = learn_external_reason_clause (-uip, INVALID_ELIT, true);
       var (uip).reason = reason;
     }
     assert (reason != external_reason);
-    LOG (reason, "analyzing %d reason", uip);
+    LOG (reason, "analyzing %s reason", LOGLIT (uip));
     assert (resolvent_size);
     --resolvent_size;
   }
-  LOG ("first UIP %d", uip);
+  LOG ("first UIP %s", LOGLIT (uip));
   clause.push_back (-uip);
 
   // Update glue and learned (1st UIP literals) statistics.
@@ -1229,7 +1229,7 @@ void Internal::analyze () {
     if (external->learner)
       external->export_learned_large_clause (clause);
   } else if (external->learner)
-    external->export_learned_unit_clause ((-uip).signed_representation());
+    external->export_learned_unit_clause (-uip);
 
   // Update actual size statistics.
   //

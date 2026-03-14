@@ -43,10 +43,10 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
 
   const int idx = vidx (lit);
   assert (reason != external_reason);
-  assert (!val (idx));
-  assert (!flags (idx).eliminated () || reason == decision_reason ||
+  assert (!val (lit));
+  assert (!flags (lit).eliminated () || reason == decision_reason ||
           reason == external_reason);
-  Var &v = var (idx);
+  Var &v = var (lit);
   int lit_level;
   assert (!lrat || level || reason == external_reason ||
           reason == decision_reason || !lrat_chain.empty ());
@@ -78,8 +78,7 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
   if (!lit_level)
     learn_unit_clause (lit); // increases 'stats.fixed'
   assert (lit_level);
-  const signed char tmp = sign (lit);
-  set_val (idx, tmp);
+  set_val (lit, true);
   assert (val (lit) > 0);  // Just a bit paranoid but useful.
   assert (val (-lit) < 0); // Ditto.
   trail.push_back (lit);
@@ -131,7 +130,7 @@ int Internal::trivially_false_satisfiable () {
       }
       if (tmp < 0)
         continue;
-      if (lit > 0)
+      if (lit.is_positive())
         continue;
       found_negative_literal = true;
       break;
@@ -183,7 +182,7 @@ int Internal::trivially_true_satisfiable () {
       }
       if (tmp < 0)
         continue;
-      if (lit < 0)
+      if (lit.is_negated ())
         continue;
       found_positive_literal = true;
       break;
@@ -212,7 +211,7 @@ int Internal::trivially_true_satisfiable () {
 }
 
 /*------------------------------------------------------------------------*/
-inline bool Internal::lucky_propagate_discrepency (int dec) {
+inline bool Internal::lucky_propagate_discrepency (Lit dec) {
   lucky_assume_decision (dec);
   bool no_conflict = propagate ();
   if (no_conflict)
@@ -254,11 +253,11 @@ int Internal::lucky_fixed_test (Iterator begin, Iterator end, signed char pol, s
   if (res)
     return res;
   for (auto it = begin; it != end; ++it) {
-    const int idx = *it;
+    const Lit idx = *it;
     if (flags (idx).unused ())
       continue;
   START:
-    Lit lit = idx * pol;
+    Lit lit = pol * idx;
     if (terminated_asynchronously (10))
       return unlucky (-1);
     if (val (idx))
@@ -297,7 +296,7 @@ int Internal::backward_false_satisfiable () {
   if (res)
     return res;
   for (auto it = vars.rbegin (); it != vars.rend (); ++it) {
-    int idx = *it;
+    Lit idx = *it;
     if (flags (idx).unused ())
       continue;
   START:
@@ -327,7 +326,7 @@ int Internal::backward_true_satisfiable () {
   if (res)
     return res;
   for (auto it = vars.rbegin (); it != vars.rend (); ++it) {
-    int idx = *it;
+    Lit idx = *it;
     if (flags (idx).unused ())
       continue;
   START:
@@ -397,8 +396,9 @@ int Internal::random_lucky_assignment(signed char pol) {
   stats.lucky.random++;
 
   // Shuffle the variables
-  std::vector<int> shuffle;
-  for (int idx = max_var; idx; idx--) {
+  std::vector<Lit> shuffle;
+  for (auto it = vars.rbegin(); it != vars.rend(); ++it) {
+    Lit idx = *it;
     if (val(idx)) continue;
     if (flags (idx).unused ())
       continue;
@@ -415,13 +415,13 @@ int Internal::random_lucky_assignment(signed char pol) {
   int res = lucky_decide_assumptions();
   if (res) return res;
 
-  for (int idx : shuffle) {
+  for (Lit idx : shuffle) {
     START:
     if (flags(idx).unused()) continue;
     if (val(idx)) continue;
     if (terminated_asynchronously(10)) return unlucky(-1);
 
-    Lit lit = idx * pol;
+    Lit lit = pol * idx;
     if (lucky_propagate_discrepency(lit)) {
       if (unsat) return 20;
       else return unlucky(0);

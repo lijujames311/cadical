@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 #include "options.hpp"
 
 namespace CaDiCaL {
@@ -14,10 +15,10 @@ void Internal::assume (Lit lit) {
   Flags &f = flags (lit);
   const unsigned char bit = bign (lit);
   if (f.assumed & bit) {
-    LOG ("ignoring already assumed %d", lit);
+    LOG ("ignoring already assumed %s", LOGLIT (lit));
     return;
   }
-  LOG ("assume %d", lit);
+  LOG ("assume %s", LOGLIT (lit));
   f.assumed |= bit;
   assumptions.push_back (lit);
   freeze (lit);
@@ -27,7 +28,7 @@ void Internal::assume (Lit lit) {
 // for non-lrat use BFS. TODO: maybe derecursify to avoid stack overflow
 //
 void Internal::assume_analyze_literal (Lit lit) {
-  assert (lit);
+  assert (lit != INVALID_LIT);
   Flags &f = flags (lit);
   if (f.seen)
     return;
@@ -55,7 +56,7 @@ void Internal::assume_analyze_literal (Lit lit) {
     return;
   }
   assert (assumed (-lit));
-  LOG ("failed assumption %d", -lit);
+  LOG ("failed assumption %s", LOGLIT (-lit));
   clause.push_back (lit);
 }
 
@@ -96,15 +97,15 @@ void Internal::failing () {
     // assumption 'first_failed' with minimum (non-zero) decision level
     // 'failed_level'.
 
-    int failed_unit = 0;
-    int failed_clashing = 0;
-    int first_failed = 0;
+    Lit failed_unit = INVALID_LIT;
+    Lit failed_clashing = INVALID_LIT;
+    Lit first_failed = INVALID_LIT;
     int failed_level = INT_MAX;
-    int efailed = 0;
+    ELit efailed = INVALID_ELIT;
 
     for (auto &elit : external->assumptions) {
-      Lit lit = external->e2i[abs (elit)];
-      if (elit < 0)
+      Lit lit = external->e2i[elit.labs ()];
+      if (elit.is_negated ())
         lit = -lit;
       if (val (lit) >= 0)
         continue;
@@ -114,7 +115,7 @@ void Internal::failing () {
         efailed = elit;
         break;
       }
-      if (failed_clashing)
+      if (failed_clashing != INVALID_LIT)
         continue;
       if (v.reason == external_reason) {
         Var &ev = var (lit);
@@ -145,7 +146,7 @@ void Internal::failing () {
       if (!v.reason) {
         failed_clashing = lit;
         efailed = elit;
-      } else if (!first_failed || v.level < failed_level) {
+      } else if (first_failed == INVALID_LIT || v.level < failed_level) {
         first_failed = lit;
         efailed = elit;
         failed_level = v.level;
@@ -155,15 +156,15 @@ void Internal::failing () {
     assert (clause.empty ());
 
     // Get the 'failed' assumption from one of the three cases.
-    int failed;
-    if (failed_unit)
+    Lit failed;
+    if (failed_unit != INVALID_LIT)
       failed = failed_unit;
-    else if (failed_clashing)
+    else if (failed_clashing != INVALID_LIT)
       failed = failed_clashing;
     else
       failed = first_failed;
-    assert (failed);
-    assert (efailed);
+    assert (failed != INVALID_LIT);
+    assert (efailed != INVALID_ELIT);
 
     // In any case mark literal 'failed' as failed assumption.
     {
@@ -174,12 +175,12 @@ void Internal::failing () {
     }
 
     // First case (1).
-    if (failed_unit) {
+    if (failed_unit != INVALID_LIT) {
       assert (failed == failed_unit);
-      LOG ("root-level falsified assumption %d", failed);
+      LOG ("root-level falsified assumption %s", LOGLIT (failed));
       if (proof) {
         if (lrat) {
-          unsigned eidx = (efailed > 0) + 2u * (unsigned) abs (efailed);
+          unsigned eidx = efailed.vlit ();
           assert ((size_t) eidx < external->ext_units.size ());
           const int64_t id = external->ext_units[eidx];
           if (id) {
@@ -197,15 +198,15 @@ void Internal::failing () {
     }
 
     // Second case (2).
-    if (failed_clashing) {
+    if (failed_clashing != INVALID_LIT) {
       assert (failed == failed_clashing);
-      LOG ("clashing assumptions %d and %d", failed, -failed);
+      LOG ("clashing assumptions %s and %s", LOGLIT (failed), LOGLIT (-failed));
       Flags &f = flags (-failed);
       const unsigned bit = bign (-failed);
       assert (!(f.failed & bit));
       f.failed |= bit;
       if (proof) {
-        vector<int> clash = {externalize (failed), externalize (-failed)};
+        vector<ELit> clash = {externalize (failed), externalize (-failed)};
         proof->add_assumption_clause (++clause_id, clash, lrat_chain);
         conclusion.push_back (clause_id);
       }
@@ -213,11 +214,11 @@ void Internal::failing () {
     }
 
     // Fall through to third case (3).
-    LOG ("starting with assumption %d falsified on minimum decision level "
+    LOG ("starting with assumption %s falsified on minimum decision level "
          "%d",
-         first_failed, failed_level);
+         LOGLIT (first_failed), failed_level);
 
-    assert (first_failed);
+    assert (first_failed != INVALID_LIT);
     assert (failed_level > 0);
 
     // The 'analyzed' stack serves as working stack for a BFS through the
@@ -225,7 +226,7 @@ void Internal::failing () {
     // units are reached.  This is simpler than corresponding code in
     // 'analyze'.
     {
-      LOG ("failed assumption %d", first_failed);
+      LOG ("failed assumption %s", LOGLIT (first_failed));
       Flags &f = flags (first_failed);
       assert (!f.seen);
       f.seen = true;
@@ -238,8 +239,8 @@ void Internal::failing () {
     // The assumptions necessary to fail each literal in the constraint are
     // collected.
     for (auto lit : constraint) {
-      lit *= -1;
-      assert (lit != INT_MIN);
+      lit = -1 * lit;
+      assert (lit != OTHER_INVALID_LIT);
       flags (lit).seen = true;
       analyzed.push_back (lit);
     }
@@ -248,14 +249,14 @@ void Internal::failing () {
   {
     // used for unsat_constraint lrat
     vector<vector<int64_t>> constraint_chains;
-    vector<vector<int>> constraint_clauses;
-    vector<int> sum_constraints;
-    vector<int> econstraints;
+    vector<vector<Lit>> constraint_clauses;
+    vector<Lit> sum_constraints;
+    vector<ELit> econstraints;
     for (auto &elit : external->constraint) {
-      Lit lit = external->e2i[abs (elit)];
-      if (elit < 0)
+      Lit lit = external->e2i[elit.labs ()];
+      if (elit.is_negated ())
         lit = -lit;
-      if (!lit)
+      if (lit == INVALID_LIT)
         continue;
       Flags &f = flags (lit);
       if (f.seen)
@@ -296,7 +297,7 @@ void Internal::failing () {
           }
         } else {
           assert (assumed (lit));
-          LOG ("failed assumption %d", lit);
+          LOG ("failed assumption %s", LOGLIT (lit));
           clause.push_back (-lit);
           Flags &f = flags (lit);
           const unsigned bit = bign (lit);
@@ -334,10 +335,10 @@ void Internal::failing () {
         // make sure nothing gets marked failed twice
         // also might shortcut the case where
         // lrat_chain is empty because clause is tautological
-        assert (lit != INT_MIN);
+        assert (lit != OTHER_INVALID_LIT);
         assume_analyze_literal (lit);
         vector<int64_t> empty;
-        vector<int> empty2;
+        vector<Lit> empty2;
         constraint_chains.push_back (empty);
         constraint_clauses.push_back (empty2);
         for (auto ign : clause) {
@@ -379,7 +380,7 @@ void Internal::failing () {
     if (!unsat_constraint) {
       external->check_learned_clause ();
       if (proof) {
-        vector<int> eclause;
+        vector<ELit> eclause;
         for (auto &lit : clause)
           eclause.push_back (externalize (lit));
         proof->add_assumption_clause (++clause_id, eclause, lrat_chain);
@@ -406,7 +407,7 @@ void Internal::failing () {
             constraint_chains.pop_back ();
             LOG (lrat_chain, "assume proof chain with constraints");
           }
-          vector<int> eclause;
+          vector<ELit> eclause;
           for (auto &lit : clause)
             eclause.push_back (externalize (lit));
           proof->add_assumption_clause (++clause_id, eclause, lrat_chain);
@@ -418,14 +419,14 @@ void Internal::failing () {
       if (proof) {
         for (auto &elit : econstraints) {
           if (lrat) {
-            unsigned eidx = (elit > 0) + 2u * (unsigned) abs (elit);
+            unsigned eidx = elit.vlit ();
             assert ((size_t) eidx < external->ext_units.size ());
             const int64_t id = external->ext_units[eidx];
             if (id) {
               lrat_chain.push_back (id);
             } else {
-              Lit lit = external->e2i[abs (elit)];
-              if (elit < 0)
+              Lit lit = external->e2i[elit.labs ()];
+              if (elit.is_negated ())
                 lit = -lit;
               int64_t id = unit_id (-lit);
               lrat_chain.push_back (id);
@@ -524,7 +525,7 @@ struct sort_assumptions_positive_rank {
   // Set assumptions first, then sorted by position on the trail
   // unset literals are sorted by literal value.
 
-  Type operator() (const int &a) const {
+  Type operator() (const Lit &a) const {
     const int val = internal->val (a);
     const bool assigned = (val != 0);
     const Var &v = internal->var (a);
@@ -538,7 +539,7 @@ struct sort_assumptions_positive_rank {
 struct sort_assumptions_smaller {
   Internal *internal;
   sort_assumptions_smaller (Internal *s) : internal (s) {}
-  bool operator() (const int &a, const int &b) const {
+  bool operator() (const Lit &a, const Lit &b) const {
     return sort_assumptions_positive_rank (internal) (a) <
            sort_assumptions_positive_rank (internal) (b);
   }
@@ -583,11 +584,11 @@ void Internal::sort_and_reuse_assumptions () {
     target = lev;
     if (val (alit) > 0 &&
         var (alit).level < lev) { // we can ignore propagated assumptions
-      LOG ("ILB skipping propagation %d", alit);
+      LOG ("ILB skipping propagation %s", LOGLIT (alit));
       ++j;
       continue;
     }
-    if (!lit) { // skip fake decisions
+    if (lit == INVALID_LIT) { // skip fake decisions
       target = lev - 1;
       break;
     }
@@ -597,9 +598,9 @@ void Internal::sort_and_reuse_assumptions () {
       continue;
     }
     target = lev - 1;
-    LOG ("first different literal %d on the trail and %d from the "
+    LOG ("first different literal %s on the trail and %s from the "
          "assumptions",
-         lit, alit);
+         LOGLIT (lit), LOGLIT (alit));
     break;
   }
   if (opts.ilb == 1 &&

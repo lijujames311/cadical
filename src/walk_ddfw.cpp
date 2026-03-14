@@ -114,11 +114,11 @@ struct DDFW_Counter {
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, position_type p, Clause *d, double w)
-  : clause (d), weight (w), critical_var (INVALID_LIT), count (c), pos (p){
+  : clause (d), weight (w), critical_var (0), count (c), pos (p){
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, Clause *d, double w)
-  :  clause (d), weight (w), critical_var (INVALID_LIT), count (c), pos (UINT32_MAX) {
+  :  clause (d), weight (w), critical_var (0), count (c), pos (UINT32_MAX) {
     initialize_binary(d);
   }
   explicit DDFW_Counter (unsigned c, Clause *d, double w, unsigned xor_lits)
@@ -370,9 +370,9 @@ struct Walker_DDFW {
     // for assumption, count is not important:
     if (internal->var (v).level == 1)
       continue;
-    assert (count[v] == uvar_count (v));
+    assert (count[v.var ()] == uvar_count (v));
     if (count[v.var ()]) {
-      assert (position_vars_in_broken[v] < vars_in_broken.size ());
+      assert (position_vars_in_broken[v.var ()] < vars_in_broken.size ());
       assert (vars_in_broken[position_vars_in_broken[v.var ()]] == v);
     }
   }
@@ -502,7 +502,7 @@ void Walker_DDFW::save_walker_trail (bool keep) {
 #ifndef NDEBUG
   for (auto v : internal->vars) {
     if (internal->active (v))
-      assert (best_values[v] == internal->phases.saved[v]);
+      assert (best_values[v.var ()] == internal->phases.saved[v.var ()]);
   }
 #endif
   LOG ("flushed %u literals %.0f%% from trail", best_trail_pos,
@@ -538,8 +538,8 @@ void Walker_DDFW::save_final_minimum (size_t old_init_minimum) {
 
   ++internal->stats.walk.improved;
   for (auto v : internal->vars) {
-    if (best_values[v])
-      internal->phases.saved[v] = best_values[v];
+    if (best_values[v.var ()])
+      internal->phases.saved[v.var ()] = best_values[v.var ()];
     else
       assert (!internal->active (v));
   }

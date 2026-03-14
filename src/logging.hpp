@@ -41,6 +41,12 @@ struct Logger {
   // Same as before, except that this is meant for the global 'clause' stack
   // used for new clauses (and not for reasons).
   //
+  static void log (Internal *, const vector<Lit> &, const char *fmt, ...)
+      CADICAL_ATTRIBUTE_FORMAT (3, 4);
+
+  // Same as before, except that this is meant for the global 'clause' stack
+  // used for new clauses (and not for reasons).
+  //
   static void log (Internal *, const vector<int> &, const char *fmt, ...)
       CADICAL_ATTRIBUTE_FORMAT (3, 4);
 

@@ -2,6 +2,7 @@
 #include "clause.hpp"
 #include "internal.hpp"
 #include "limit.hpp"
+#include "literals.hpp"
 #include "logging.hpp"
 #include "profile.hpp"
 #include "radix.hpp"
@@ -13,6 +14,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <complex.h>
 #include <cstddef>
 #include <cstdint>
 #include <cinttypes>
@@ -150,12 +152,12 @@ inline void Internal::demote_clause (Clause *c) {
 // can be inlined separately here.  The propagation routine needs to ignore
 // (large) clauses which are currently vivified.
 
-inline void Internal::vivify_assign (int lit, Clause *reason) {
+inline void Internal::vivify_assign (Lit lit, Clause *reason) {
   require_mode (VIVIFY);
   const int idx = vidx (lit);
-  assert (!vals[idx]);
-  assert (!flags (idx).eliminated () || !reason);
-  Var &v = var (idx);
+  assert (!val (lit));
+  assert (!flags (lit).eliminated () || !reason);
+  Var &v = var (lit);
   v.level = level;               // required to reuse decisions
   v.trail = get_trail_size (); // used in 'vivify_better_watch'
   assert ((int) num_assigned < max_var);
@@ -174,7 +176,7 @@ inline void Internal::vivify_assign (int lit, Clause *reason) {
 
 // Assume negated literals in candidate clause.
 
-void Internal::vivify_assume (int lit) {
+void Internal::vivify_assume (Lit lit) {
   require_mode (VIVIFY);
   level++;
   control.emplace_back (lit, get_trail_size ());
@@ -195,7 +197,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
   const size_t before = propagated2 = propagated;
   for (;;) {
     if (propagated2 != trail.size ()) {
-      const int lit = -trail[propagated2++];
+      const Lit lit = -trail[propagated2++];
       LOG ("vivify propagating %d over binary clauses", -lit);
       const Watches &ws = watches (lit);
       ticks +=
@@ -216,7 +218,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
         }
       }
     } else if (!conflict && propagated != trail.size ()) {
-      const int lit = -trail[propagated++];
+      const Lit lit = -trail[propagated++];
       LOG ("vivify propagating %d over large clauses", -lit);
       Watches &ws = watches (lit);
       const auto eow = ws.end ();
@@ -245,7 +247,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
           literal_iterator k = lits + w.clause->pos;
           const const_literal_iterator middle = k;
           signed char v = -1;
-          int r = 0;
+          Lit r = INVALID_LIT;
           while (k != end && (v = val (r = *k)) < 0)
             k++;
           if (v < 0) {
@@ -316,7 +318,7 @@ struct vivify_more_noccs {
 
   vivify_more_noccs (Internal *i) : internal (i) {}
 
-  bool operator() (int a, int b) {
+  bool operator() (Lit a, Lit b) {
     const int64_t n = internal->noccs (a);
     const int64_t m = internal->noccs (b);
     if (n > m)
@@ -324,7 +326,7 @@ struct vivify_more_noccs {
     if (n < m)
       return false; // smaller occurrences / score last
     if (a == -b)
-      return a > 0;           // positive literal first
+      return a.is_positive();           // positive literal first
     return abs (a) < abs (b); // smaller index first
   }
 };
@@ -335,7 +337,7 @@ struct vivify_more_noccs_kissat {
 
   vivify_more_noccs_kissat (Internal *i) : internal (i) {}
 
-  bool operator() (int a, int b) {
+  bool operator() (Lit a, Lit b) {
     const unsigned s = internal->noccs (a);
     const unsigned t = internal->noccs (b);
     const int signed_part_int = 31;
@@ -454,7 +456,7 @@ struct vivify_better_watch {
 
   vivify_better_watch (Internal *i) : internal (i) {}
 
-  bool operator() (int a, int b) {
+  bool operator() (Lit a, Lit b) {
 
     const signed char av = internal->val (a), bv = internal->val (b);
 
@@ -477,7 +479,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
   if (clause.size () == 1) {
 
     backtrack_without_updating_phases ();
-    const int unit = clause[0];
+    const Lit unit = clause[0];
     LOG (c, "vivification shrunken to unit %d", unit);
     assert (!val (unit));
     assign_unit (unit);
@@ -496,7 +498,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
 
     int new_level = level;
 
-    const int lit0 = clause[0];
+    const Lit lit0 = clause[0];
     signed char val0 = val (lit0);
     if (val0 < 0) {
       const int level0 = var (lit0).level;
@@ -504,7 +506,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
       new_level = level0 - 1;
     }
 
-    const int lit1 = clause[1];
+    const Lit lit1 = clause[1];
     const signed char val1 = val (lit1);
     if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
       const int level1 = var (lit1).level;
@@ -539,7 +541,7 @@ void Internal::vivify_sort_watched (Clause *c) {
 
   int new_level = level;
 
-  const int lit0 = c->literals[0];
+  const Lit lit0 = c->literals[0];
   signed char val0 = val (lit0);
   if (val0 < 0) {
     const int level0 = var (lit0).level;
@@ -547,7 +549,7 @@ void Internal::vivify_sort_watched (Clause *c) {
     new_level = level0 - 1;
   }
 
-  const int lit1 = c->literals[1];
+  const Lit lit1 = c->literals[1];
   const signed char val1 = val (lit1);
   if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
     const int level1 = var (lit1).level;
@@ -573,15 +575,15 @@ void Internal::vivify_sort_watched (Clause *c) {
 // LRAT proof
 void Internal::vivify_analyze (Clause *start, bool &subsumes,
                                Clause **subsuming,
-                               const Clause *const candidate, int implied,
+                               const Clause *const candidate, Lit implied,
                                bool &redundant) {
   const auto &t = &trail; // normal trail, so next_trail is wrong
   int i = get_trail_size ();     // Start at end-of-trail.
   Clause *reason = start;
   assert (reason);
   assert (!trail.empty ());
-  int uip = trail.back ();
-  bool mark_implied = (implied);
+  Lit uip = trail.back ();
+  bool mark_implied = (implied != INVALID_LIT);
 
   while (i >= 0) {
     if (reason) {
@@ -642,16 +644,16 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
     }
     mark_implied = false;
 
-    uip = 0;
-    while (!uip && i > 0) {
+    uip = INVALID_LIT;
+    while (uip == INVALID_LIT && i > 0) {
       assert (i > 0);
-      const int lit = (*t)[--i];
+      const Lit lit = (*t)[--i];
       if (!var (lit).level)
         continue;
       if (flags (lit).seen)
         uip = lit;
     }
-    if (!uip)
+    if (uip == INVALID_LIT)
       break;
     LOG ("uip is %d", uip);
     Var &w = var (uip);
@@ -666,17 +668,17 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
 // First decide which clause (candidate or conflict) to analyze and
 // how to do it. We also prepare the clause by removing units.
 void Internal::vivify_deduce (Clause *candidate, Clause *conflict,
-                              int implied, Clause **subsuming,
+                              Lit implied, Clause **subsuming,
                               bool &redundant) {
   assert (lrat_chain.empty ());
   bool subsumes;
   Clause *reason;
 
   assert (clause.empty ());
-  if (implied) {
+  if (implied != INVALID_LIT) {
     reason = candidate;
     mark2 (candidate);
-    const int not_implied = -implied;
+    const Lit not_implied = -implied;
     assert (var (not_implied).level);
     Flags &f = flags (not_implied);
     f.seen = true;
@@ -766,7 +768,7 @@ void Internal::vivify_deduce (Clause *candidate, Clause *conflict,
 /*------------------------------------------------------------------------*/
 
 // checks whether the clause can be strengthen or not.
-bool Internal::vivify_shrinkable (const std::vector<int> &sorted,
+bool Internal::vivify_shrinkable (const std::vector<Lit> &sorted,
                                   Clause *conflict) {
 
   unsigned count_implied = 0;
@@ -827,12 +829,12 @@ inline void Internal::vivify_increment_stats (const Vivifier &vivifier) {
 // 2023), fix the watches and backtrack two level back to make sure
 // the watches are correct.
 bool Internal::vivify_instantiate (
-    const std::vector<int> &sorted, Clause *c,
-    std::vector<std::tuple<int, Clause *, bool>> &lrat_stack,
+    const std::vector<Lit> &sorted, Clause *c,
+    std::vector<std::tuple<Lit, Clause *, bool>> &lrat_stack,
     int64_t &ticks) {
   LOG ("now trying instantiation");
   conflict = nullptr;
-  const int lit = sorted.back ();
+  const Lit lit = sorted.back ();
   LOG ("vivify instantiation");
   assert (!var (lit).reason);
   assert (var (lit).level);
@@ -849,11 +851,11 @@ bool Internal::vivify_instantiate (
     if (lrat) {
       clear_analyzed_literals ();
       assert (lrat_chain.empty ());
-      vivify_build_lrat (0, c, lrat_stack);
-      vivify_build_lrat (0, conflict, lrat_stack);
+      vivify_build_lrat (INVALID_LIT, c, lrat_stack);
+      vivify_build_lrat (INVALID_LIT, conflict, lrat_stack);
       clear_analyzed_literals ();
     }
-    int remove = lit;
+    Lit remove = lit;
     conflict = nullptr;
     unwatch_clause (c);
     backtrack_without_updating_phases (level - 2);
@@ -942,7 +944,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     // redundancy by other clauses using this forced literal becomes
     // impossible.
     //
-    int forced = 0;
+    Lit forced = INVALID_LIT;
 
     // This search could be avoided if we would eagerly set the 'reason'
     // boolean flag of clauses, which however we do not want to do for
@@ -960,7 +962,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
         forced = lit;
       break;
     }
-    if (forced) {
+    if (forced != INVALID_LIT) {
       LOG ("clause is reason forcing %d", forced);
       assert (var (forced).level);
       backtrack_without_updating_phases (var (forced).level - 1);
@@ -975,7 +977,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
 
       for (const auto &lit : sorted) {
         assert (!fixed (lit));
-        const int decision = control[l].decision;
+        const Lit decision = control[l].decision;
         if (-lit == decision) {
           LOG ("reusing decision %d at decision level %d", decision, l);
           ++stats.vivifyreused;
@@ -1005,7 +1007,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
   //
   ignore = c;
 
-  int subsume = 0; // determined to be redundant / subsumed
+  Lit subsume = INVALID_LIT; // determined to be redundant / subsumed
 
   // If the candidate is redundant, i.e., we are in redundant mode, the
   // clause is subsumed (in one of the two cases below where 'subsume' is
@@ -1024,7 +1026,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     // Exit loop as soon a literal is positively implied (case '@5' below)
     // or propagation of the negation of a literal fails ('@6').
     //
-    if (subsume)
+    if (subsume != INVALID_LIT)
       break;
 
     // We keep on assigning literals, even though we know already that we
@@ -1067,7 +1069,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     }
   }
 
-  if (subsume) {
+  if (subsume != INVALID_LIT) {
     int better_subsume_trail = var (subsume).trail;
     for (auto lit : sorted) {
       if (val (lit) <= 0)
@@ -1116,12 +1118,12 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     conflict = nullptr; // TODO dup from below
     vivify_strengthen (c, ticks);
     res = true;
-  } else if (subsume && c->redundant) {
+  } else if (subsume != INVALID_LIT && c->redundant) {
     LOG (c, "vivification implied");
     mark_garbage (c);
     ++stats.vivifyimplied;
     res = true;
-  } else if ((conflict || subsume) && !c->redundant && !redundant) {
+  } else if ((conflict || subsume != INVALID_LIT) && !c->redundant && !redundant) {
     if (opts.vivifydemote) {
       LOG ("demote clause from irredundant to redundant");
       demote_clause (c);
@@ -1133,7 +1135,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
       ++stats.vivifyimplied;
       res = true;
     }
-  } else if (subsume) {
+  } else if (subsume != INVALID_LIT) {
     LOG (c, "no vivification instantiation with implied literal %d",
          subsume);
     assert (!c->redundant);
@@ -1145,8 +1147,8 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     assert ((size_t) level == sorted.size ());
     LOG (c, "vivification failed on");
     lrat_chain.clear ();
-    assert (!subsume);
-    if (!subsume && opts.vivifyinst) {
+    assert (subsume == INVALID_LIT);
+    if (subsume == INVALID_LIT && opts.vivifyinst) {
       res = vivify_instantiate (sorted, c, lrat_stack, ticks);
       assert (!conflict);
     } else {
@@ -1202,24 +1204,24 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
 // during his very large experiments. DFS over the reasons with preordering
 // (aka we explore the entire reason before exploring deeper)
 void Internal::vivify_build_lrat (
-    int lit, Clause *reason,
-    std::vector<std::tuple<int, Clause *, bool>> &stack) {
+    Lit lit, Clause *reason,
+    std::vector<std::tuple<Lit, Clause *, bool>> &stack) {
   assert (stack.empty ());
   stack.push_back ({lit, reason, false});
   while (!stack.empty ()) {
-    int lit;
+    Lit lit;
     Clause *reason;
     bool finished;
     std::tie (lit, reason, finished) = stack.back ();
     LOG ("VIVIFY LRAT justifying %d", lit);
     stack.pop_back ();
-    if (lit && flags (lit).seen) {
+    if (lit != INVALID_LIT && flags (lit).seen) {
       LOG ("skipping already justified");
       continue;
     }
     if (finished) {
       lrat_chain.push_back (reason->id);
-      if (lit && reason) {
+      if (lit != INVALID_LIT && reason) {
         Flags &f = flags (lit);
         f.seen = true;
         analyzed.push_back (lit); // assert (val (other) < 0);
@@ -1253,7 +1255,7 @@ void Internal::vivify_build_lrat (
 
 // calculate lrat_chain
 //
-inline void Internal::vivify_chain_for_units (int lit, Clause *reason) {
+inline void Internal::vivify_chain_for_units (Lit lit, Clause *reason) {
   if (!lrat)
     return;
   if (level)
@@ -1263,7 +1265,7 @@ inline void Internal::vivify_chain_for_units (int lit, Clause *reason) {
     if (lit == reason_lit)
       continue;
     assert (val (reason_lit));
-    const int signed_reason_lit = val (reason_lit) * reason_lit;
+    const Lit signed_reason_lit = val (reason_lit) * reason_lit;
     int64_t id = unit_id (signed_reason_lit);
     lrat_chain.push_back (id);
   }
@@ -1277,9 +1279,9 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
   ref.clause = c;
   ref.size = c->size;
   ref.vivify = c->vivify;
-  std::array<int, COUNTREF_COUNTS> lits = {0};
+  std::array<Lit, COUNTREF_COUNTS> lits {INVALID_LIT,INVALID_LIT};
   for (int i = 0; i != std::min (COUNTREF_COUNTS, c->size); ++i) {
-    int best = 0;
+    Lit best = INVALID_LIT;
     unsigned best_count = 0;
     for (auto lit : *c) {
       LOG ("to find best number of occurrences for literal %d, looking at "
@@ -1302,7 +1304,7 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
       }
     CONTINUE_WITH_NEXT_LITERAL:;
     }
-    assert (best);
+    assert (best != INVALID_LIT);
     assert (best_count);
     assert (best_count < UINT32_MAX);
     ref.count[i] =

@@ -1,5 +1,6 @@
 #include "flags.hpp"
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -14,11 +15,11 @@ void Internal::mark_declared (Lit lit) {
 
 void Internal::mark_fixed (Lit lit) {
   if (external->fixed_listener) {
-    int elit = externalize (lit);
-    assert (elit);
+    ELit elit = externalize (lit);
+    assert (elit != INVALID_ELIT);
     const int eidx = abs (elit);
     if (!external->ervars[eidx])
-      external->fixed_listener->notify_fixed_assignment (elit);
+      external->fixed_listener->notify_fixed_assignment (elit.signed_representation());
   }
   Flags &f = flags (lit);
   if (f.status == Flags::DECLARED)

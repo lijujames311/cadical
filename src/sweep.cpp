@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -30,16 +31,16 @@ int Internal::sweep_solve () {
   return res;
 }
 
-bool Internal::sweep_flip (int lit) {
+bool Internal::sweep_flip (Lit lit) {
   START (sweepflip);
-  bool res = kitten_flip_signed_literal (citten, lit);
+  bool res = kitten_flip_signed_literal (citten, lit.signed_representation());
   STOP (sweepflip);
   return res;
 }
 
-int Internal::sweep_flip_and_implicant (int lit) {
+int Internal::sweep_flip_and_implicant (Lit lit) {
   START (sweepimplicant);
-  int res = kitten_flip_and_implicant_for_signed_literal (citten, lit);
+  int res = kitten_flip_and_implicant_for_signed_literal (citten, lit.signed_representation());
   STOP (sweepimplicant);
   return res;
 }
@@ -127,11 +128,11 @@ void Internal::sweep_sparse_mode () {
 
 // propagate without watches but full occurence list
 void Internal::sweep_dense_propagate (Sweeper &sweeper) {
-  vector<int> &work = sweeper.propagate;
+  vector<Lit> &work = sweeper.propagate;
   size_t i = 0;
   uint64_t &ticks = sweeper.current_ticks;
   while (i < work.size ()) {
-    int lit = work[i++];
+    Lit lit = work[i++];
     LOG ("sweeping propagation of %d", lit);
     assert (val (lit) > 0);
     ticks += 1 + cache_lines (occs (-lit).size (), sizeof (Clause *));
@@ -140,7 +141,7 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
       ticks++;
       if (!can_sweep_clause (c))
         continue;
-      int unit = 0, satisfied = 0;
+      Lit unit = INVALID_LIT, satisfied = INVALID_LIT;
       for (const auto &other : *c) {
         const signed char tmp = val (other);
         if (tmp < 0)
@@ -149,24 +150,24 @@ void Internal::sweep_dense_propagate (Sweeper &sweeper) {
           satisfied = other;
           break;
         }
-        if (unit)
-          unit = INT_MIN;
+        if (unit != INVALID_LIT)
+          unit = OTHER_INVALID_LIT;
         else
           unit = other;
       }
-      if (satisfied) {
+      if (satisfied != INVALID_LIT) {
         LOG (c, "sweeping propagation of %d finds %d satisfied", lit,
              satisfied);
         mark_garbage (c);
         sweep_update_noccs (c);
-      } else if (!unit) {
+      } else if (unit == INVALID_LIT) {
         LOG ("empty clause during sweeping propagation of %d", lit);
         // need to set conflict = c for lrat
         conflict = c;
         learn_empty_clause ();
         conflict = 0;
         break;
-      } else if (unit != INT_MIN) {
+      } else if (unit != OTHER_INVALID_LIT) {
         LOG ("new unit %d during sweeping propagation of %d", unit, lit);
         build_chain_for_units (unit, c, 0);
         assign_unit (unit);
@@ -212,13 +213,14 @@ bool Internal::kitten_ticks_limit_hit (Sweeper &sweeper, const char *when) {
 void Internal::init_sweeper (Sweeper &sweeper) {
   sweeper.encoded = 0;
   enlarge_zero (sweeper.depths, max_var + 1);
-  sweeper.reprs = new int[2 * max_var + 1];
+  sweeper.reprs = new Lit[2 * max_var + 1];
   sweeper.reprs += max_var;
   enlarge_zero (sweeper.prev, max_var + 1);
   enlarge_zero (sweeper.next, max_var + 1);
   for (const auto &lit : lits)
-    sweeper.reprs[lit] = lit;
-  sweeper.first = sweeper.last = sweeper.save = 0;
+    sweeper.reprs[vlit (lit)] = lit;
+  sweeper.first = sweeper.last = INVALID_LIT;
+  sweeper.save = 0;
   sweeper.limit.ticks = 0;
   sweeper.current_ticks =
       2 *
@@ -298,8 +300,8 @@ void Internal::clear_sweeper (Sweeper &sweeper) {
 
   citten_clear_track_log_terminate ();
   for (auto &idx : sweeper.vars) {
-    assert (sweeper.depths[idx]);
-    sweeper.depths[idx] = 0;
+    assert (sweeper.depths[idx.var ()]);
+    sweeper.depths[idx.var ()] = 0;
   }
   sweeper.vars.clear ();
   for (auto c : sweeper.clauses) {
@@ -313,33 +315,33 @@ void Internal::clear_sweeper (Sweeper &sweeper) {
   sweep_set_kitten_ticks_limit (sweeper);
 }
 
-int Internal::sweep_repr (Sweeper &sweeper, int lit) {
-  int res;
+Lit Internal::sweep_repr (Sweeper &sweeper, Lit lit) {
+  Lit res;
   {
-    int prev = lit;
-    while ((res = sweeper.reprs[prev]) != prev)
+    Lit prev = lit;
+    while ((res = sweeper.reprs[vlit (prev)]) != prev)
       prev = res;
   }
   if (res == lit)
     return res;
   LOG ("sweeping repr[%d] = %d", lit, res);
   {
-    const int not_res = -res;
-    int next, prev = lit;
-    while ((next = sweeper.reprs[prev]) != res) {
-      const int not_prev = -prev;
-      sweeper.reprs[not_prev] = not_res;
-      sweeper.reprs[prev] = res;
+    const Lit not_res = -res;
+    Lit next, prev = lit;
+    while ((next = sweeper.reprs[vlit (prev)]) != res) {
+      const Lit not_prev = -prev;
+      sweeper.reprs[vlit (not_prev)] = not_res;
+      sweeper.reprs[vlit (prev)] = res;
       prev = next;
     }
-    assert (sweeper.reprs[-prev] == not_res);
+    assert (sweeper.reprs[vlit (-prev)] == not_res);
   }
   return res;
 }
 
 void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
-                                           int lit) {
-  const int repr = sweep_repr (sweeper, lit);
+                                           Lit lit) {
+  const Lit repr = sweep_repr (sweeper, lit);
   if (repr != lit)
     return;
   const int idx = abs (lit);
@@ -348,7 +350,7 @@ void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
   assert (depth < UINT_MAX);
   sweeper.depths[idx] = depth + 1;
   assert (idx);
-  sweeper.vars.push_back (idx);
+  sweeper.vars.push_back (lit.labs ());
   LOG ("sweeping[%u] adding literal %d", depth, lit);
 }
 
@@ -356,7 +358,7 @@ void Internal::sweep_add_clause (Sweeper &sweeper, unsigned depth) {
   // TODO: assertion fails, check if this an issue or can be avoided
   // assert (sweeper.clause.size () > 1);
   for (const auto &lit : sweeper.clause)
-    add_literal_to_environment (sweeper, depth, lit);
+    add_literal_to_environment (sweeper, depth, Lit (lit));
   citten_clause_with_id (citten, sweeper.clauses.size (),
                          sweeper.clause.size (), sweeper.clause.data ());
   sweeper.clause.clear ();
@@ -383,7 +385,7 @@ void Internal::sweep_clause (Sweeper &sweeper, unsigned depth, Clause *c) {
         sweeper.prev_units[abs (lit)] = true;
       continue;
     }
-    sweeper.clause.push_back (lit);
+    sweeper.clause.push_back (lit.signed_representation());
   }
   c->swept = true;
   sweep_add_clause (sweeper, depth);
@@ -558,7 +560,7 @@ void Internal::add_core (Sweeper &sweeper, unsigned core_idx) {
     }
 
     if (new_size == 1) {
-      int unit = pc.literals[0];
+      Lit unit = pc.literals[0];
       if (val (unit) > 0) {
         LOG ("already assigned sweeping unit %d", unit);
         lrat_chain.clear ();
@@ -633,16 +635,16 @@ void Internal::init_backbone_and_partition (Sweeper &sweeper) {
   for (const auto &idx : sweeper.vars) {
     if (!active (idx))
       continue;
-    assert (idx > 0);
-    const int lit = idx;
-    const int not_lit = -lit;
-    const signed char tmp = kitten_signed_value (citten, lit);
-    const int candidate = (tmp < 0) ? not_lit : lit;
+    assert (idx.is_positive());
+    const Lit lit = idx;
+    const Lit not_lit = -lit;
+    const signed char tmp = kitten_signed_value (citten, lit.signed_representation());
+    const Lit candidate = (tmp < 0) ? not_lit : lit;
     LOG ("sweeping candidate %d", candidate);
     sweeper.backbone.push_back (candidate);
     sweeper.partition.push_back (candidate);
   }
-  sweeper.partition.push_back (0);
+  sweeper.partition.push_back (INVALID_LIT);
 
   LOG (sweeper.backbone, "initialized backbone candidates");
   LOG (sweeper.partition, "initialized equivalence candidates");
@@ -656,8 +658,8 @@ void Internal::sweep_empty_clause (Sweeper &sweeper) {
 
 void Internal::sweep_refine_partition (Sweeper &sweeper) {
   LOG ("refining partition");
-  vector<int> &old_partition = sweeper.partition;
-  vector<int> new_partition;
+  vector<Lit> &old_partition = sweeper.partition;
+  vector<Lit> new_partition;
   auto old_begin = old_partition.begin ();
   const auto old_end = old_partition.end ();
 #ifdef LOGGING
@@ -667,12 +669,12 @@ void Internal::sweep_refine_partition (Sweeper &sweeper) {
   for (auto p = old_begin, q = p; p != old_end; p = q + 1) {
     unsigned assigned_true = 0;
     Lit other;
-    for (q = p; (other = *q) != 0; q++) {
+    for (q = p; (other = *q) != INVALID_LIT; q++) {
       if (sweep_repr (sweeper, other) != other)
         continue;
       if (val (other))
         continue;
-      signed char value = kitten_signed_value (citten, other);
+      signed char value = kitten_signed_value (citten, other.signed_representation());
       if (!value)
         LOG ("dropping sub-solver unassigned %d", other);
       else if (value > 0) {
@@ -697,19 +699,19 @@ void Internal::sweep_refine_partition (Sweeper &sweeper) {
       LOG ("dropping singleton class %d", other);
     } else {
       LOG ("%u positive literal in class", assigned_true);
-      new_partition.push_back (0);
+      new_partition.push_back (INVALID_LIT);
 #ifdef LOGGING
       new_classes++;
 #endif
     }
 
     unsigned assigned_false = 0;
-    for (q = p; (other = *q) != 0; q++) {
+    for (q = p; (other = *q) != INVALID_LIT; q++) {
       if (sweep_repr (sweeper, other) != other)
         continue;
       if (val (other))
         continue;
-      signed char value = kitten_signed_value (citten, other);
+      signed char value = kitten_signed_value (citten, other.signed_representation());
       if (value < 0) {
         new_partition.push_back (other);
         assigned_false++;
@@ -729,7 +731,7 @@ void Internal::sweep_refine_partition (Sweeper &sweeper) {
       LOG ("dropping singleton class %d", other);
     } else {
       LOG ("%u negative literal in class", assigned_false);
-      new_partition.push_back (0);
+      new_partition.push_back (INVALID_LIT);
 #ifdef LOGGING
       new_classes++;
 #endif
@@ -744,10 +746,10 @@ void Internal::sweep_refine_backbone (Sweeper &sweeper) {
   const auto end = sweeper.backbone.end ();
   auto q = sweeper.backbone.begin ();
   for (auto p = q; p != end; p++) {
-    const int lit = *p;
+    const Lit lit = *p;
     if (val (lit))
       continue;
-    signed char value = kitten_signed_value (citten, lit);
+    signed char value = kitten_signed_value (citten, lit.signed_representation());
     if (!value)
       LOG ("dropping sub-solver unassigned %d", lit);
     else if (value > 0)
@@ -787,7 +789,7 @@ void Internal::flip_backbone_literals (Sweeper &sweeper) {
     const auto end = sweeper.backbone.end ();
     bool limit_hit = false;
     while (p != end) {
-      const int lit = *p++;
+      const Lit lit = *p++;
       stats.sweep_flip_backbone++;
       if (limit_hit || terminated_asynchronously ()) {
         break;
@@ -821,10 +823,10 @@ void Internal::flip_backbone_literals (Sweeper &sweeper) {
        total_flipped, round);
 }
 
-bool Internal::sweep_extract_fixed (Sweeper &sweeper, int lit) {
-  const int not_lit = -lit;
+bool Internal::sweep_extract_fixed (Sweeper &sweeper, Lit lit) {
+  const Lit not_lit = -lit;
   stats.sweep_solved_backbone++;
-  kitten_assume_signed (citten, not_lit);
+  kitten_assume_signed (citten, not_lit.signed_representation ());
   int res = sweep_solve ();
   if (!res) {
     stats.sweep_unknown_backbone++;
@@ -837,9 +839,9 @@ bool Internal::sweep_extract_fixed (Sweeper &sweeper, int lit) {
   return true;
 }
 
-bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
+bool Internal::sweep_backbone_candidate (Sweeper &sweeper, Lit lit) {
   LOG ("trying backbone candidate %d", lit);
-  signed char value = kitten_fixed_signed (citten, lit);
+  signed char value = kitten_fixed_signed (citten, lit.signed_representation());
   if (value) {
     stats.sweep_fixed_backbone++;
     assert (value > 0);
@@ -863,9 +865,9 @@ bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
   }
 
   LOG ("flipping %d failed", lit);
-  const int not_lit = -lit;
+  const Lit not_lit = -lit;
   stats.sweep_solved_backbone++;
-  kitten_assume_signed (citten, not_lit);
+  kitten_assume_signed (citten, not_lit.signed_representation());
   res = sweep_solve ();
   if (res == 10) {
     LOG ("sweeping backbone candidate %d failed", lit);
@@ -893,7 +895,7 @@ bool Internal::sweep_backbone_candidate (Sweeper &sweeper, int lit) {
 // We just copy it as an irredundant clause, call weaken minus
 // and push it on the extension stack.
 //
-int64_t Internal::add_sweep_binary (sweep_proof_clause pc, int lit,
+int64_t Internal::add_sweep_binary (sweep_proof_clause pc, Lit lit,
                                     Lit other) {
   assert (!unsat);
   if (unsat)
@@ -921,11 +923,11 @@ int64_t Internal::add_sweep_binary (sweep_proof_clause pc, int lit,
   }
   external->push_binary_clause_on_extension_stack (id, lit, other);
   for (auto &tracer : tracers) {
-    if (externalize (lit) < 0)
+    if (externalize (lit).is_negated())
       break;
-    const int elit = externalize (lit);
-    const int eother = externalize (other);
-    tracer->notify_equivalence (elit, -eother);
+    const ELit elit = externalize (lit);
+    const ELit eother = externalize (other);
+    tracer->notify_equivalence (elit.signed_representation(), (-eother).signed_representation());
   }
   clause.clear ();
   lrat_chain.clear ();
@@ -937,95 +939,95 @@ void Internal::delete_sweep_binary (const sweep_binary &sb) {
     return;
   if (!proof)
     return;
-  vector<int> bin;
+  vector<Lit> bin;
   bin.push_back (sb.lit);
   bin.push_back (sb.other);
   proof->delete_clause (sb.id, false, bin);
 }
 
-bool Internal::scheduled_variable (Sweeper &sweeper, int idx) {
-  return sweeper.prev[idx] != 0 || sweeper.first == idx;
+bool Internal::scheduled_variable (Sweeper &sweeper, Lit idx) {
+  return sweeper.prev[vidx (idx)] != INVALID_LIT || sweeper.first == idx;
 }
 
-void Internal::schedule_inner (Sweeper &sweeper, int idx) {
-  assert (idx);
+void Internal::schedule_inner (Sweeper &sweeper, Lit idx) {
+  assert (idx != INVALID_LIT);
   if (!active (idx))
     return;
-  const int next = sweeper.next[idx];
-  if (next != 0) {
+  const Lit next = sweeper.next[vidx (idx)];
+  if (next != INVALID_LIT) {
     LOG ("rescheduling inner %d as last", idx);
-    const unsigned prev = sweeper.prev[idx];
-    assert (sweeper.prev[next] == idx);
-    sweeper.prev[next] = prev;
-    if (prev == 0) {
+    const Lit prev = sweeper.prev[vidx (idx)];
+    assert (sweeper.prev[vidx (next)] == idx);
+    sweeper.prev[vidx (next)] = prev;
+    if (prev == INVALID_LIT) {
       assert (sweeper.first == idx);
       sweeper.first = next;
     } else {
-      assert (sweeper.next[prev] == idx);
-      sweeper.next[prev] = next;
+      assert (sweeper.next[vlit (prev)] == idx);
+      sweeper.next[vlit (prev)] = next;
     }
-    const unsigned last = sweeper.last;
-    if (last == 0) {
-      assert (sweeper.first == 0);
+    const Lit last = sweeper.last;
+    if (last == INVALID_LIT) {
+      assert (sweeper.first == INVALID_LIT);
       sweeper.first = idx;
     } else {
-      assert (sweeper.next[last] == 0);
-      sweeper.next[last] = idx;
+      assert (sweeper.next[vidx (last)] == INVALID_LIT);
+      sweeper.next[vidx (last)] = idx;
     }
-    sweeper.prev[idx] = last;
-    sweeper.next[idx] = 0;
+    sweeper.prev[vidx (idx)] = last;
+    sweeper.next[vidx (idx)] = INVALID_LIT;
     sweeper.last = idx;
   } else if (sweeper.last != idx) {
     LOG ("scheduling inner %d as last", idx);
-    const unsigned last = sweeper.last;
-    if (last == 0) {
-      assert (sweeper.first == 0);
+    const Lit last = sweeper.last;
+    if (last == INVALID_LIT) {
+      assert (sweeper.first == INVALID_LIT);
       sweeper.first = idx;
     } else {
-      assert (sweeper.next[last] == 0);
-      sweeper.next[last] = idx;
+      assert (sweeper.next[vidx (last)] == INVALID_LIT);
+      sweeper.next[vidx (last)] = idx;
     }
-    assert (sweeper.next[idx] == 0);
-    sweeper.prev[idx] = last;
+    assert (sweeper.next[vidx (idx)] == INVALID_LIT);
+    sweeper.prev[vidx (idx)] = last;
     sweeper.last = idx;
   } else
     LOG ("keeping inner %d scheduled as last", idx);
 }
 
-void Internal::schedule_outer (Sweeper &sweeper, int idx) {
+void Internal::schedule_outer (Sweeper &sweeper, Lit idx) {
   assert (!scheduled_variable (sweeper, idx));
   assert (active (idx));
-  const int first = sweeper.first;
-  if (first == 0) {
-    assert (sweeper.last == 0);
+  const Lit first = sweeper.first;
+  if (first == INVALID_LIT) {
+    assert (sweeper.last == INVALID_LIT);
     sweeper.last = idx;
   } else {
-    assert (sweeper.prev[first] == 0);
-    sweeper.prev[first] = idx;
+    assert (sweeper.prev[vidx (first)] == INVALID_LIT);
+    sweeper.prev[vidx (first)] = idx;
   }
-  assert (sweeper.prev[idx] == 0);
-  sweeper.next[idx] = first;
+  assert (sweeper.prev[vidx (idx)] == INVALID_LIT);
+  sweeper.next[vidx (idx)] = first;
   sweeper.first = idx;
   LOG ("scheduling outer %d as first", idx);
 }
 
-int Internal::next_scheduled (Sweeper &sweeper) {
-  int res = sweeper.last;
-  if (res == 0) {
+Lit Internal::next_scheduled (Sweeper &sweeper) {
+  Lit res = sweeper.last;
+  if (res == INVALID_LIT) {
     LOG ("no more scheduled variables left");
-    return 0;
+    return INVALID_LIT;
   }
-  assert (res > 0);
+  assert (res.is_positive());
   LOG ("dequeuing next scheduled %d", res);
-  const unsigned prev = sweeper.prev[res];
-  assert (sweeper.next[res] == 0);
-  sweeper.prev[res] = 0;
-  if (prev == 0) {
+  const Lit prev = sweeper.prev[vlit (res)];
+  assert (sweeper.next[vlit (res)] == INVALID_LIT);
+  sweeper.prev[vlit (res)] = INVALID_LIT;
+  if (prev == INVALID_LIT) {
     assert (sweeper.first == res);
-    sweeper.first = 0;
+    sweeper.first = INVALID_LIT;
   } else {
-    assert (sweeper.next[prev] == res);
-    sweeper.next[prev] = 0;
+    assert (sweeper.next[vlit (prev)] == res);
+    sweeper.next[vlit (prev)] = INVALID_LIT;
   }
   sweeper.last = prev;
   return res;
@@ -1046,14 +1048,14 @@ void Internal::sweep_substitute_lrat (Clause *c, int64_t id) {
 }
 
 #define all_scheduled(IDX) \
-  int IDX = sweeper.first, NEXT_##IDX; \
-  IDX != 0 && (NEXT_##IDX = sweeper.next[IDX], true); \
+  Lit IDX = sweeper.first, NEXT_##IDX; \
+  IDX != INVALID_LIT && (NEXT_##IDX = sweeper.next[vidx (IDX)], true); \
   IDX = NEXT_##IDX
 
 // Substitute equivalences in clauses (see
 // 'sweep_substitute_new_equivalences' for explanation)
-void Internal::substitute_connected_clauses (Sweeper &sweeper, int lit,
-                                             int repr, int64_t id) {
+void Internal::substitute_connected_clauses (Sweeper &sweeper, Lit lit,
+                                             Lit repr, int64_t id) {
   if (unsat)
     return;
   if (val (lit))
@@ -1085,7 +1087,7 @@ void Internal::substitute_connected_clauses (Sweeper &sweeper, int lit,
       assert (clause.empty ());
       bool satisfied = false;
       bool repr_already_watched = false;
-      const int not_repr = -repr;
+      const Lit not_repr = -repr;
 #ifndef NDEBUG
       bool found = false;
 #endif
@@ -1135,7 +1137,7 @@ void Internal::substitute_connected_clauses (Sweeper &sweeper, int lit,
       ticks++;
       if (new_size == 1) {
         LOG (c, "reduces to unit");
-        const int unit = clause[0];
+        const Lit unit = clause[0];
         clause.clear ();
         assign_unit (unit);
         sweeper.propagate.push_back (unit);
@@ -1156,7 +1158,7 @@ void Internal::substitute_connected_clauses (Sweeper &sweeper, int lit,
       c->id = new_id;
       lrat_chain.clear ();
       size_t l;
-      int *literals = c->literals;
+      Lit *literals = c->literals;
       for (l = 0; l < clause.size (); l++)
         literals[l] = clause[l];
       int flushed = c->size - (int) l;
@@ -1232,7 +1234,7 @@ void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
     delete_sweep_binary (sb);
     if (count == 2) {
       if (!val (lit) && !val (other)) {
-        const auto idx = abs (lit) < abs (other) ? abs (other) : abs (lit);
+        const auto idx = abs (lit) < abs (other) ? other : lit;
         if (!flags (idx).fixed ())
           mark_substituted (idx);
       }
@@ -1243,19 +1245,19 @@ void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
   sweeper.binaries.clear ();
 }
 
-void Internal::sweep_remove (Sweeper &sweeper, int lit) {
-  assert (sweeper.reprs[lit] != lit);
-  vector<int> &partition = sweeper.partition;
+void Internal::sweep_remove (Sweeper &sweeper, Lit lit) {
+  assert (sweeper.reprs[vlit (lit)] != lit);
+  vector<Lit> &partition = sweeper.partition;
   const auto begin_partition = partition.begin ();
   auto p = begin_partition;
   const auto end_partition = partition.end ();
   for (; *p != lit; p++)
     assert (p + 1 != end_partition);
   auto begin_class = p;
-  while (begin_class != begin_partition && begin_class[-1] != 0)
+  while (begin_class != begin_partition && begin_class[-1] != INVALID_LIT)
     begin_class--;
   auto end_class = p;
-  while (*end_class != 0)
+  while (*end_class != INVALID_LIT)
     end_class++;
   const unsigned size = end_class - begin_class;
   LOG ("removing non-representative %d from equivalence class of size %u",
@@ -1294,13 +1296,13 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
     const auto end = sweeper.partition.end ();
     while (src != end) {
       auto end_src = src;
-      while (assert (end_src != end), *end_src != 0)
+      while (assert (end_src != end), *end_src != INVALID_LIT)
         end_src++;
       unsigned size = end_src - src;
       assert (size > 1);
       auto q = dst;
       for (auto p = src; p != end_src; p++) {
-        const int lit = *p;
+        const Lit lit = *p;
         if (limit_hit) {
           *q++ = lit;
           continue;
@@ -1323,7 +1325,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
         stats.sweep_flip_equivalences++;
       }
       if (size > 1) {
-        *q++ = 0;
+        *q++ = INVALID_LIT;
         dst = q;
       }
       src = end_src + 1;
@@ -1342,7 +1344,7 @@ void Internal::flip_partition_literals (Sweeper &sweeper) {
        total_flipped, round);
 }
 
-bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
+bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
                                              Lit other) {
   LOG ("trying equivalence candidates %d = %d", lit, other);
   const auto begin = sweeper.partition.begin ();
@@ -1350,20 +1352,20 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
   assert (begin + 3 <= end);
   assert (end[-3] == lit);
   assert (end[-2] == other);
-  const int third = (end - begin == 3) ? 0 : end[-4];
+  const Lit third = (end - begin == 3) ? INVALID_LIT : end[-4];
   int res = kitten_status (citten);
   if (res == 10) {
     stats.sweep_flip_equivalences++;
     if (sweep_flip (lit)) {
       stats.sweep_flipped_equivalences++;
       LOG ("flipping %d succeeded", lit);
-      if (third == 0) {
+      if (third == INVALID_LIT) {
         LOG ("squashing equivalence class of %d", lit);
         sweeper.partition.resize (sweeper.partition.size () - 3);
       } else {
         LOG ("removing %d from equivalence class of %d", lit, other);
         end[-3] = other;
-        end[-2] = 0;
+        end[-2] = INVALID_LIT;
         sweeper.partition.resize (sweeper.partition.size () - 1);
       }
       return false;
@@ -1372,12 +1374,12 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
     if (sweep_flip (other)) {
       stats.sweep_flipped_equivalences++;
       LOG ("flipping %d succeeded", other);
-      if (third == 0) {
+      if (third == INVALID_LIT) {
         LOG ("squashing equivalence class of %d", lit);
         sweeper.partition.resize (sweeper.partition.size () - 3);
       } else {
         LOG ("removing %d from equivalence class of %d", other, lit);
-        end[-2] = 0;
+        end[-2] = INVALID_LIT;
         sweeper.partition.resize (sweeper.partition.size () - 1);
       }
       return false;
@@ -1389,33 +1391,33 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
   // for equivalence at all if the non-representative is frozen.
   // i.e., the higher absolute value
   if (abs (lit) > abs (other) && frozen (lit)) {
-    if (third == 0) {
+    if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %d", lit);
       sweeper.partition.resize (sweeper.partition.size () - 3);
     } else {
       LOG ("removing %d from equivalence class of %d", lit, other);
       end[-3] = other;
-      end[-2] = 0;
+      end[-2] = INVALID_LIT;
       sweeper.partition.resize (sweeper.partition.size () - 1);
     }
     return false;
   } else if (abs (other) > abs (lit) && frozen (other)) {
-    if (third == 0) {
+    if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %d", lit);
       sweeper.partition.resize (sweeper.partition.size () - 3);
     } else {
       LOG ("removing %d from equivalence class of %d", lit, other);
-      end[-2] = 0;
+      end[-2] = INVALID_LIT;
       sweeper.partition.resize (sweeper.partition.size () - 1);
     }
     return false;
   }
 
-  const int not_other = -other;
-  const int not_lit = -lit;
+  const Lit not_other = -other;
+  const Lit not_lit = -lit;
   LOG ("flipping %d and %d both failed", lit, other);
-  kitten_assume_signed (citten, not_lit);
-  kitten_assume_signed (citten, other);
+  kitten_assume_signed (citten, not_lit.signed_representation());
+  kitten_assume_signed (citten, other.signed_representation());
   stats.sweep_solved_equivalences++;
   res = sweep_solve ();
   if (res == 10) {
@@ -1435,8 +1437,8 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
 
   save_core (sweeper, 0);
 
-  kitten_assume_signed (citten, lit);
-  kitten_assume_signed (citten, not_other);
+  kitten_assume_signed (citten, lit.signed_representation());
+  kitten_assume_signed (citten, not_other.signed_representation());
   res = sweep_solve ();
   stats.sweep_solved_equivalences++;
   if (res == 10) {
@@ -1496,31 +1498,31 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, int lit,
     }
   }
 
-  int repr;
+  Lit repr;
   if (abs (lit) < abs (other)) {
-    repr = sweeper.reprs[other] = lit;
-    sweeper.reprs[not_other] = not_lit;
+    repr = sweeper.reprs[vlit (other)] = lit;
+    sweeper.reprs[vlit (not_other)] = not_lit;
     sweep_remove (sweeper, other);
   } else {
-    repr = sweeper.reprs[lit] = other;
-    sweeper.reprs[not_lit] = not_other;
+    repr = sweeper.reprs[vlit (lit)] = other;
+    sweeper.reprs[vlit (not_lit)] = not_other;
     sweep_remove (sweeper, lit);
   }
   clear_core (sweeper, 0);
   clear_core (sweeper, 1);
 
-  const int repr_idx = abs (repr);
+  const Lit repr_idx = repr.labs ();
   schedule_inner (sweeper, repr_idx);
 
   return true;
 }
 
-const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
+const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
   assert (!unsat);
   if (!active (idx))
     return "inactive variable";
-  const int start = idx;
-  if (sweeper.reprs[start] != start)
+  const Lit start = idx;
+  if (sweeper.reprs[vlit (start)] != start)
     return "non-representative variable";
   assert (sweeper.vars.empty ());
   assert (sweeper.clauses.empty ());
@@ -1571,10 +1573,10 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
         swap (sweeper.vars[expand], sweeper.vars[expand + swaps]);
       }
     }
-    const int idx = sweeper.vars[expand];
+    const Lit idx = sweeper.vars[expand];
     LOG ("traversing and adding clauses of %d", idx);
     for (unsigned sign = 0; sign < 2; sign++) {
-      const int lit = sign ? -idx : idx;
+      const Lit lit = sign ? -idx : idx;
       ticks += 1 + cache_lines (occs (lit).size (), sizeof (Clause *));
       Occs &ns = occs (lit);
       for (auto c : ns) {
@@ -1599,7 +1601,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
   VERBOSE (4,
            "sweeping variable %d environment of "
            "%zu variables %u clauses depth %u",
-           externalize (idx), sweeper.vars.size (), sweeper.encoded, depth);
+           externalize (idx).signed_representation(), sweeper.vars.size (), sweeper.encoded, depth);
 
   int res;
   if (sweeper.vars.size () == 1) {
@@ -1631,7 +1633,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
       }
       if (sweeper.backbone.empty ())
         break;
-      const int lit = sweeper.backbone.back ();
+      const Lit lit = sweeper.backbone.back ();
       sweeper.backbone.pop_back ();
       if (!active (lit))
         continue;
@@ -1646,7 +1648,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
     VERBOSE (4,
              "complete swept variable %d backbone with %" PRIu64
              " units in %" PRIu64 " solver calls",
-             externalize (idx), units, solved);
+             externalize (idx).signed_representation(), units, solved);
     assert (sweeper.backbone.empty ());
 #ifndef QUIET
     uint64_t equivalences = stats.sweep_equivalences;
@@ -1671,8 +1673,8 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
         break;
       if (sweeper.partition.size () > 2) {
         const auto end = sweeper.partition.end ();
-        assert (end[-1] == 0);
-        int lit = end[-3];
+        assert (end[-1] == INVALID_LIT);
+        Lit lit = end[-3];
         Lit other = end[-2];
         if (sweep_equivalence_candidates (sweeper, lit, other))
           success = true;
@@ -1687,7 +1689,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, int idx) {
       VERBOSE (3,
                "complete swept variable %d partition with %" PRIu64
                " equivalences in %" PRIu64 " solver calls",
-               externalize (idx), equivalences, solved);
+               externalize (idx).signed_representation(), equivalences, solved);
 #endif
   } else if (res == 20)
     sweep_empty_clause (sweeper);
@@ -1712,13 +1714,13 @@ DONE:
 
 struct sweep_candidate {
   unsigned rank;
-  int idx;
+  Lit idx;
 };
 
 struct rank_sweep_candidate {
   bool operator() (sweep_candidate a, sweep_candidate b) const {
     assert (a.rank && b.rank);
-    assert (a.idx > 0 && b.idx > 0);
+    assert (a.idx.is_positive() && b.idx.is_positive());
     if (a.rank < b.rank)
       return true;
     if (b.rank < a.rank)
@@ -1727,16 +1729,15 @@ struct rank_sweep_candidate {
   }
 };
 
-bool Internal::scheduable_variable (Sweeper &sweeper, int idx,
+bool Internal::scheduable_variable (Sweeper &sweeper, Lit lit,
                                     size_t *occ_ptr) {
-  const int lit = idx;
   const size_t pos = noccs (lit);
   if (!pos)
     return false;
   const unsigned max_occurrences = sweeper.limit.clauses;
   if (pos > max_occurrences)
     return false;
-  const int not_lit = -lit;
+  const Lit not_lit = -lit;
   const size_t neg = noccs (not_lit);
   if (!neg)
     return false;
@@ -1911,8 +1912,8 @@ bool Internal::sweep () {
       break;
     if (kitten_ticks_limit_hit (sweeper, "sweeping loop"))
       break;
-    int idx = next_scheduled (sweeper);
-    if (idx == 0)
+    Lit idx = next_scheduled (sweeper);
+    if (idx == INVALID_LIT)
       break;
     flags (idx).sweep = false;
 #ifndef QUIET
@@ -1920,7 +1921,7 @@ bool Internal::sweep () {
 #endif
         sweep_variable (sweeper, idx);
     VERBOSE (4, "swept[%" PRIu64 "] external variable %d %s", swept,
-             externalize (idx), res);
+             externalize (idx).signed_representation(), res);
     if (++swept == limit) {
       VERBOSE (2,
                "found %" PRIu64 " equivalences and %" PRIu64

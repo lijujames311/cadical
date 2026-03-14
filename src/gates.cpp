@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -17,10 +18,10 @@ namespace CaDiCaL {
 // to contain the literal 'first', after removing falsified literals is a
 // binary clause.  Then the actual second literal is returned.
 
-int Internal::second_literal_in_binary_clause (Eliminator &eliminator,
-                                               Clause *c, int first) {
+Lit Internal::second_literal_in_binary_clause (Eliminator &eliminator,
+                                               Clause *c, Lit first) {
   assert (!c->garbage);
-  int second = 0;
+  Lit second = INVALID_LIT;
   for (const auto &lit : *c) {
     if (lit == first)
       continue;
@@ -30,18 +31,18 @@ int Internal::second_literal_in_binary_clause (Eliminator &eliminator,
     if (tmp > 0) {
       mark_garbage (c);
       elim_update_removed_clause (eliminator, c);
-      return 0;
+      return INVALID_LIT;
     }
-    if (second) {
-      second = INT_MIN;
+    if (second == INVALID_LIT) {
+      second = OTHER_INVALID_LIT;
       break;
     }
     second = lit;
   }
-  if (!second)
-    return 0;
-  if (second == INT_MIN)
-    return 0;
+  if (second == INVALID_LIT)
+    return INVALID_LIT;
+  if (second == OTHER_INVALID_LIT)
+    return INVALID_LIT;
   assert (active (second));
 #ifdef LOGGING
   if (c->size == 2)
@@ -56,10 +57,10 @@ int Internal::second_literal_in_binary_clause (Eliminator &eliminator,
 
 // need a copy from above that does not care about garbage
 
-int Internal::second_literal_in_binary_clause_lrat (Clause *c, int first) {
+Lit Internal::second_literal_in_binary_clause_lrat (Clause *c, Lit first) {
   if (c->garbage)
-    return 0;
-  int second = 0;
+    return INVALID_LIT;
+  Lit second = INVALID_LIT;
   for (const auto &lit : *c) {
     if (lit == first)
       continue;
@@ -67,19 +68,19 @@ int Internal::second_literal_in_binary_clause_lrat (Clause *c, int first) {
     if (tmp < 0)
       continue;
     if (tmp > 0)
-      return 0;
+      return INVALID_LIT;
     if (!tmp) {
-      if (second) {
-        second = INT_MIN;
+      if (second == INVALID_LIT) {
+        second = OTHER_INVALID_LIT;
         break;
       }
       second = lit;
     }
   }
-  if (!second)
-    return 0;
-  if (second == INT_MIN)
-    return 0;
+  if (second == INVALID_LIT)
+    return INVALID_LIT;
+  if (second == OTHER_INVALID_LIT)
+    return INVALID_LIT;
   return second;
 }
 
@@ -87,8 +88,8 @@ int Internal::second_literal_in_binary_clause_lrat (Clause *c, int first) {
 // LRAT this is not efficient but I could not find a better way then just
 // finding the corresponding clause in all possible clauses
 //
-Clause *Internal::find_binary_clause (int first, int second) {
-  int best = first;
+Clause *Internal::find_binary_clause (Lit first, Lit second) {
+  Lit best = first;
   Lit other = second;
   if (occs (first).size () > occs (second).size ()) {
     best = second;
@@ -106,7 +107,7 @@ Clause *Internal::find_binary_clause (int first, int second) {
 // marking we might also detect hyper unary resolvents producing a unit.
 // If such a unit is found we propagate it and return immediately.
 
-void Internal::mark_binary_literals (Eliminator &eliminator, int first) {
+void Internal::mark_binary_literals (Eliminator &eliminator, Lit first) {
 
   if (unsat)
     return;
@@ -122,9 +123,9 @@ void Internal::mark_binary_literals (Eliminator &eliminator, int first) {
   for (const auto &c : os) {
     if (c->garbage)
       continue;
-    const int second =
+    const Lit second =
         second_literal_in_binary_clause (eliminator, c, first);
-    if (!second)
+    if (second == INVALID_LIT)
       continue;
     const int tmp = marked (second);
     if (tmp < 0) {
@@ -220,9 +221,9 @@ void Internal::find_equivalence (Eliminator &eliminator, Lit pivot) {
     if (c->garbage)
       continue;
 
-    const int second =
+    const Lit second =
         second_literal_in_binary_clause (eliminator, c, -pivot);
-    if (!second)
+    if (second == INVALID_LIT)
       continue;
     const int tmp = marked (second);
     if (tmp > 0) {
@@ -343,7 +344,7 @@ void Internal::find_and_gate (Eliminator &eliminator, Lit pivot) {
 
     bool all_literals_marked = true;
     unsigned arity = 0;
-    int satisfied = 0;
+    Lit satisfied = INVALID_LIT;
 
     for (const auto &lit : *c) {
       if (lit == -pivot)
@@ -368,7 +369,7 @@ void Internal::find_and_gate (Eliminator &eliminator, Lit pivot) {
     if (!all_literals_marked)
       continue;
 
-    if (satisfied) {
+    if (satisfied != INVALID_LIT) {
       LOG (c, "satisfied by %d candidate base clause", satisfied);
       mark_garbage (c);
       continue;
@@ -420,7 +421,7 @@ void Internal::find_and_gate (Eliminator &eliminator, Lit pivot) {
         continue;
       const Lit other =
           second_literal_in_binary_clause (eliminator, d, pivot);
-      if (!other)
+      if (other == INVALID_LIT)
         continue;
       const int tmp = marked (other);
       if (tmp != 2)
@@ -445,13 +446,13 @@ DONE:
 
 // Find and extract ternary clauses.
 
-bool Internal::get_ternary_clause (Clause *d, int &a, int &b, int &c) {
+bool Internal::get_ternary_clause (Clause *d, Lit &a, Lit &b, Lit &c) {
   if (d->garbage)
     return false;
   if (d->size < 3)
     return false;
   int found = 0;
-  a = b = c = 0;
+  a = b = c = INVALID_LIT;
   for (const auto &lit : *d) {
     if (val (lit))
       continue;
@@ -469,7 +470,7 @@ bool Internal::get_ternary_clause (Clause *d, int &a, int &b, int &c) {
 
 // This function checks whether 'd' exists as ternary clause.
 
-bool Internal::match_ternary_clause (Clause *d, int a, int b, int c) {
+bool Internal::match_ternary_clause (Clause *d, Lit a, Lit b, Lit c) {
   if (d->garbage)
     return false;
   int found = 0;
@@ -483,7 +484,7 @@ bool Internal::match_ternary_clause (Clause *d, int a, int b, int c) {
   return found == 3;
 }
 
-Clause *Internal::find_ternary_clause (int a, int b, int c) {
+Clause *Internal::find_ternary_clause (Lit a, Lit b, Lit c) {
   if (occs (b).size () > occs (c).size ())
     swap (b, c);
   if (occs (a).size () > occs (b).size ())
@@ -516,7 +517,7 @@ void Internal::find_if_then_else (Eliminator &eliminator, Lit pivot) {
   const auto end = os.end ();
   for (auto i = os.begin (); i != end; i++) {
     Clause *di = *i;
-    int ai, bi, ci;
+    Lit ai, bi, ci;
     if (!get_ternary_clause (di, ai, bi, ci))
       continue;
     if (bi == pivot)
@@ -526,7 +527,7 @@ void Internal::find_if_then_else (Eliminator &eliminator, Lit pivot) {
     assert (ai == pivot);
     for (auto j = i + 1; j != end; j++) {
       Clause *dj = *j;
-      int aj, bj, cj;
+      Lit aj, bj, cj;
       if (!get_ternary_clause (dj, aj, bj, cj))
         continue;
       if (bj == pivot)
@@ -575,7 +576,7 @@ void Internal::find_if_then_else (Eliminator &eliminator, Lit pivot) {
 
 // Find and extract clause.
 
-bool Internal::get_clause (Clause *c, vector<int> &l) {
+bool Internal::get_clause (Clause *c, vector<Lit> &l) {
   if (c->garbage)
     return false;
   l.clear ();
@@ -593,7 +594,7 @@ bool Internal::get_clause (Clause *c, vector<int> &l) {
 
 // Check whether 'c' contains only the literals in 'l'.
 
-bool Internal::is_clause (Clause *c, const vector<int> &lits) {
+bool Internal::is_clause (Clause *c, const vector<Lit> &lits) {
   if (c->garbage)
     return false;
   int size = lits.size ();
@@ -614,12 +615,12 @@ bool Internal::is_clause (Clause *c, const vector<int> &lits) {
   return found == size;
 }
 
-Clause *Internal::find_clause (const vector<int> &lits) {
-  int best = 0;
+Clause *Internal::find_clause (const vector<Lit> &lits) {
+  Lit best = INVALID_LIT;
   size_t len = 0;
   for (const auto &lit : lits) {
     size_t l = occs (lit).size ();
-    if (best && l >= len)
+    if (best != INVALID_LIT && l >= len)
       continue;
     len = l, best = lit;
   }
@@ -643,7 +644,7 @@ void Internal::find_xor_gate (Eliminator &eliminator, Lit pivot) {
   if (!eliminator.gates.empty ())
     return;
 
-  vector<int> lits;
+  vector<Lit> lits;
 
   for (auto d : occs (pivot)) {
 

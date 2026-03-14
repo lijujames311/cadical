@@ -43,7 +43,7 @@ inline bool block_more_occs_size::operator() (unsigned a, unsigned b) {
 
 bool Internal::is_blocked_clause (Clause *c, Lit lit) {
 
-  LOG (c, "trying to block on %d", lit);
+  LOG (c, "trying to block on %s", LOGLIT (lit));
 
   assert (c->size >= opts.blockminclslim);
   assert (c->size <= opts.blockmaxclslim);
@@ -56,7 +56,7 @@ bool Internal::is_blocked_clause (Clause *c, Lit lit) {
   mark (c); // First mark all literals in 'c'.
 
   Occs &os = occs (-lit);
-  LOG ("resolving against at most %zd clauses with %d", os.size (), -lit);
+  LOG ("resolving against at most %zd clauses with %s", os.size (), LOGLIT (-lit));
 
   bool res = true; // Result is true if all resolvents tautological.
 
@@ -80,7 +80,7 @@ bool Internal::is_blocked_clause (Clause *c, Lit lit) {
     *i = prev_d; // Move previous non-tautological clause
     prev_d = d;  // backwards but remember clause at this position.
 
-    LOG (d, "resolving on %d against", lit);
+    LOG (d, "resolving on %s against", LOGLIT (lit));
     stats.blockres++;
 
     Lit prev_other = INVALID_LIT; // Previous non-tautological literal.
@@ -104,7 +104,7 @@ bool Internal::is_blocked_clause (Clause *c, Lit lit) {
       assert (active (other));
       assert (!val (other));
       if (marked (other) < 0) {
-        LOG ("found tautological literal %d", other);
+        LOG ("found tautological literal %s", LOGLIT (other));
         d->literals[0] = other; // Move to front of 'd'.
         break;
       }
@@ -225,9 +225,9 @@ void Internal::block_schedule (Blocker &blocker) {
       if (!marked_block (lit))
         continue;
       unmark_block (lit);
-      LOG ("scheduling %d with %" PRId64 " positive and %" PRId64
+      LOG ("scheduling %s with %" PRId64 " positive and %" PRId64
            " negative occurrences",
-           lit, noccs (lit), noccs (-lit));
+           LOGLIT (lit), noccs (lit), noccs (-lit));
       blocker.schedule.push_back (vlit (lit));
     }
   }
@@ -261,7 +261,7 @@ void Internal::block_pure_literal (Blocker &blocker, Lit lit) {
     assert (c->garbage);
 #endif
   stats.blockpurelits++;
-  LOG ("found pure literal %d", lit);
+  LOG ("found pure literal %s", LOGLIT (lit));
 #ifdef LOGGING
   int64_t pured = 0;
 #endif
@@ -269,7 +269,7 @@ void Internal::block_pure_literal (Blocker &blocker, Lit lit) {
     if (c->garbage)
       continue;
     assert (!c->redundant);
-    LOG (c, "pure literal %d in", lit);
+    LOG (c, "pure literal %s in", LOGLIT (lit));
     blocker.reschedule.push_back (c);
     if (proof) {
       proof->weaken_minus (c);
@@ -287,7 +287,7 @@ void Internal::block_pure_literal (Blocker &blocker, Lit lit) {
 
   mark_pure (lit);
   stats.blockpured++;
-  LOG ("blocking %" PRId64 " clauses on pure literal %d", pured, lit);
+  LOG ("blocking %" PRId64 " clauses on pure literal %s", pured, LOGLIT (lit));
 }
 
 /*------------------------------------------------------------------------*/
@@ -329,7 +329,7 @@ void Internal::block_literal_with_one_negative_occ (Blocker &blocker,
   assert (!d->redundant);
   assert (d->size <= opts.blockmaxclslim);
 
-  LOG (d, "common %d antecedent", lit);
+  LOG (d, "common %s antecedent", LOGLIT (lit));
   mark (d);
   int64_t blocked = 0;
 #ifdef LOGGING
@@ -362,7 +362,7 @@ void Internal::block_literal_with_one_negative_occ (Blocker &blocker,
       continue;
     }
 
-    LOG (c, "trying to block on %d", lit);
+    LOG (c, "trying to block on %s", LOGLIT (lit));
 
     // We use the same literal move-to-front strategy as in
     // 'is_blocked_clause'.  See there for more explanations.
@@ -384,7 +384,7 @@ void Internal::block_literal_with_one_negative_occ (Blocker &blocker,
       assert (active (other));
       assert (!val (other));
       if (marked (other) < 0) {
-        LOG ("found tautological literal %d", other);
+        LOG ("found tautological literal %s", LOGLIT (other));
         c->literals[0] = other; // Move to front of 'c'.
         break;
       }
@@ -421,8 +421,8 @@ void Internal::block_literal_with_one_negative_occ (Blocker &blocker,
     pos.resize (j - pos.begin ());
 
   stats.blocked += blocked;
-  LOG ("blocked %" PRId64 " clauses on %d (skipped %" PRId64 ")", blocked,
-       lit, skipped);
+  LOG ("blocked %" PRId64 " clauses on %s (skipped %" PRId64 ")", blocked,
+       LOGLIT (lit), skipped);
 
   unmark (d);
 }
@@ -579,12 +579,12 @@ void Internal::block_literal_with_at_least_two_negative_occs (
   // maximum clause size limit ignore this candidate literal.
   //
   if (max_size > opts.blockmaxclslim) {
-    LOG ("maximum size %d of clauses with %d exceeds clause size limit %d",
-         max_size, -lit, opts.blockmaxclslim);
+    LOG ("maximum size %d of clauses with %s exceeds clause size limit %d",
+         max_size, LOGLIT (-lit), opts.blockmaxclslim);
     return;
   }
 
-  LOG ("maximum size %d of clauses with %d", max_size, -lit);
+  LOG ("maximum size %d of clauses with %s", max_size, LOGLIT (-lit));
 
   // We filter candidate clauses with positive occurrence of 'lit' in
   // 'blocker.candidates' and return if no candidate clause remains.
@@ -604,13 +604,13 @@ void Internal::block_literal_with_at_least_two_negative_occs (
   // clause exists, we know that none of the candidates is blocked.
   //
   if (candidates > 1 && block_impossible (blocker, lit)) {
-    LOG ("impossible to block any candidate clause on %d", lit);
+    LOG ("impossible to block any candidate clause on %s", LOGLIT (lit));
     assert (blocker.candidates.empty ());
     return;
   }
 
-  LOG ("trying to block %zd clauses out of %" PRId64 " with literal %d",
-       candidates, noccs (lit), lit);
+  LOG ("trying to block %zd clauses out of %" PRId64 " with literal %s",
+       candidates, noccs (lit), LOGLIT (lit));
 
   int64_t blocked = 0;
 
@@ -632,8 +632,8 @@ void Internal::block_literal_with_at_least_two_negative_occs (
   }
 
   LOG ("blocked %" PRId64
-       " clauses on %d out of %zd candidates in %zd occurrences",
-       blocked, lit, blocker.candidates.size (), occs (lit).size ());
+       " clauses on %s out of %zd candidates in %zd occurrences",
+       blocked, LOGLIT (lit), blocker.candidates.size (), occs (lit).size ());
 
   blocker.candidates.clear ();
   stats.blocked += blocked;
@@ -658,14 +658,14 @@ void Internal::block_reschedule_clause (Blocker &blocker, Lit lit,
     assert (n > 0);
     n--;
 
-    LOG ("updating %d with %" PRId64 " positive and %" PRId64
+    LOG ("updating %s with %" PRId64 " positive and %" PRId64
          " negative occurrences",
-         other, noccs (other), noccs (-other));
+         LOGLIT (other), noccs (other), noccs (-other));
 
     if (blocker.schedule.contains (vlit (-other)))
       blocker.schedule.update (vlit (-other));
     else if (active (other) && !frozen (other) && !marked_skip (-other)) {
-      LOG ("rescheduling to block clauses on %d", -other);
+      LOG ("rescheduling to block clauses on %s", LOGLIT (-other));
       blocker.schedule.push_back (vlit (-other));
     }
 
@@ -704,9 +704,9 @@ void Internal::block_literal (Blocker &blocker, Lit lit) {
   if (noccs (-lit) > opts.blockocclim)
     return;
 
-  LOG ("blocking literal candidate %d "
+  LOG ("blocking literal candidate %s "
        "with %" PRId64 " positive and %" PRId64 " negative occurrences",
-       lit, noccs (lit), noccs (-lit));
+       LOGLIT (lit), noccs (lit), noccs (-lit));
 
   stats.blockcands++;
 

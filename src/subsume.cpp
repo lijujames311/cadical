@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -71,7 +72,7 @@ namespace CaDiCaL {
 // strengthened and as a result the negation of the literal which can be
 // removed is returned.
 
-inline int Internal::subsume_check (Clause *subsuming, Clause *subsumed) {
+inline Lit Internal::subsume_check (Clause *subsuming, Clause *subsumed) {
 #ifdef NDEBUG
   (void) subsumed;
 #endif
@@ -87,11 +88,11 @@ inline int Internal::subsume_check (Clause *subsuming, Clause *subsumed) {
   if (subsuming->size == 2)
     stats.subchecks2++;
 
-  int flipped = 0, prev = 0;
+  Lit flipped = INVALID_LIT, prev = INVALID_LIT;
   bool failed = false;
   const auto eoc = subsuming->end ();
   for (auto i = subsuming->begin (); !failed && i != eoc; i++) {
-    int lit = *i;
+    Lit lit = *i;
     *i = prev;
     prev = lit;
     const int tmp = marked (lit);
@@ -99,21 +100,21 @@ inline int Internal::subsume_check (Clause *subsuming, Clause *subsumed) {
       failed = true;
     else if (tmp > 0)
       continue;
-    else if (flipped)
+    else if (flipped != INVALID_LIT)
       failed = true;
     else
       flipped = lit;
   }
-  assert (prev);
-  assert (!subsuming->literals[0]);
+  assert (prev != INVALID_LIT);
+  assert (subsuming->literals[0] != INVALID_LIT);
   subsuming->literals[0] = prev;
   if (failed)
-    return 0;
+    return INVALID_LIT;
 
-  if (!flipped)
-    return INT_MIN; // subsumed!!
+  if (flipped == INVALID_LIT)
+    return OTHER_INVALID_LIT; // subsumed!!
   else if (!opts.subsumestr)
-    return 0;
+    return INVALID_LIT;
   else
     return flipped; // strengthen!!
 }
@@ -142,7 +143,7 @@ inline void Internal::subsume_clause (Clause *subsuming, Clause *subsumed) {
 
 // Candidate clause 'c' is strengthened by removing 'lit'.
 
-void Internal::strengthen_clause (Clause *c, int lit) {
+void Internal::strengthen_clause (Clause *c, Lit lit) {
   if (opts.check && is_external_forgettable (c->id))
     mark_garbage_external_forgettable (c->id);
   stats.strengthened++;
@@ -182,7 +183,7 @@ inline int Internal::try_to_subsume_clause (Clause *c,
   mark (c); // signed!
 
   Clause *d = 0;
-  int flipped = 0;
+  Lit flipped = INVALID_LIT;
 
   for (const auto &lit : *c) {
 
@@ -227,7 +228,7 @@ inline int Internal::try_to_subsume_clause (Clause *c,
         } else {
           dummy_binary->literals[0] = sign * lit;
           dummy_binary->literals[1] = other;
-          flipped = (sign < 0) ? -lit : INT_MIN;
+          flipped = (sign < 0) ? -lit : OTHER_INVALID_LIT;
         }
 
         // This dummy binary clauses is initialized in 'Internal::Internal'
@@ -257,7 +258,7 @@ inline int Internal::try_to_subsume_clause (Clause *c,
         if (e->garbage)
           continue; // defensive: not needed
         flipped = subsume_check (e, c);
-        if (!flipped)
+        if (flipped == INVALID_LIT)
           continue;
         d = e; // leave also outer loop
         break;
@@ -270,13 +271,13 @@ inline int Internal::try_to_subsume_clause (Clause *c,
 
   unmark (c);
 
-  if (flipped == INT_MIN) {
+  if (flipped == OTHER_INVALID_LIT) {
     LOG (d, "subsuming");
     subsume_clause (d, c);
     return 1;
   }
 
-  if (flipped) {
+  if (flipped != INVALID_LIT) {
     LOG (d, "strengthening");
     if (lrat) {
       assert (lrat_chain.empty ());
@@ -298,7 +299,7 @@ inline int Internal::try_to_subsume_clause (Clause *c,
 struct subsume_less_noccs {
   Internal *internal;
   subsume_less_noccs (Internal *i) : internal (i) {}
-  bool operator() (int a, int b) {
+  bool operator() (Lit a, Lit b) {
     const signed char u = internal->val (a), v = internal->val (b);
     if (!u && v)
       return true;
@@ -481,7 +482,7 @@ bool Internal::subsume_round () {
     // note that this number is usually way smaller than the number of
     // occurrences computed before and stored in 'noccs'.
     //
-    int minlit = 0;
+    Lit minlit = INVALID_LIT;
     int64_t minoccs = 0;
     size_t minsize = 0;
     bool subsume = true;
@@ -492,10 +493,10 @@ bool Internal::subsume_round () {
       if (!flags (lit).subsume)
         subsume = false;
       const size_t size = binary ? bins (lit).size () : occs (lit).size ();
-      if (minlit && minsize <= size)
+      if (minlit != INVALID_LIT && minsize <= size)
         continue;
       const int64_t tmp = noccs (lit);
-      if (minlit && minsize == size && tmp <= minoccs)
+      if (minlit != INVALID_LIT && minsize == size && tmp <= minoccs)
         continue;
       minlit = lit, minsize = size, minoccs = tmp;
     }

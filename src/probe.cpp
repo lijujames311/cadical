@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -27,15 +28,15 @@ bool Internal::inprobing () {
 
 /*------------------------------------------------------------------------*/
 
-inline Lit Internal::get_parent_reason_literal (int lit) {
+inline Lit Internal::get_parent_reason_literal (Lit lit) {
   const int idx = vidx (lit);
   Lit res = parents[idx];
-  if (lit < 0)
+  if (lit.is_negated ())
     res = -res;
   return res;
 }
 
-inline void Internal::set_parent_reason_literal (Lit lit, int reason) {
+inline void Internal::set_parent_reason_literal (Lit lit, Lit reason) {
   const int idx = vidx (lit);
   if (lit.is_negated())
     reason = -reason;
@@ -83,10 +84,10 @@ void Internal::init_probehbr_lrat () {
 // sets lrat_chain to the stored chain in probehbr_chains.
 // this leads to conflict with unit reason uip
 //
-void Internal::get_probehbr_lrat (Lit lit, int uip) {
+void Internal::get_probehbr_lrat (Lit lit, Lit uip) {
   if (!lrat || opts.probehbr)
     return;
-  assert (lit);
+  assert (lit != INVALID_LIT);
   assert (lrat_chain.empty ());
   assert (val (uip) < 0);
   lrat_chain = probehbr_chains[vlit (lit)][vlit (uip)];
@@ -97,10 +98,10 @@ void Internal::get_probehbr_lrat (Lit lit, int uip) {
 // sets the corresponding probehbr_chain to what is currently stored in
 // lrat_chain. also clears lrat_chain.
 //
-void Internal::set_probehbr_lrat (Lit lit, int uip) {
+void Internal::set_probehbr_lrat (Lit lit, Lit uip) {
   if (!lrat || opts.probehbr)
     return;
-  assert (lit);
+  assert (lit != INVALID_LIT);
   assert (lrat_chain.size ());
   assert (probehbr_chains[vlit (lit)][vlit (uip)].empty ());
   probehbr_chains[vlit (lit)][vlit (uip)] = lrat_chain;
@@ -110,8 +111,8 @@ void Internal::set_probehbr_lrat (Lit lit, int uip) {
 // compute lrat_chain for the part of the tree from lit to dom
 // use mini_chain because it needs to be reversed
 //
-void Internal::probe_dominator_lrat (int dom, Clause *reason) {
-  if (!lrat || !dom)
+void Internal::probe_dominator_lrat (Lit dom, Clause *reason) {
+  if (!lrat || dom == INVALID_LIT)
     return;
   LOG (reason, "probe dominator LRAT for %d from", dom);
   for (const auto lit : *reason) {
@@ -147,19 +148,19 @@ void Internal::probe_dominator_lrat (int dom, Clause *reason) {
 
 // Compute a dominator of two literals in the binary implication tree.
 
-int Internal::probe_dominator (int a, int b) {
+Lit Internal::probe_dominator (Lit a, Lit b) {
   require_mode (PROBE);
-  int l = a, k = b;
+  Lit l = a, k = b;
   Var *u = &var (l), *v = &var (k);
   assert (val (l) > 0), assert (val (k) > 0);
   assert (u->level == 1), assert (v->level == 1);
   while (l != k) {
     if (u->trail > v->trail)
       swap (l, k), swap (u, v);
-    if (!get_parent_reason_literal (l))
+    if (get_parent_reason_literal (l) == INVALID_LIT)
       return l;
-    int parent = get_parent_reason_literal (k);
-    assert (parent), assert (val (parent) > 0);
+    Lit parent = get_parent_reason_literal (k);
+    assert (parent != INVALID_LIT), assert (val (parent) > 0);
     v = &var (k = parent);
     assert (v->level == 1);
   }
@@ -215,12 +216,12 @@ int Internal::probe_dominator (int a, int b) {
 // watch is a binary watch and will be skipped during propagating long
 // clauses anyhow.
 
-inline int Internal::hyper_binary_resolve (Clause *reason) {
+inline Lit Internal::hyper_binary_resolve (Clause *reason) {
   require_mode (PROBE);
   assert (level == 1);
   assert (reason->size > 2);
   const const_literal_iterator end = reason->end ();
-  const int *lits = reason->literals;
+  const Lit *lits = reason->literals;
   const_literal_iterator k;
 #ifndef NDEBUG
   // First literal unassigned, all others false.
@@ -233,7 +234,7 @@ inline int Internal::hyper_binary_resolve (Clause *reason) {
   stats.hbrs++;
   stats.hbrsizes += reason->size;
   const Lit lit = lits[1];
-  int dom = -lit, non_root_level_literals = 0;
+  Lit dom = -lit; int non_root_level_literals = 0;
   for (k = lits + 2; k != end; k++) {
     const Lit other = -*k;
     assert (val (other) > 0);
@@ -289,13 +290,13 @@ inline int Internal::hyper_binary_resolve (Clause *reason) {
 // The code is mostly copied from 'propagate.cpp' and specialized.  We only
 // comment on the differences.  More explanations are in 'propagate.cpp'.
 
-inline void Internal::probe_assign (Lit lit, int parent) {
+inline void Internal::probe_assign (Lit lit, Lit parent) {
   require_mode (PROBE);
   int idx = vidx (lit);
-  assert (!val (idx));
-  assert (!flags (idx).eliminated () || !parent);
-  assert (!parent || val (parent) > 0);
-  Var &v = var (idx);
+  assert (!val (lit));
+  assert (!flags (lit).eliminated () || parent == INVALID_LIT);
+  assert (parent == INVALID_LIT || val (parent) > 0);
+  Var &v = var (lit);
   v.level = level;
   v.trail = get_trail_size ();
   assert ((int) num_assigned < max_var);
@@ -307,8 +308,7 @@ inline void Internal::probe_assign (Lit lit, int parent) {
     learn_unit_clause (lit);
   else
     assert (level == 1);
-  const signed char tmp = sign (lit);
-  set_val (idx, tmp);
+  set_val (lit, true);
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
   trail.push_back (lit);
@@ -321,7 +321,7 @@ inline void Internal::probe_assign (Lit lit, int parent) {
   if (level)
     propfixed (lit) = stats.all.fixed;
 
-  if (parent)
+  if (parent != INVALID_LIT)
     LOG ("probe assign %d parent %d", lit, parent);
   else if (level)
     LOG ("probe assign %d probe", lit);
@@ -335,14 +335,14 @@ void Internal::probe_assign_decision (Lit lit) {
   assert (propagated == trail.size ());
   level++;
   control.push_back (Level (lit, get_trail_size ()));
-  probe_assign (lit, 0);
+  probe_assign (lit, INVALID_LIT);
 }
 
 void Internal::probe_assign_unit (Lit lit) {
   require_mode (PROBE);
   assert (!level);
   assert (active (lit));
-  probe_assign (lit, 0);
+  probe_assign (lit, INVALID_LIT);
 }
 
 /*------------------------------------------------------------------------*/
@@ -363,7 +363,7 @@ inline void Internal::probe_lrat_for_units (Lit lit) {
     assert (val (reason_lit));
     if (!val (reason_lit))
       continue;
-    const int signed_reason_lit = val (reason_lit) * reason_lit;
+    const Lit signed_reason_lit = val (reason_lit) * reason_lit;
     int64_t id = unit_id (signed_reason_lit);
     lrat_chain.push_back (id);
   }
@@ -446,7 +446,7 @@ bool Internal::probe_propagate () {
           const const_literal_iterator end = lits + size;
           const literal_iterator middle = lits + w.clause->pos;
           literal_iterator k = middle;
-          int r = 0;
+          Lit r = INVALID_LIT;
           signed char v = -1;
           while (k != end && (v = val (r = *k)) < 0)
             k++;
@@ -474,7 +474,7 @@ bool Internal::probe_propagate () {
               lits[0] = other, lits[1] = lit;
               assert (lrat_chain.empty ());
               assert (!probe_reason);
-              int dom = hyper_binary_resolve (w.clause);
+              Lit dom = hyper_binary_resolve (w.clause);
               probe_assign (other, dom);
             } else {
               ticks++;
@@ -510,7 +510,7 @@ bool Internal::probe_propagate () {
 
 // This a specialized instance of 'analyze'.
 
-void Internal::failed_literal (int failed) {
+void Internal::failed_literal (Lit failed) {
 
   LOG ("analyzing failed literal probe %d", failed);
   stats.failed++;
@@ -526,29 +526,29 @@ void Internal::failed_literal (int failed) {
 
   LOG (conflict, "analyzing failed literal conflict");
 
-  int uip = 0;
+  Lit uip = INVALID_LIT;
   for (const auto &lit : *conflict) {
     const Lit other = -lit;
     if (!var (other).level) {
       assert (val (other) > 0);
       continue;
     }
-    uip = uip ? probe_dominator (uip, other) : other;
+    uip = uip != INVALID_LIT ? probe_dominator (uip, other) : other;
   }
   probe_dominator_lrat (uip, conflict);
   if (lrat)
     clear_analyzed_literals ();
 
   LOG ("found probing UIP %d", uip);
-  assert (uip);
+  assert (uip != INVALID_LIT);
 
-  vector<int> work;
+  vector<Lit> work;
 
-  int parent = uip;
+  Lit parent = uip;
   while (parent != failed) {
-    const int next = get_parent_reason_literal (parent);
+    const Lit next = get_parent_reason_literal (parent);
     parent = next;
-    assert (parent);
+    assert (parent != INVALID_LIT);
     work.push_back (parent);
   }
 
@@ -565,7 +565,7 @@ void Internal::failed_literal (int failed) {
   size_t j = 0;
   while (!unsat && j < work.size ()) {
     // assert (!opts.probehbr);        assertion fails ...
-    const int parent = work[j++];
+    const Lit parent = work[j++];
     const signed char tmp = val (parent);
     if (tmp > 0) {
       assert (!opts.probehbr); // ... assertion should hold here
@@ -593,25 +593,25 @@ void Internal::failed_literal (int failed) {
 
 /*------------------------------------------------------------------------*/
 
-bool Internal::is_binary_clause (Clause *c, int &a, int &b) {
+bool Internal::is_binary_clause (Clause *c, Lit &a, Lit &b) {
   assert (!level);
   if (c->garbage)
     return false;
-  int first = 0, second = 0;
+  Lit first = INVALID_LIT, second = INVALID_LIT;
   for (const auto &lit : *c) {
     const signed char tmp = val (lit);
     if (tmp > 0)
       return false;
     if (tmp < 0)
       continue;
-    if (second)
+    if (second != INVALID_LIT)
       return false;
-    if (first)
+    if (first != INVALID_LIT)
       second = lit;
     else
       first = lit;
   }
-  if (!second)
+  if (second == INVALID_LIT)
     return false;
   a = first, b = second;
   return true;
@@ -625,7 +625,7 @@ struct probe_negated_noccs_rank {
   Internal *internal;
   probe_negated_noccs_rank (Internal *i) : internal (i) {}
   typedef size_t Type;
-  Type operator() (int a) const { return internal->noccs (-a); }
+  Type operator() (Lit a) const { return internal->noccs (-a); }
 };
 
 // Fill the 'probes' schedule.
@@ -643,7 +643,7 @@ void Internal::generate_probes () {
   init_noccs ();
   ticks += 1 + cache_lines (clauses.size (), sizeof (Clause *));
   for (const auto &c : clauses) {
-    int a, b;
+    Lit a, b;
     ticks++;
     if (!is_binary_clause (c, a, b))
       continue;
@@ -670,7 +670,7 @@ void Internal::generate_probes () {
     if (have_pos_bin_occs == have_neg_bin_occs)
       continue;
 
-    int probe = have_neg_bin_occs ? idx : -idx;
+    Lit probe = have_neg_bin_occs ? idx : -idx;
 
     // See the discussion where 'propfixed' is used below.
     //
@@ -703,7 +703,7 @@ void Internal::flush_probes () {
   init_noccs ();
   ticks += 1 + cache_lines (clauses.size (), sizeof (Clause *));
   for (const auto &c : clauses) {
-    int a, b;
+    Lit a, b;
     ticks++;
     if (!is_binary_clause (c, a, b))
       continue;
@@ -746,7 +746,7 @@ void Internal::flush_probes () {
          percent (flushed, remain + flushed), remain);
 }
 
-int Internal::next_probe () {
+Lit Internal::next_probe () {
 
   int generated = 0;
 
@@ -754,13 +754,13 @@ int Internal::next_probe () {
 
     if (probes.empty ()) {
       if (generated++)
-        return 0;
+        return INVALID_LIT;
       generate_probes ();
     }
 
     while (!probes.empty ()) {
 
-      int probe = probes.back ();
+      Lit probe = probes.back ();
       probes.pop_back ();
 
       // Eliminated or assigned.
@@ -826,10 +826,10 @@ bool Internal::probe () {
   assert (unsat || propagated == trail.size ());
   propagated = propagated2 = trail.size ();
 
-  int probe;
+  Lit probe;
   init_probehbr_lrat ();
   while (!unsat && !terminated_asynchronously () &&
-         stats.ticks.probe < limit && (probe = next_probe ())) {
+         stats.ticks.probe < limit && (probe = next_probe ()) != INVALID_LIT) {
     stats.probed++;
     LOG ("probing %d", probe);
     probe_assign_decision (probe);

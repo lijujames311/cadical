@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "literals.hpp"
 
 namespace CaDiCaL {
 
@@ -118,7 +119,7 @@ bool Internal::inst_propagate () { // Adapted from 'propagate'.
           const literal_iterator middle = lits + w.clause->pos;
           literal_iterator k = middle;
           signed char v = -1;
-          int r = 0;
+          Lit r = INVALID_LIT;
           while (k != end && (v = val (r = *k)) < 0)
             k++;
           if (v < 0) {

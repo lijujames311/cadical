@@ -430,10 +430,10 @@ const char *Parser::parse_solution_non_profiled () {
         PER ("unexpected comment");
       if (!lit)
         break;
-      if (external->solution[abs (lit)])
-        PER ("variable %d occurs twice", abs (lit));
+      if (external->solution[std::abs (lit)])
+        PER ("variable %d occurs twice", std::abs (lit));
       LOG ("solution %d", lit);
-      external->solution[abs (lit)] = sign (lit);
+      external->solution[std::abs (lit)] = sign (lit);
 #ifndef QUIET
       count++;
 #endif
