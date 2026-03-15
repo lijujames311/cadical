@@ -106,7 +106,7 @@ inline Lit Internal::subsume_check (Clause *subsuming, Clause *subsumed) {
       flipped = lit;
   }
   assert (prev != INVALID_LIT);
-  assert (subsuming->literals[0] != INVALID_LIT);
+  assert (subsuming->literals[0] == INVALID_LIT);
   subsuming->literals[0] = prev;
   if (failed)
     return INVALID_LIT;

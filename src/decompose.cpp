@@ -240,7 +240,7 @@ bool Internal::decompose_round () {
                 do {
                   assert (j > 0);
                   other = scc[--j];
-                  if (first != INVALID_LIT || vlit (other) < vlit (first))
+                  if (first == INVALID_LIT || vlit (other) < vlit (first))
                     first = other;
                   Flags &f = flags (other);
                   if (other == -parent) {

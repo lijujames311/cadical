@@ -126,7 +126,7 @@ bool Internal::flip (Lit lit) {
 
     LOG ("flipping value of %s = 1 to %s = -1", LOGLIT(lit), LOGLIT(-lit));
 
-    set_val (lit, true);
+    set_val (-lit, true);
     assert (val (-lit) > 0);
     assert (val (lit) < 0);
 

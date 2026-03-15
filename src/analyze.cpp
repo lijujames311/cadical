@@ -1146,7 +1146,7 @@ void Internal::analyze () {
     ++resolved;
 
     uip = Lit ();
-    while (uip != INVALID_LIT) {
+    while (uip == INVALID_LIT) {
       if (!i) {
         lazy_external_propagator_out_of_order_clause (uip);
         if (unsat)

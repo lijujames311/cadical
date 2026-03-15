@@ -759,7 +759,7 @@ Clause *Internal::learn_external_reason_clause (Lit ilit,
   stats.ext_prop.eprop_expl++;
 
   ELit elit = INVALID_ELIT;
-  if (falsified_elit != INVALID_ELIT) {
+  if (falsified_elit == INVALID_ELIT) {
     assert (!fixed (ilit));
     elit = externalize (ilit);
   } else

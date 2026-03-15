@@ -428,7 +428,7 @@ void Internal::add_new_original_clause (int64_t id) {
           LOG ("removing falsified literal %s", LOGLIT (lit));
           if (lrat) {
             ELit elit = externalize (lit);
-            unsigned eidx = elit.vlit ();
+            unsigned eidx = (-elit).vlit ();
             // the external units are handled somewhere else
             if (!external->ext_units[eidx]) {
               int64_t uid = unit_id (-lit);

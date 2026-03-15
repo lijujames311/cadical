@@ -61,7 +61,7 @@ struct Mapper {
       const Flags &f = internal->flags (src);
       if (f.active ())
         table[src.var ()] = Lit (++new_max_var);
-      else if (f.fixed () && first_fixed != INVALID_LIT)
+      else if (f.fixed () && first_fixed == INVALID_LIT)
         table[(first_fixed = src).var ()] = map_first_fixed = Lit (++new_max_var);
     }
 
@@ -92,7 +92,7 @@ struct Mapper {
     if (res == INVALID_LIT) {
       const signed char tmp = internal->val (src);
       if (tmp) {
-        assert (first_fixed != INVALID_LIT);
+       assert (first_fixed != INVALID_LIT);
         res = map_first_fixed;
         if (tmp != first_fixed_val)
           res = -res;
@@ -219,6 +219,7 @@ void Internal::compact () {
     if (lrat || frat) {
       assert (eidx.is_positive());
       assert (external->ext_units.size () >= (size_t) (-eidx).vlit ());
+      LOG ("eidx: %s to be mapped from %s", LOGLIT (eidx), LOGLIT (src));
       int64_t id1 = external->ext_units[eidx.vlit ()];
       int64_t id2 = external->ext_units[(-eidx).vlit ()];
       assert (!id1 || !id2);
@@ -227,6 +228,7 @@ void Internal::compact () {
         int64_t new_id2 = unit_clauses ((-src).vlit ());
         external->ext_units[eidx.vlit ()] = new_id1;
         external->ext_units[(-eidx).vlit ()] = new_id2;
+        LOG ("eidx: %s to be mapped from %s with %" PRId64 " and %" PRId64, LOGLIT (eidx), LOGLIT (src), new_id1, new_id2);
       }
     }
     Lit dst = mapper.map_lit (src);
@@ -241,6 +243,7 @@ void Internal::compact () {
   if (lrat || frat) {
     for (auto src : internal->vars) {
       const Lit dst = mapper.map_idx (src);
+      assert (src.is_positive() && (dst.is_positive() || dst == INVALID_LIT));
       assert (dst <= src);
       const signed char tmp = internal->val (src);
       if (dst == INVALID_LIT && !tmp) {
@@ -259,6 +262,7 @@ void Internal::compact () {
         unit_clauses ((-src).vlit ()) = 0;
         continue;
       }
+      LOG ("%s -> %s", LOGLIT (src), LOGLIT (dst));
       int64_t id = unit_clauses (src.vlit ());
       if (!id)
         id = unit_clauses ((-src).vlit ());

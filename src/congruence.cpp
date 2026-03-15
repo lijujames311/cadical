@@ -7475,7 +7475,7 @@ void Closure::search_condeq (Lit lit, Lit pos_lit,
         equivalence.check_invariant ();
       LOG ("found conditional %s equivalence %s = %s", LOGLIT (lit),
            LOGLIT (equivalence.first), LOGLIT (equivalence.second));
-      assert (equivalence.first.is_negated ());
+      assert (equivalence.first.is_positive ());
       assert (internal->vlit (equivalence.first) <
               internal->vlit (equivalence.second));
       check_ternary (lit, neg_lit, -other);

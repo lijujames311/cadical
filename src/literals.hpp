@@ -82,7 +82,7 @@ struct Lit {
     return lit < 0;
   }
   bool is_positive () CPPCONST {
-    return lit < 0;
+    return lit > 0;
   }
   Lit operator ^ (const Lit &b) CPPCONST {
     return Lit (lit ^ b.lit);
@@ -92,12 +92,15 @@ struct Lit {
   //
   // Conversion to normal dimacs representation
   int signed_representation () CPPCONST {
-    assert (lit);
+    return lit;
+  }
+
+  // index version for arrays for literals
+  size_t operator () () const {
     return lit;
   }
 
   Lit labs () CPPCONST {
-    assert (lit);
     if (lit < 0)
       return Lit (-lit);
     return Lit (lit);
@@ -200,7 +203,6 @@ struct ELit {
   }
 
   ELit labs () const {
-    assert (lit);
     if (lit < 0)
       return ELit (-lit);
     return ELit (lit);

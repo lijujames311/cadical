@@ -178,7 +178,7 @@ void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
         learn_empty_clause ();
         conflict = 0;
         break;
-      } else if (unit != INVALID_LIT) {
+      } else if (unit != OTHER_INVALID_LIT) {
         LOG ("new unit %s during elimination propagation of %s", LOGLIT (unit), LOGLIT (lit));
         build_chain_for_units (unit, c, 0);
         assign_unit (unit);

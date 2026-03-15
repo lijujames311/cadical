@@ -416,7 +416,9 @@ struct Internal {
   // for both the positive and negated version of a literal close together.
   //
   unsigned vlit (Lit lit) const {
-    return (lit.is_negated ()) + 2u * (unsigned) vidx (lit);
+    assert (lit.var () <= max_var);
+    assert (lit.valid ());
+    return lit.vlit ();
   }
 
   Lit u2i (unsigned u) {
@@ -1647,8 +1649,8 @@ struct Internal {
     assert (0 < lit.var ());
     assert (lit != INVALID_LIT);
     assert (lit.var () <= max_var);
-    vals[lit.var ()] = val;
-    vals[(-lit).var ()] = -val;
+    vals[lit ()] = val;
+    vals[-lit ()] = -val;
   }
 
   // As 'val' but restricted to the root-level value of a literal.
@@ -1702,10 +1704,11 @@ struct Internal {
   }
   void melt (Lit lit) {
     int idx = vidx (lit);
-    if ((size_t)idx < frozentab.size ()) {
+    if ((size_t)idx > frozentab.size ()) {
       LOG ("variable %d completely molten", idx);
       return;
     }
+    assert ((size_t)idx < frozentab.size ());
     unsigned &ref = frozentab[idx];
     if (ref < UINT_MAX) {
       if (!--ref) {

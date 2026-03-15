@@ -241,10 +241,11 @@ void External::add (ELit elit) {
     eclause.push_back (elit);
     if (internal->lrat) {
       // actually find unit of -elit (flips elit < 0)
-      unsigned eidx = elit.vlit ();
+      unsigned eidx = (-elit).vlit ();
       assert ((size_t) eidx < ext_units.size ());
       const int64_t id = ext_units[eidx];
       bool added = ext_flags[abs (elit)];
+      LOG ("%s not a unit: %" PRId64, LOGLIT (elit), id);
       if (id && !added) {
         ext_flags[abs (elit)] = true;
         internal->lrat_chain.push_back (id);
@@ -252,7 +253,7 @@ void External::add (ELit elit) {
     }
   }
 
-  if (elit != INVALID_ELIT && internal->proof && internal->lrat) {
+  if (elit == INVALID_ELIT && internal->proof && internal->lrat) {
     for (const auto &elit : eclause) {
       ext_flags[abs (elit)] = false;
     }
@@ -331,11 +332,10 @@ bool External::failed (ELit elit) {
 }
 
 void External::constrain (ELit elit) {
-  if (constraint.size () && constraint.back () != INVALID_ELIT) {
+  if (constraint.size () && constraint.back () == INVALID_ELIT) {
     LOG (constraint, "replacing previous constraint");
     reset_constraint ();
   }
-  assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
   reset_extended ();
   const Lit ilit = internalize (elit);

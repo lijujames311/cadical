@@ -13,12 +13,12 @@ ELit::base_type abs (ELit a) {
 
 Lit operator*(int sign, Lit lit) {
     assert (sign == -1 || sign == 1);
-    return Lit (lit.var () * sign);
+    return Lit (lit.lit * sign);
 }
 
 ELit operator*(int sign, ELit lit) {
     assert (sign == -1 || sign == 1);
-    return ELit (lit.var () * sign);
+    return ELit (lit.lit * sign);
 }
 
 }

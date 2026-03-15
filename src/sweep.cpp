@@ -218,7 +218,7 @@ void Internal::init_sweeper (Sweeper &sweeper) {
   enlarge_init (sweeper.prev, max_var + 1, INVALID_LIT);
   enlarge_init (sweeper.next, max_var + 1, INVALID_LIT);
   for (const auto &lit : lits)
-    sweeper.reprs[vlit (lit)] = lit;
+    sweeper.reprs[lit ()] = lit;
   sweeper.first = sweeper.last = INVALID_LIT;
   sweeper.save = 0;
   sweeper.limit.ticks = 0;
@@ -319,7 +319,7 @@ Lit Internal::sweep_repr (Sweeper &sweeper, Lit lit) {
   Lit res;
   {
     Lit prev = lit;
-    while ((res = sweeper.reprs[vlit (prev)]) != prev)
+    while ((res = sweeper.reprs[vidx (prev)]) != prev)
       prev = res;
   }
   if (res == lit)
@@ -328,13 +328,13 @@ Lit Internal::sweep_repr (Sweeper &sweeper, Lit lit) {
   {
     const Lit not_res = -res;
     Lit next, prev = lit;
-    while ((next = sweeper.reprs[vlit (prev)]) != res) {
+    while ((next = sweeper.reprs[prev ()]) != res) {
       const Lit not_prev = -prev;
-      sweeper.reprs[vlit (not_prev)] = not_res;
-      sweeper.reprs[vlit (prev)] = res;
+      sweeper.reprs[not_prev ()] = not_res;
+      sweeper.reprs[prev ()] = res;
       prev = next;
     }
-    assert (sweeper.reprs[vlit (-prev)] == not_res);
+    assert (sweeper.reprs[(-prev) ()] == not_res);
   }
   return res;
 }
@@ -963,8 +963,8 @@ void Internal::schedule_inner (Sweeper &sweeper, Lit idx) {
       assert (sweeper.first == idx);
       sweeper.first = next;
     } else {
-      assert (sweeper.next[vlit (prev)] == idx);
-      sweeper.next[vlit (prev)] = next;
+      assert (sweeper.next[prev ()] == idx);
+      sweeper.next[prev ()] = next;
     }
     const Lit last = sweeper.last;
     if (last == INVALID_LIT) {
@@ -1019,15 +1019,15 @@ Lit Internal::next_scheduled (Sweeper &sweeper) {
   }
   assert (res.is_positive());
   LOG ("dequeuing next scheduled %s", LOGLIT(res));
-  const Lit prev = sweeper.prev[vlit (res)];
-  assert (sweeper.next[vlit (res)] == INVALID_LIT);
-  sweeper.prev[vlit (res)] = INVALID_LIT;
+  const Lit prev = sweeper.prev[vidx (res)];
+  assert (sweeper.next[vidx (res)] == INVALID_LIT);
+  sweeper.prev[vidx (res)] = INVALID_LIT;
   if (prev == INVALID_LIT) {
     assert (sweeper.first == res);
     sweeper.first = INVALID_LIT;
   } else {
-    assert (sweeper.next[vlit (prev)] == res);
-    sweeper.next[vlit (prev)] = INVALID_LIT;
+    assert (sweeper.next[vidx (prev)] == res);
+    sweeper.next[vidx (prev)] = INVALID_LIT;
   }
   sweeper.last = prev;
   return res;
@@ -1246,7 +1246,7 @@ void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
 }
 
 void Internal::sweep_remove (Sweeper &sweeper, Lit lit) {
-  assert (sweeper.reprs[vlit (lit)] != lit);
+  assert (sweeper.reprs[lit ()] != lit);
   vector<Lit> &partition = sweeper.partition;
   const auto begin_partition = partition.begin ();
   auto p = begin_partition;
@@ -1499,12 +1499,12 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
 
   Lit repr;
   if (abs (lit) < abs (other)) {
-    repr = sweeper.reprs[vlit (other)] = lit;
-    sweeper.reprs[vlit (not_other)] = not_lit;
+    repr = sweeper.reprs[other ()] = lit;
+    sweeper.reprs[not_other ()] = not_lit;
     sweep_remove (sweeper, other);
   } else {
-    repr = sweeper.reprs[vlit (lit)] = other;
-    sweeper.reprs[vlit (not_lit)] = not_other;
+    repr = sweeper.reprs[lit ()] = other;
+    sweeper.reprs[not_lit ()] = not_other;
     sweep_remove (sweeper, lit);
   }
   clear_core (sweeper, 0);
@@ -1521,7 +1521,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
   if (!active (idx))
     return "inactive variable";
   const Lit start = idx;
-  if (sweeper.reprs[vlit (start)] != start)
+  if (sweeper.reprs[vidx (start)] != start)
     return "non-representative variable";
   assert (sweeper.vars.empty ());
   assert (sweeper.clauses.empty ());

@@ -281,7 +281,7 @@ int Internal::decide () {
       assert (!tmp);
       LOG ("constraint literal %s unassigned", LOGLIT (lit));
 
-      if (unassigned_lit != INVALID_LIT || better_decision (lit, unassigned_lit))
+      if (unassigned_lit == INVALID_LIT || better_decision (lit, unassigned_lit))
         unassigned_lit = lit;
     }
 
