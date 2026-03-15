@@ -149,7 +149,6 @@ void External::reset_limits () { internal->reset_limits (); }
 // never part of the input
 Lit External::internalize (ELit elit, bool extension) {
   Lit ilit;
-  LOG ("internalize found %s ===========", LOGLIT (elit));
   if (elit != INVALID_ELIT) {
     assert (elit != OTHER_INVALID_ELIT);
     const ELit eidx = elit.labs ();
@@ -164,7 +163,6 @@ Lit External::internalize (ELit elit, bool extension) {
       ervars[eidx.var ()] = true;
     }
     ilit = e2i[eidx];
-    LOG ("already found %s ===========", LOGLIT (ilit));
     if (ilit == INVALID_LIT)
       ilit = declare_var (eidx, false);
     if (elit.is_negated ())

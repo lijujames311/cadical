@@ -58,7 +58,7 @@ void External::restore_clause (const vector<int>::const_iterator &begin,
     const auto &elit = ELit (*p);
     eclause.push_back (elit);
     if (internal->proof && internal->lrat) {
-      unsigned eidx = elit.vlit ();
+      unsigned eidx = (-elit).vlit ();
       assert ((size_t) eidx < ext_units.size ());
       const int64_t id = ext_units[eidx];
       bool added = ext_flags[abs (elit)];

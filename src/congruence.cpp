@@ -4523,7 +4523,7 @@ void Closure::rewrite_and_gate (Gate *g, Lit dst, Lit src, LRAT_ID id1,
     // not matter.
     size_t i = 0, size = g->pos_lhs_ids().size ();
     bool found = false;
-    assert (falsifies != INVALID_LIT || clashing != INVALID_LIT);
+    assert (falsifies == INVALID_LIT || clashing == INVALID_LIT);
     const Lit orig_falsifies = falsifies == dst ? src : falsifies;
     const Lit orig_clashing =
         clashing == -dst ? -src : (clashing == dst ? src : clashing);

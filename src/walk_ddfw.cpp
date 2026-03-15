@@ -252,6 +252,7 @@ struct Walker_DDFW {
     if (!uvar_count (lit)) {
       position_vars_in_broken[idx] = vars_in_broken.size ();
       vars_in_broken.push_back(lit.labs ());
+      assert (vars_in_broken[position_vars_in_broken[idx]] == lit.labs ());
     }
     ++uvar_count (lit);
     LOG ("marking %s as uvar, found %d times", LOGLIT (lit), uvar_count (lit));
@@ -264,7 +265,7 @@ struct Walker_DDFW {
     if (uvar_count (lit) == 1) {
       position_type pos = position_vars_in_broken[internal->vidx (lit)];
       assert (pos < vars_in_broken.size ());
-      assert (vars_in_broken[pos] == lit);
+      assert (vars_in_broken[pos] == lit.labs ());
       Lit idx_replacement = vars_in_broken[pos] = vars_in_broken.back ();
       vars_in_broken.pop_back();
       position_vars_in_broken[idx_replacement.var ()] = pos;
