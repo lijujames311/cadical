@@ -1687,7 +1687,7 @@ struct Internal {
   // Use `externalize (Lit)` to get a literal back with the correct polarity
   ELit &to_external (Lit ilit) {
     assert (ilit.is_positive ());
-    assert (ilit.var () < i2e.size ());
+    assert ((size_t)ilit.var () < i2e.size ());
     return i2e[ilit.var ()];
   }
 
@@ -1696,7 +1696,7 @@ struct Internal {
   // Use `externalize (Lit)` to get a literal back with the correct polarity
   const ELit &to_external (Lit ilit) const {
     assert (ilit.is_positive ());
-    assert (ilit.var () < i2e.size ());
+    assert ((size_t)ilit.var () < i2e.size ());
     return i2e[ilit.var ()];
   }
 
