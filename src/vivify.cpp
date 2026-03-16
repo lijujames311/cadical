@@ -171,7 +171,7 @@ inline void Internal::vivify_assign (Lit lit, Clause *reason) {
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
   trail.push_back (lit);
-  LOG (reason, "vivify assign %s", LOGLIT (lit));
+  LOG (reason, "vivify assign %s", LOGLIT(lit));
 }
 
 // Assume negated literals in candidate clause.
@@ -180,7 +180,7 @@ void Internal::vivify_assume (Lit lit) {
   require_mode (VIVIFY);
   level++;
   control.emplace_back (lit, get_trail_size ());
-  LOG ("vivify decide %s", LOGLIT (lit));
+  LOG ("vivify decide %s", LOGLIT(lit));
   assert (level > 0);
   assert (propagated == trail.size ());
   vivify_assign (lit, nullptr);
@@ -198,7 +198,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
   for (;;) {
     if (propagated2 != trail.size ()) {
       const Lit lit = -trail[propagated2++];
-      LOG ("vivify propagating %s over binary clauses", LOGLIT (-lit));
+      LOG ("vivify propagating %s over binary clauses", LOGLIT(-lit));
       const Watches &ws = watches (lit);
       ticks +=
           1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
@@ -219,7 +219,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
       }
     } else if (!conflict && propagated != trail.size ()) {
       const Lit lit = -trail[propagated++];
-      LOG ("vivify propagating %s over large clauses", LOGLIT (-lit));
+      LOG ("vivify propagating %s over large clauses", LOGLIT(-lit));
       Watches &ws = watches (lit);
       const auto eow = ws.end ();
       auto i = ws.begin ();
@@ -261,7 +261,7 @@ bool Internal::vivify_propagate (int64_t &ticks) {
           if (v > 0)
             j[-1].blit = r;
           else if (!v) {
-            LOG (w.clause, "unwatch %s in", LOGLIT (r));
+            LOG (w.clause, "unwatch %s in", LOGLIT(r));
             lits[0] = other;
             lits[1] = r;
             *k = lit;
@@ -480,7 +480,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
 
     backtrack_without_updating_phases ();
     const Lit unit = clause[0];
-    LOG (c, "vivification shrunken to unit %s", LOGLIT (unit));
+    LOG (c, "vivification shrunken to unit %s", LOGLIT(unit));
     assert (!val (unit));
     assign_unit (unit);
     // lrat_chain.clear ();   done in search_assign
@@ -502,7 +502,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
     signed char val0 = val (lit0);
     if (val0 < 0) {
       const int level0 = var (lit0).level;
-      LOG ("1st watch %s negative at level %d", LOGLIT (lit0), level0);
+      LOG ("1st watch %s negative at level %d", LOGLIT(lit0), level0);
       new_level = level0 - 1;
     }
 
@@ -510,7 +510,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
     const signed char val1 = val (lit1);
     if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
       const int level1 = var (lit1).level;
-      LOG ("2nd watch %s negative at level %d", LOGLIT (lit1), level1);
+      LOG ("2nd watch %s negative at level %d", LOGLIT(lit1), level1);
       new_level = level1 - 1;
     }
 
@@ -545,7 +545,7 @@ void Internal::vivify_sort_watched (Clause *c) {
   signed char val0 = val (lit0);
   if (val0 < 0) {
     const int level0 = var (lit0).level;
-    LOG ("1st watch %s negative at level %d", LOGLIT (lit0), level0);
+    LOG ("1st watch %s negative at level %d", LOGLIT(lit0), level0);
     new_level = level0 - 1;
   }
 
@@ -553,7 +553,7 @@ void Internal::vivify_sort_watched (Clause *c) {
   const signed char val1 = val (lit1);
   if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
     const int level1 = var (lit1).level;
-    LOG ("2nd watch %s negative at level %d", LOGLIT (lit1), level1);
+    LOG ("2nd watch %s negative at level %d", LOGLIT(lit1), level1);
     new_level = level1 - 1;
   }
 
@@ -589,16 +589,16 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
     if (reason) {
       redundant = (redundant || reason->redundant);
       subsumes = (start != reason && reason->size <= start->size);
-      LOG (reason, "resolving on %s with", LOGLIT (uip));
+      LOG (reason, "resolving on %s with", LOGLIT(uip));
       for (auto other : *reason) {
         const Var v = var (other);
         Flags &f = flags (other);
         if (!marked2 (other) && v.level) {
-          LOG ("not subsuming due to lit %s", LOGLIT (other));
+          LOG ("not subsuming due to lit %s", LOGLIT(other));
           subsumes = false;
         }
         if (!val (other)) {
-          LOG ("skipping unset lit %s", LOGLIT (other));
+          LOG ("skipping unset lit %s", LOGLIT(other));
           continue;
         }
         if (other == uip) {
@@ -607,23 +607,23 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
         if (!v.level) {
           if (f.seen || !lrat || reason == start)
             continue;
-          LOG ("unit reason for %s", LOGLIT (other));
+          LOG ("unit reason for %s", LOGLIT(other));
           int64_t id = unit_id (-other);
-          LOG ("adding unit reason %" PRId64 " for %s", id, LOGLIT (other));
+          LOG ("adding unit reason %" PRId64 " for %s", id, LOGLIT(other));
           unit_chain.push_back (id);
           f.seen = true;
           analyzed.push_back (other);
           continue;
         }
         if (mark_implied && other != implied) {
-          LOG ("skipping non-implied literal %s on current level", LOGLIT (other));
+          LOG ("skipping non-implied literal %s on current level", LOGLIT(other));
           continue;
         }
 
         assert (val (other));
         if (f.seen)
           continue;
-        LOG ("pushing lit %s", LOGLIT (other));
+        LOG ("pushing lit %s", LOGLIT(other));
         analyzed.push_back (other);
         f.seen = true;
       }
@@ -639,7 +639,7 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
         return;
       }
     } else {
-      LOG ("vivify analyzed decision %s", LOGLIT (uip));
+      LOG ("vivify analyzed decision %s", LOGLIT(uip));
       clause.push_back (-uip);
     }
     mark_implied = false;
@@ -655,7 +655,7 @@ void Internal::vivify_analyze (Clause *start, bool &subsumes,
     }
     if (uip == INVALID_LIT)
       break;
-    LOG ("uip is %s", LOGLIT (uip));
+    LOG ("uip is %s", LOGLIT(uip));
     Var &w = var (uip);
     reason = w.reason;
     if (lrat && reason)
@@ -682,7 +682,7 @@ void Internal::vivify_deduce (Clause *candidate, Clause *conflict,
     assert (var (not_implied).level);
     Flags &f = flags (not_implied);
     f.seen = true;
-    LOG ("pushing implied lit %s", LOGLIT (not_implied));
+    LOG ("pushing implied lit %s", LOGLIT(not_implied));
     analyzed.push_back (not_implied);
     clause.push_back (implied);
   } else {
@@ -702,12 +702,12 @@ void Internal::vivify_deduce (Clause *candidate, Clause *conflict,
       if (!v.level) {
         if (!lrat)
           continue;
-        LOG ("adding unit %s", LOGLIT (lit));
+        LOG ("adding unit %s", LOGLIT(lit));
         if (!f.seen) {
           // nevertheless we can use var (l) as if l was still assigned
           // because var is updated lazily
           int64_t id = unit_id (-lit);
-          LOG ("adding unit reason %" PRId64 " for %s", id, LOGLIT (lit));
+          LOG ("adding unit reason %" PRId64 " for %s", id, LOGLIT(lit));
           unit_chain.push_back (id);
         }
         f.seen = true;
@@ -716,11 +716,11 @@ void Internal::vivify_deduce (Clause *candidate, Clause *conflict,
       }
       assert (v.level);
       if (!marked2 (lit)) {
-        LOG ("lit %s is not marked", LOGLIT (lit));
+        LOG ("lit %s is not marked", LOGLIT(lit));
         subsumes = false;
       }
-      LOG ("analyzing lit %s", LOGLIT (lit));
-      LOG ("pushing lit %s", LOGLIT (lit));
+      LOG ("analyzing lit %s", LOGLIT(lit));
+      LOG ("pushing lit %s", LOGLIT(lit));
       analyzed.push_back (lit);
       f.seen = true;
     }
@@ -775,11 +775,11 @@ bool Internal::vivify_shrinkable (const std::vector<Lit> &sorted,
   for (auto lit : sorted) {
     const signed char value = val (lit);
     if (!value) {
-      LOG ("vivification unassigned %s", LOGLIT (lit));
+      LOG ("vivification unassigned %s", LOGLIT(lit));
       return true;
     }
     if (value > 0) {
-      LOG ("vivification implied satisfied %s", LOGLIT (lit));
+      LOG ("vivification implied satisfied %s", LOGLIT(lit));
       if (conflict)
         return true;
       if (count_implied++) {
@@ -793,11 +793,11 @@ bool Internal::vivify_shrinkable (const std::vector<Lit> &sorted,
       if (!v.level)
         continue;
       if (!f.seen) {
-        LOG ("vivification non-analyzed %s", LOGLIT (lit));
+        LOG ("vivification non-analyzed %s", LOGLIT(lit));
         return true;
       }
       if (v.reason) {
-        LOG ("vivification implied falsified %s", LOGLIT (lit));
+        LOG ("vivification implied falsified %s", LOGLIT(lit));
         return true;
       }
     }
@@ -845,7 +845,7 @@ bool Internal::vivify_instantiate (
   vivify_assume (lit);
   bool ok = vivify_propagate (ticks);
   if (!ok) {
-    LOG (c, "instantiate success with literal %s in", LOGLIT (lit));
+    LOG (c, "instantiate success with literal %s in", LOGLIT(lit));
     stats.vivifyinst++;
     // strengthen clause
     if (lrat) {
@@ -901,7 +901,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
   for (const auto &lit : *c) {
     const int tmp = fixed (lit);
     if (tmp > 0) {
-      LOG (c, "satisfied by propagated unit %s", LOGLIT (lit));
+      LOG (c, "satisfied by propagated unit %s", LOGLIT(lit));
       mark_garbage (c);
       return false;
     } else if (!tmp)
@@ -963,7 +963,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
       break;
     }
     if (forced != INVALID_LIT) {
-      LOG ("clause is reason forcing %s", LOGLIT (forced));
+      LOG ("clause is reason forcing %s", LOGLIT(forced));
       assert (var (forced).level);
       backtrack_without_updating_phases (var (forced).level - 1);
     }
@@ -979,13 +979,13 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
         assert (!fixed (lit));
         const Lit decision = control[l].decision;
         if (-lit == decision) {
-          LOG ("reusing decision %s at decision level %d", LOGLIT (decision), l);
+          LOG ("reusing decision %s at decision level %d", LOGLIT(decision), l);
           ++stats.vivifyreused;
           if (++l > level)
             break;
         } else {
           LOG ("literal %s does not match decision %s at decision level %d",
-               LOGLIT (lit), LOGLIT (decision), l);
+               LOGLIT(lit), LOGLIT(decision), l);
           backtrack_without_updating_phases (l - 1);
           break;
         }
@@ -1042,18 +1042,18 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
       const Var &v = var (lit);
       assert (v.level);
       if (!v.reason) {
-        LOG ("skipping decision %s", LOGLIT (lit));
+        LOG ("skipping decision %s", LOGLIT(lit));
         continue;
       }
 
       if (tmp < 0) {
         assert (v.level);
-        LOG ("literal %s is already false and can be removed", LOGLIT (lit));
+        LOG ("literal %s is already false and can be removed", LOGLIT(lit));
         continue;
       }
 
       assert (tmp > 0);
-      LOG ("subsumed since literal %s already true", LOGLIT (lit));
+      LOG ("subsumed since literal %s already true", LOGLIT(lit));
       subsume = lit; // will be able to subsume candidate '@5'
       break;
     }
@@ -1062,7 +1062,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
 
     stats.vivifydecs++;
     vivify_assume (-lit);
-    LOG ("negated decision %s score %" PRId64 "", LOGLIT (lit), noccs (lit));
+    LOG ("negated decision %s score %" PRId64 "", LOGLIT(lit), noccs (lit));
 
     if (!vivify_propagate (ticks)) {
       break; // hot-spot
@@ -1076,8 +1076,8 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
         continue;
       const Var v = var (lit);
       if (v.trail < better_subsume_trail) {
-        LOG ("improving subsume from %s at %d to %s at %d", LOGLIT (subsume),
-             better_subsume_trail, LOGLIT (lit), v.trail);
+        LOG ("improving subsume from %s at %d to %s at %d", LOGLIT(subsume),
+             better_subsume_trail, LOGLIT(lit), v.trail);
         better_subsume_trail = v.trail;
         subsume = lit;
       }
@@ -1137,7 +1137,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     }
   } else if (subsume != INVALID_LIT) {
     LOG (c, "no vivification instantiation with implied literal %s",
-         LOGLIT (subsume));
+         LOGLIT(subsume));
     assert (!c->redundant);
     assert (redundant);
     res = false;
@@ -1213,7 +1213,7 @@ void Internal::vivify_build_lrat (
     Clause *reason;
     bool finished;
     std::tie (lit, reason, finished) = stack.back ();
-    LOG ("VIVIFY LRAT justifying %s", LOGLIT (lit));
+    LOG ("VIVIFY LRAT justifying %s", LOGLIT(lit));
     stack.pop_back ();
     if (lit != INVALID_LIT && flags (lit).seen) {
       LOG ("skipping already justified");
@@ -1245,7 +1245,7 @@ void Internal::vivify_build_lrat (
         continue;
       }
       if (v.reason) { // recursive justification
-        LOG ("VIVIFY LRAT pushing %s", LOGLIT (other));
+        LOG ("VIVIFY LRAT pushing %s", LOGLIT(other));
         stack.push_back ({other, v.reason, false});
       }
     }
@@ -1286,9 +1286,9 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
     for (auto lit : *c) {
       LOG ("to find best number of occurrences for literal %d, looking at "
            "literal %s",
-           i, LOGLIT (lit));
+           i, LOGLIT(lit));
       for (int j = 0; j != i; ++j) {
-        LOG ("comparing %s with literal %s", LOGLIT (lit), LOGLIT (lits[j]));
+        LOG ("comparing %s with literal %s", LOGLIT(lit), LOGLIT(lits[j]));
         if (lits[j] == lit)
           goto CONTINUE_WITH_NEXT_LITERAL;
       }
@@ -1296,7 +1296,7 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
         const int64_t lit_count = internal->noccs (lit);
         assert (lit_count);
         LOG ("checking literal %s with %" PRId64 " occurrences",
-             LOGLIT (lit), lit_count);
+             LOGLIT(lit), lit_count);
         if (lit_count <= best_count)
           continue;
         best_count = lit_count;
@@ -1310,7 +1310,7 @@ vivify_ref create_ref (Internal *internal, Clause *c) {
     ref.count[i] =
         (((uint64_t) best_count) << 32) + (uint64_t) internal->vlit (best);
     LOG ("final count at position %d is %s - %u: %" PRIu64, i,
-         LOGLIT (best), best_count, ref.count[i]);
+         LOGLIT(best), best_count, ref.count[i]);
     lits[i] = best;
   }
   return ref;

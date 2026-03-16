@@ -69,7 +69,7 @@ void Internal::remove_observed_var (Lit ilit) {
       LOG ("variable %d is not observed anymore", idx);
     } else
       LOG ("variable %s is unobserved once but remains observed %u times",
-           LOGLIT (ilit), ref);
+           LOGLIT(ilit), ref);
   } else
     LOG ("variable %d remains observed forever", idx);
 }
@@ -162,8 +162,8 @@ void Internal::renotify_full_trail_between_trail_pos (
 
     ELit elit = externalize (ilit); // TODO: double-check tainting
 
-    LOG ("notifying elit %d @ %s aka %s", propagator_level, LOGLIT (elit),
-         LOGLIT (ilit));
+    LOG ("notifying elit %d @ %s aka %s", propagator_level, LOGLIT(elit),
+         LOGLIT(ilit));
     assert (elit != INVALID_ELIT);
     // Fixed variables might get mapped (during compact) to another
     // non-observed but fixed variable.
@@ -242,7 +242,7 @@ bool Internal::is_decision (Lit ilit) {
   LOG (v.reason,
        "is_decision: i%s (current level: %d, is_fixed: %d, v.level: %d, "
        "is_external_reason: %d, v.reason: )",
-       LOGLIT (ilit), level, fixed (ilit), v.level, v.reason == external_reason);
+       LOGLIT(ilit), level, fixed (ilit), v.level, v.reason == external_reason);
 #endif
   if (!v.level || v.reason)
     return false;
@@ -318,7 +318,7 @@ bool Internal::external_propagate () {
       int tmp = val (ilit);
 #ifndef NDEBUG
       assert (fixed (ilit) || observed (ilit));
-      LOG ("External propagation of %s (i%s val: %d)", LOGLIT (elit), LOGLIT (ilit), tmp);
+      LOG ("External propagation of %s (i%s val: %d)", LOGLIT(elit), LOGLIT(ilit), tmp);
 #endif
       if (!tmp) {
         // variable is not assigned, it can be propagated
@@ -340,7 +340,7 @@ bool Internal::external_propagate () {
         notify_assignments ();
       } else if (tmp < 0) {
         LOG ("External propgation of %s is falsified under current trail",
-             LOGLIT (ilit));
+             LOGLIT(ilit));
         stats.ext_prop.eprop_conf++;
         int level_before = level;
         size_t assigned = num_assigned;
@@ -547,7 +547,7 @@ void Internal::add_external_clause (ELit propagated_elit,
     // or set 'are_reasons_forgettable' to false.
     ext_clause_forgettable = external->propagator->are_reasons_forgettable;
 #ifndef NDEBUG
-    LOG ("add external reason of propagated lit: %s", LOGLIT (propagated_elit));
+    LOG ("add external reason of propagated lit: %s", LOGLIT(propagated_elit));
 #endif
     elit = ELit (external->propagator->cb_add_reason_clause_lit (propagated_elit.signed_representation()));
     if (elit == propagated_elit)
@@ -615,7 +615,7 @@ void Internal::explain_reason (Lit ilit, Clause *reason, int &open) {
   if (!opts.exteagerreasons)
     return;
 #ifndef NDEBUG
-  LOG (reason, "explain_reason of %s (open: %d)", LOGLIT (ilit), open);
+  LOG (reason, "explain_reason of %s (open: %d)", LOGLIT(ilit), open);
 #endif
   assert (reason);
   assert (reason != external_reason);
@@ -765,7 +765,7 @@ Clause *Internal::learn_external_reason_clause (Lit ilit,
   } else
     elit = falsified_elit;
 
-  LOG ("ilit: %s, elit: %s", LOGLIT (ilit), LOGLIT (elit));
+  LOG ("ilit: %s, elit: %s", LOGLIT(ilit), LOGLIT(elit));
   add_external_clause (elit, no_backtrack);
 
 #ifndef NDEBUG
@@ -941,7 +941,7 @@ bool Internal::external_check_solution () {
 #ifndef NDEBUG
 #ifdef LOGGING
       bool p = external->vals[idx];
-      LOG ("evals[%d]: %d ival(%d): %s", idx, p, idx, LOGLIT (lit));
+      LOG ("evals[%d]: %d ival(%d): %s", idx, p, idx, LOGLIT(lit));
 #endif
 #endif
     }
@@ -1123,7 +1123,7 @@ Lit Internal::ask_decision () {
 
   if (elit == INVALID_ELIT)
     return INVALID_LIT;
-  LOG ("external propagator proposes decision: %s", LOGLIT (elit));
+  LOG ("external propagator proposes decision: %s", LOGLIT(elit));
 
   REQUIRE ((size_t) abs (elit) < external->is_observed.size () &&
                external->is_observed[abs (elit)],

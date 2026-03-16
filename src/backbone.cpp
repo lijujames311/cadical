@@ -34,7 +34,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
   for (;;) {
     if (propagated2 != trail.size ()) {
       const Lit lit = -trail[propagated2++];
-      LOG ("backbone propagating %s over binary clauses", LOGLIT (-lit));
+      LOG ("backbone propagating %s over binary clauses", LOGLIT(-lit));
       Watches &ws = watches (lit);
       ticks +=
           1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
@@ -55,7 +55,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
       }
     } else if (!conflict && propagated != trail.size ()) {
       const Lit lit = -trail[propagated++];
-      LOG ("backbone propagating %s over large clauses", LOGLIT (-lit));
+      LOG ("backbone propagating %s over large clauses", LOGLIT(-lit));
       Watches &ws = watches (lit);
       const const_watch_iterator eow = ws.end ();
       const_watch_iterator i = ws.begin ();
@@ -97,7 +97,7 @@ inline bool Internal::backbone_propagate (int64_t &ticks) {
           if (v > 0)
             j[-1].blit = r;
           else if (!v) {
-            LOG (w.clause, "unwatch %s in", LOGLIT (r));
+            LOG (w.clause, "unwatch %s in", LOGLIT(r));
             lits[0] = other;
             lits[1] = r;
             *k = lit;
@@ -144,7 +144,7 @@ inline void Internal::backbone_propagate2 (int64_t &ticks) {
   int64_t before = propagated2;
   while (propagated2 != trail.size ()) {
     const Lit lit = -trail[propagated2++];
-    LOG ("probe propagating %s over binary clauses", LOGLIT (-lit));
+    LOG ("probe propagating %s over binary clauses", LOGLIT(-lit));
     Watches &ws = watches (lit);
     ticks += 1 + cache_lines (ws.size (), sizeof (const_watch_iterator *));
     for (const auto &w : ws) {
@@ -180,12 +180,12 @@ void Internal::schedule_backbone_cands (std::vector<Lit> &candidates) {
     if (val (v))
       continue;
     if (f.backbone0) {
-      LOG ("scheduling backbone literal candidate %s", LOGLIT (v));
+      LOG ("scheduling backbone literal candidate %s", LOGLIT(v));
       candidates.push_back (v);
     } else
       ++not_rescheduled;
     if (f.backbone1) {
-      LOG ("scheduling backbone literal candidate %s", LOGLIT (-v));
+      LOG ("scheduling backbone literal candidate %s", LOGLIT(-v));
       candidates.push_back (-v);
     } else
       ++not_rescheduled;
@@ -199,11 +199,11 @@ void Internal::schedule_backbone_cands (std::vector<Lit> &candidates) {
       if (val (v))
 	continue;
       if (!f.backbone0) {
-        LOG ("scheduling backbone literal candidate %s", LOGLIT (v));
+        LOG ("scheduling backbone literal candidate %s", LOGLIT(v));
         candidates.push_back (v);
       }
       if (!f.backbone1) {
-        LOG ("scheduling backbone literal candidate %s", LOGLIT (-v));
+        LOG ("scheduling backbone literal candidate %s", LOGLIT(-v));
         candidates.push_back (-v);
       }
     }
@@ -232,11 +232,11 @@ Lit Internal::backbone_analyze (Clause *, int64_t &ticks) {
   for (auto t = trail.rbegin ();;) {
     assert (t < trail.rend ());
     Lit lit = *t++;
-    LOG ("analyzing %s", LOGLIT (lit));
+    LOG ("analyzing %s", LOGLIT(lit));
     if (!flags (lit).seen)
       continue;
     Clause *reason = var (lit).reason;
-    LOG (reason, "resolving with reason of %s", LOGLIT (lit));
+    LOG (reason, "resolving with reason of %s", LOGLIT(lit));
     assert (reason), assert (reason != decision_reason);
     ++ticks;
     const Lit other = reason->literals[0] ^ reason->literals[1] ^ lit;
@@ -247,7 +247,7 @@ Lit Internal::backbone_analyze (Clause *, int64_t &ticks) {
       f_o.seen = true;
       analyzed.push_back (other);
     } else {
-      LOG ("backbone UIP %s", LOGLIT (other));
+      LOG ("backbone UIP %s", LOGLIT(other));
       for (auto lit : analyzed)
         flags (lit).seen = false;
       analyzed.clear ();
@@ -260,7 +260,7 @@ Lit Internal::backbone_analyze (Clause *, int64_t &ticks) {
 
 inline void Internal::backbone_unit_reassign (Lit lit) {
 #ifdef LOGGING
-  LOG ("reassigning %s to level 0", LOGLIT (lit));
+  LOG ("reassigning %s to level 0", LOGLIT(lit));
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
 #else
@@ -270,7 +270,7 @@ inline void Internal::backbone_unit_reassign (Lit lit) {
 }
 
 inline void Internal::backbone_unit_assign (Lit lit) {
-  LOG ("assigning %s to level 0", LOGLIT (lit));
+  LOG ("assigning %s to level 0", LOGLIT(lit));
   require_mode (BACKBONE);
   assert (!val (lit));
   Var &v = var (lit);
@@ -285,7 +285,7 @@ inline void Internal::backbone_unit_assign (Lit lit) {
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
   trail.push_back (lit);
-  LOG ("backbone assign %s to level 0", LOGLIT (lit));
+  LOG ("backbone assign %s to level 0", LOGLIT(lit));
 }
 
 inline void Internal::backbone_assign_any (Lit lit, Clause *reason) {
@@ -308,7 +308,7 @@ inline void Internal::backbone_assign_any (Lit lit, Clause *reason) {
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
   trail.push_back (lit);
-  LOG (reason, "backbone assign %s", LOGLIT (lit));
+  LOG (reason, "backbone assign %s", LOGLIT(lit));
 }
 
 inline void Internal::backbone_assign (Lit lit, Clause *reason) {
@@ -328,7 +328,7 @@ inline void Internal::backbone_assign (Lit lit, Clause *reason) {
   assert (val (lit) > 0);
   assert (val (-lit) < 0);
   trail.push_back (lit);
-  LOG (reason, "backbone assign %s", LOGLIT (lit));
+  LOG (reason, "backbone assign %s", LOGLIT(lit));
 }
 
 void Internal::backbone_decision (Lit lit) {
@@ -336,7 +336,7 @@ void Internal::backbone_decision (Lit lit) {
   assert (propagated2 == trail.size ());
   new_trail_level (lit);
   notify_decision ();
-  LOG ("search decide %s", LOGLIT (lit));
+  LOG ("search decide %s", LOGLIT(lit));
   backbone_assign (lit, decision_reason);
 }
 
@@ -366,7 +366,7 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
     const signed char v = val (probe);
     if (v > 0) {
       q--;
-      LOG ("removing satisfied backbone probe %s", LOGLIT (probe));
+      LOG ("removing satisfied backbone probe %s", LOGLIT(probe));
       if (probe.is_negated())
         flags (probe).backbone1 = false;
       else
@@ -376,10 +376,10 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
 
     if (v < 0) {
       if (var (probe).level)
-        LOG ("skipping falsified backbone probe %s", LOGLIT (probe));
+        LOG ("skipping falsified backbone probe %s", LOGLIT(probe));
       else {
         LOG ("removing root-level falsified backbone probe %s",
-             LOGLIT (probe));
+             LOGLIT(probe));
         q--;
       }
       continue;
@@ -391,7 +391,7 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
     if (!conflict) {
       LOG (candidates,
            "propagating backbone probe %s successful; candidates:",
-           LOGLIT (probe));
+           LOGLIT(probe));
       continue;
     }
 
@@ -407,7 +407,7 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
 
     backbone_propagate2 (ticks);
     if (conflict) {
-      LOG ("propagating backbone forced %s failed", LOGLIT (uip));
+      LOG ("propagating backbone forced %s failed", LOGLIT(uip));
       inconsistent = uip;
       // we have to give up on the current conflict
       conflict = nullptr;
@@ -432,7 +432,7 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
       const signed char v = val (probe);
       if (v > 0) {
         q--;
-        LOG ("removing satisfied backbone probe %s", LOGLIT (probe));
+        LOG ("removing satisfied backbone probe %s", LOGLIT(probe));
         if (probe.is_negated())
           flags (probe).backbone1 = false;
         else
@@ -441,11 +441,11 @@ unsigned Internal::compute_backbone_round (std::vector<Lit> &candidates,
       }
 
       if (v < 0) {
-        LOG ("keeping falsified probe %s", LOGLIT (probe));
+        LOG ("keeping falsified probe %s", LOGLIT(probe));
         continue;
       }
       assert (!v);
-      LOG ("keeping unassigned probe %s", LOGLIT (probe));
+      LOG ("keeping unassigned probe %s", LOGLIT(probe));
     }
     candidates.resize (q - begin (candidates));
   }
@@ -570,7 +570,7 @@ unsigned Internal::compute_backbone () {
 
   if (inconsistent != INVALID_LIT && !unsat) {
     LOG ("using forced unit %s by repropagating at level 0",
-         LOGLIT (inconsistent));
+         LOGLIT(inconsistent));
     backtrack_without_updating_phases ();
     propagate ();
     learn_empty_clause ();

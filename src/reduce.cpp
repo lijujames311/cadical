@@ -179,7 +179,7 @@ bool Internal::propagate_out_of_order_units () {
     assert (val (lit) > 0);
     if (var (lit).level)
       continue;
-    LOG ("found out-of-order assigned unit %s", LOGLIT (oou));
+    LOG ("found out-of-order assigned unit %s", LOGLIT(oou));
     oou = lit;
   }
   if (oou == INVALID_LIT)

@@ -21,7 +21,7 @@ void External::push_clause_literal_on_extension_stack (Lit ilit) {
   const ELit elit = internal->externalize (ilit);
   assert (elit != INVALID_ELIT);
   extension.push_back (elit.signed_representation());
-  LOG ("pushing clause literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT (ilit));
+  LOG ("pushing clause literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT(ilit));
 }
 
 void External::push_witness_literal_on_extension_stack (Lit ilit) {
@@ -29,7 +29,7 @@ void External::push_witness_literal_on_extension_stack (Lit ilit) {
   const ELit elit = internal->externalize (ilit);
   assert (elit != INVALID_ELIT);
   extension.push_back (elit.signed_representation());
-  LOG ("pushing witness literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT (ilit));
+  LOG ("pushing witness literal %s on extension stack (internal %s)", LOGLIT(elit), LOGLIT(ilit));
   if (marked (witness, elit))
     return;
   LOG ("marking witness %s", LOGLIT(elit));

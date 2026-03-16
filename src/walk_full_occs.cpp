@@ -73,7 +73,7 @@ struct WalkerFO {
     assert (pos < tclauses.size ());
     assert (tclauses[pos].clause == clause);
     LOG ("connecting clause on %s with already in occurrences %zu",
-         LOGLIT (lit), occs (lit).size ());
+         LOGLIT(lit), occs (lit).size ());
     occs (lit).push_back (Tagged (clause, pos));
   }
   void connect_clause (Clause *clause, unsigned pos) {
@@ -208,11 +208,11 @@ WalkerFO::WalkerFO (Internal *i, double size, int64_t l)
 // Add the literal to flip to the queue
 
 void WalkerFO::push_flipped (Lit flipped) {
-  LOG ("push literal %s on the flips", LOGLIT (flipped));
+  LOG ("push literal %s on the flips", LOGLIT(flipped));
   assert (flipped != INVALID_LIT);
   if (best_trail_pos < 0) {
     LOG ("not pushing flipped %s to already invalid trail",
-         LOGLIT (flipped));
+         LOGLIT(flipped));
     return;
   }
 
@@ -221,7 +221,7 @@ void WalkerFO::push_flipped (Lit flipped) {
   if (size_trail < limit) {
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zd",
-         LOGLIT (flipped), size_trail + 1);
+         LOGLIT(flipped), size_trail + 1);
     return;
   }
 
@@ -231,12 +231,12 @@ void WalkerFO::push_flipped (Lit flipped) {
     save_walker_trail (true);
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zu",
-         LOGLIT (flipped), flips.size ());
+         LOGLIT(flipped), flips.size ());
     return;
   } else {
     LOG ("trail reached limit %zd without best position", limit);
     flips.clear ();
-    LOG ("not pushing %s to invalidated trail", LOGLIT (flipped));
+    LOG ("not pushing %s to invalidated trail", LOGLIT(flipped));
     best_trail_pos = -1;
     LOG ("best trail position becomes invalid");
   }
@@ -387,13 +387,13 @@ Lit WalkerFO::walk_full_occs_pick_lit (Clause *c) {
   for (const auto lit : *c) {
     assert (internal->active (lit));
     if (internal->var (lit).level == 1) {
-      LOG ("skipping assumption %s for scoring", LOGLIT (-lit));
+      LOG ("skipping assumption %s for scoring", LOGLIT(-lit));
       continue;
     }
     propagations++;
     unsigned tmp = walk_full_occs_break_value (-lit);
     double score = this->score (tmp);
-    LOG ("literal %s break-count %u score %g", LOGLIT (lit), tmp, score);
+    LOG ("literal %s break-count %u score %g", LOGLIT(lit), tmp, score);
     scores.push_back (score);
     sum += score;
   }
@@ -413,19 +413,19 @@ Lit WalkerFO::walk_full_occs_pick_lit (Clause *c) {
     res = *i++;
     if (internal->var (res).level > 1)
       break;
-    LOG ("skipping assumption %s without score", LOGLIT (-res));
+    LOG ("skipping assumption %s without score", LOGLIT(-res));
   }
   sum = *j++;
   while (sum <= lim && i != end) {
     res = *i++;
     if (internal->var (res).level == 1) {
-      LOG ("skipping assumption %s without score", LOGLIT (-res));
+      LOG ("skipping assumption %s without score", LOGLIT(-res));
       continue;
     }
     sum += *j++;
   }
   scores.clear ();
-  LOG ("picking literal %s by break-count", LOGLIT (res));
+  LOG ("picking literal %s by break-count", LOGLIT(res));
   internal->stats.ticks.walkpick += ticks - old;
   STOP (walkpick);
   return res;
@@ -467,7 +467,7 @@ void WalkerFO::make_clause (Tagged t) {
 
 void WalkerFO::make_clauses_along_occurrences (Lit lit) {
   const auto &occs = this->occs (lit);
-  LOG ("making clauses with %s along %zu occurrences", LOGLIT (lit),
+  LOG ("making clauses with %s along %zu occurrences", LOGLIT(lit),
        occs.size ());
   assert (internal->val (lit) > 0);
   size_t made = 0;
@@ -484,14 +484,14 @@ void WalkerFO::make_clauses_along_occurrences (Lit lit) {
     this->make_clause (c);
     made++;
   }
-  LOG ("made %zu clauses by flipping %s, still %zu broken", made, LOGLIT (lit),
+  LOG ("made %zu clauses by flipping %s, still %zu broken", made, LOGLIT(lit),
        broken.size ());
-  LOG ("made %zu clauses with flipped %s", made, LOGLIT (lit));
+  LOG ("made %zu clauses with flipped %s", made, LOGLIT(lit));
   (void) made;
 }
 
 void WalkerFO::make_clauses_along_unsatisfied (Lit lit) {
-  LOG ("making clauses with %s along %zu unsatisfied", LOGLIT (lit),
+  LOG ("making clauses with %s along %zu unsatisfied", LOGLIT(lit),
        this->broken.size ());
   assert (internal->val (lit) > 0);
   size_t made = 0;
@@ -523,7 +523,7 @@ void WalkerFO::make_clauses_along_unsatisfied (Lit lit) {
   }
   assert (j <= size);
   this->broken.resize (j);
-  LOG ("made %zu clauses with flipped %s", made, LOGLIT (lit));
+  LOG ("made %zu clauses with flipped %s", made, LOGLIT(lit));
   (void) made;
 }
 
@@ -542,7 +542,7 @@ void WalkerFO::make_clauses (Lit lit) {
 void WalkerFO::break_clauses (Lit lit) {
   START (walkflipbroken);
   const int64_t old = ticks;
-  LOG ("breaking clauses on %s", LOGLIT (lit));
+  LOG ("breaking clauses on %s", LOGLIT(lit));
   // Finally add all new unsatisfied (broken) clauses.
 
 #ifdef LOGGING
@@ -568,7 +568,7 @@ void WalkerFO::break_clauses (Lit lit) {
     broken++;
 #endif
   }
-  LOG ("broken %zd clauses by flipping %s", broken, LOGLIT (lit));
+  LOG ("broken %zd clauses by flipping %s", broken, LOGLIT(lit));
   internal->stats.ticks.walkflipbroken += ticks - old;
   STOP (walkflipbroken);
 }
@@ -576,7 +576,7 @@ void WalkerFO::break_clauses (Lit lit) {
 void WalkerFO::walk_full_occs_flip_lit (Lit lit) {
 
   internal->require_mode (internal->WALK);
-  LOG ("flipping assign %s", LOGLIT (lit));
+  LOG ("flipping assign %s", LOGLIT(lit));
   assert (internal->val (lit) < 0);
   const int64_t old = ticks;
 
@@ -714,7 +714,7 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
         continue;
       tmp = sign (lit);
       const int idx = abs (lit);
-      LOG ("initial assign %s to assumption phase", LOGLIT (lit));
+      LOG ("initial assign %s to assumption phase", LOGLIT(lit));
       set_val (Lit (idx), tmp);
       assert (level == 1);
       var (lit).level = 1;
@@ -730,12 +730,12 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
     const bool target = opts.warmup ? false : stable || opts.target == 2;
     for (auto idx : vars) {
       if (!active (idx)) {
-        LOG ("skipping inactive variable %s", LOGLIT (idx));
+        LOG ("skipping inactive variable %s", LOGLIT(idx));
         continue;
       }
       if (vals[idx.var ()]) {
         assert (var (idx).level == 1);
-        LOG ("skipping assumed variable %s", LOGLIT (idx));
+        LOG ("skipping assumed variable %s", LOGLIT(idx));
         continue;
       }
       int tmp = 0;
@@ -748,7 +748,7 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
       assert (level == 2);
       var (idx).level = 2;
       walker.best_values[idx.var ()] = tmp;
-      LOG ("initial assign %s to decision phase", LOGLIT (Lit (tmp < 0 ? -idx : idx)));
+      LOG ("initial assign %s to decision phase", LOGLIT(Lit (tmp < 0 ? -idx : idx)));
     }
 
     LOG ("watching satisfied and registering broken clauses");
@@ -781,9 +781,9 @@ int Internal::walk_full_occs_round (int64_t limit, bool prev) {
         if (val (lit) > 0) {
           swap (lits[satisfied], lits[i]);
           if (!satisfied++)
-            LOG ("first satisfying literal %s", LOGLIT (lit));
+            LOG ("first satisfying literal %s", LOGLIT(lit));
         } else if (!satisfiable && var (lit).level > 1) {
-          LOG ("non-assumption potentially satisfying literal %s", LOGLIT (lit));
+          LOG ("non-assumption potentially satisfying literal %s", LOGLIT(lit));
           satisfiable = true;
         }
       }

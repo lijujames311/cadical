@@ -48,9 +48,9 @@ inline void Internal::warmup_assign (Lit lit, Clause *reason) {
   trail.push_back (lit);
 #ifdef LOGGING
   if (!lit_level)
-    LOG ("root-level unit assign %s @ 0", LOGLIT (lit));
+    LOG ("root-level unit assign %s @ 0", LOGLIT(lit));
   else
-    LOG (reason, "search assign %s @ %d", LOGLIT (lit), lit_level);
+    LOG (reason, "search assign %s @ %d", LOGLIT(lit), lit_level);
 #endif
 
   assert (watching ());
@@ -73,7 +73,7 @@ void Internal::warmup_propagate_beyond_conflict () {
   while (propagated != trail.size ()) {
 
     const Lit lit = -trail[propagated++];
-    LOG ("propagating %s", LOGLIT (-lit));
+    LOG ("propagating %s", LOGLIT(-lit));
     Watches &ws = watches (lit);
 
     const const_watch_iterator eow = ws.end ();
@@ -169,7 +169,7 @@ void Internal::warmup_propagate_beyond_conflict () {
 
             // Found new unassigned replacement literal to be watched.
 
-            LOG (w.clause, "unwatch %s in", LOGLIT (r));
+            LOG (w.clause, "unwatch %s in", LOGLIT(r));
 
             lits[0] = other;
             lits[1] = r;
@@ -219,14 +219,14 @@ int Internal::warmup_decide_assumptions () {
     assert (assumed (lit));
     const signed char tmp = val (lit);
     if (tmp < 0) {
-      LOG ("assumption %s falsified", LOGLIT (lit));
+      LOG ("assumption %s falsified", LOGLIT(lit));
       res = 20;
     } else if (tmp > 0) {
-      LOG ("assumption %s already satisfied", LOGLIT (lit));
+      LOG ("assumption %s already satisfied", LOGLIT(lit));
       new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level");
     } else {
-      LOG ("deciding assumption %s", LOGLIT (lit));
+      LOG ("deciding assumption %s", LOGLIT(lit));
       search_assume_decision (lit);
     }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
@@ -252,18 +252,18 @@ int Internal::warmup_decide_assumptions () {
 
       const signed char tmp = val (lit);
       if (tmp < 0) {
-        LOG ("constraint literal %s falsified", LOGLIT (lit));
+        LOG ("constraint literal %s falsified", LOGLIT(lit));
         continue;
       }
 
       if (tmp > 0) {
-        LOG ("constraint literal %s satisfied", LOGLIT (lit));
+        LOG ("constraint literal %s satisfied", LOGLIT(lit));
         satisfied_lit = lit;
         break;
       }
 
       assert (!tmp);
-      LOG ("constraint literal %s unassigned", LOGLIT (lit));
+      LOG ("constraint literal %s unassigned", LOGLIT(lit));
 
       if (unassigned_lit == INVALID_LIT || better_decision (lit, unassigned_lit))
         unassigned_lit = lit;
@@ -275,7 +275,7 @@ int Internal::warmup_decide_assumptions () {
 
       LOG ("literal %s satisfies constraint and "
            "is implied by assumptions",
-           LOGLIT (satisfied_lit));
+           LOGLIT(satisfied_lit));
 
       new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level for constraint");
@@ -297,7 +297,7 @@ int Internal::warmup_decide_assumptions () {
 
       if (unassigned_lit != INVALID_LIT) {
 
-        LOG ("deciding %s to satisfy constraint", LOGLIT (unassigned_lit));
+        LOG ("deciding %s to satisfy constraint", LOGLIT(unassigned_lit));
         search_assume_decision (unassigned_lit);
 
       } else {

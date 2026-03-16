@@ -67,7 +67,7 @@ inline void Internal::covered_literal_addition (Lit lit, Coveror &coveror) {
   assert (level == 1);
   cover_push_extension (lit, coveror);
   for (const auto &other : coveror.intersection) {
-    LOG ("covered literal addition %s", LOGLIT (other));
+    LOG ("covered literal addition %s", LOGLIT(other));
     assert (!val (other)), assert (!val (-other));
     set_val (other, -1);
     coveror.covered.push_back (other);
@@ -83,7 +83,7 @@ inline void Internal::asymmetric_literal_addition (Lit lit,
                                                    Coveror &coveror) {
   require_mode (COVER);
   assert (level == 1);
-  LOG ("initial asymmetric literal addition %s", LOGLIT (lit));
+  LOG ("initial asymmetric literal addition %s", LOGLIT(lit));
   assert (!val (lit)), assert (!val (-lit));
   set_val (lit, -1);
   coveror.added.push_back (lit);
@@ -104,7 +104,7 @@ bool Internal::cover_propagate_asymmetric (Lit lit, Clause *ignore,
   stats.propagations.cover++;
   assert (val (lit) < 0);
   bool subsumed = false;
-  LOG ("asymmetric literal propagation of %s", LOGLIT (lit));
+  LOG ("asymmetric literal propagation of %s", LOGLIT(lit));
   Watches &ws = watches (lit);
   const const_watch_iterator eow = ws.end ();
   watch_iterator j = ws.begin ();
@@ -151,7 +151,7 @@ bool Internal::cover_propagate_asymmetric (Lit lit, Clause *ignore,
         if (v > 0)
           j[-1].blit = r;
         else if (!v) {
-          LOG (w.clause, "unwatch %s in", LOGLIT (lit));
+          LOG (w.clause, "unwatch %s in", LOGLIT(lit));
           lits[1] = r;
           *k = lit;
           watch_literal (r, lit, w.clause);
@@ -184,13 +184,13 @@ bool Internal::cover_propagate_covered (Lit lit, Coveror &coveror) {
 
   assert (val (lit) < 0);
   if (frozen (lit)) {
-    LOG ("no covered propagation on frozen literal %s", LOGLIT (lit));
+    LOG ("no covered propagation on frozen literal %s", LOGLIT(lit));
     return false;
   }
 
   stats.propagations.cover++;
 
-  LOG ("covered propagation of %s", LOGLIT (lit));
+  LOG ("covered propagation of %s", LOGLIT(lit));
   assert (coveror.intersection.empty ());
 
   Occs &os = occs (-lit);
@@ -298,7 +298,7 @@ bool Internal::cover_propagate_covered (Lit lit, Coveror &coveror) {
 
   bool res = false;
   if (first) {
-    LOG ("all resolution candidates with %s blocked", LOGLIT (-lit));
+    LOG ("all resolution candidates with %s blocked", LOGLIT(-lit));
     assert (coveror.intersection.empty ());
     cover_push_extension (lit, coveror);
     res = true;
@@ -393,7 +393,7 @@ bool Internal::cover_clause (Clause *c, Coveror &coveror) {
               if (j >= (int) coveror.covered.size () ||
                   c->literals[i] != coveror.covered[j]) {
                 --j;
-                LOG ("adding lit %s not needed for ATA", LOGLIT (lit));
+                LOG ("adding lit %s not needed for ATA", LOGLIT(lit));
                 clause.push_back (lit);
                 external->push_clause_literal_on_extension_stack (lit);
               }
@@ -432,7 +432,7 @@ bool Internal::cover_clause (Clause *c, Coveror &coveror) {
           if (j >= (int) coveror.covered.size () ||
               c->literals[i] != coveror.covered[j]) {
             --j;
-            LOG ("adding lit %s not needed for ATA", LOGLIT (lit));
+            LOG ("adding lit %s not needed for ATA", LOGLIT(lit));
             clause.push_back (lit);
             external->push_clause_literal_on_extension_stack (lit);
           }

@@ -187,7 +187,7 @@ void Internal::compact () {
   Mapper mapper (this);
 
   if (mapper.first_fixed != INVALID_LIT)
-    LOG ("found first fixed %s", LOGLIT (mapper.first_fixed));
+    LOG ("found first fixed %s", LOGLIT(mapper.first_fixed));
   else
     LOG ("no variable fixed");
 
@@ -219,7 +219,7 @@ void Internal::compact () {
     if (lrat || frat) {
       assert (eidx.is_positive());
       assert (external->ext_units.size () >= (size_t) (-eidx).vlit ());
-      LOG ("eidx: %s to be mapped from %s", LOGLIT (eidx), LOGLIT (src));
+      LOG ("eidx: %s to be mapped from %s", LOGLIT(eidx), LOGLIT(src));
       int64_t id1 = external->ext_units[eidx.vlit ()];
       int64_t id2 = external->ext_units[(-eidx).vlit ()];
       assert (!id1 || !id2);
@@ -228,13 +228,13 @@ void Internal::compact () {
         int64_t new_id2 = unit_clauses ((-src).vlit ());
         external->ext_units[eidx.vlit ()] = new_id1;
         external->ext_units[(-eidx).vlit ()] = new_id2;
-        LOG ("eidx: %s to be mapped from %s with %" PRId64 " and %" PRId64, LOGLIT (eidx), LOGLIT (src), new_id1, new_id2);
+        LOG ("eidx: %s to be mapped from %s with %" PRId64 " and %" PRId64, LOGLIT(eidx), LOGLIT(src), new_id1, new_id2);
       }
     }
     Lit dst = mapper.map_lit (src);
     LOG ("compact %" PRId64
          " maps external %s to internal %s from internal %s",
-         stats.compacts, LOGLIT (eidx), LOGLIT (dst), LOGLIT (src));
+         stats.compacts, LOGLIT(eidx), LOGLIT(dst), LOGLIT(src));
     external->e2i[eidx] = dst;
   }
 
@@ -262,7 +262,7 @@ void Internal::compact () {
         unit_clauses ((-src).vlit ()) = 0;
         continue;
       }
-      LOG ("%s -> %s", LOGLIT (src), LOGLIT (dst));
+      LOG ("%s -> %s", LOGLIT(src), LOGLIT(dst));
       int64_t id = unit_clauses (src.vlit ());
       if (!id)
         id = unit_clauses ((-src).vlit ());
@@ -443,7 +443,7 @@ void Internal::compact () {
       assert ((ilit == INVALID_LIT) == (elit == INVALID_ELIT));
       if (elit.is_negated ())
         ilit = -ilit;
-      LOG ("re adding lit external %s internal %s to constraint", LOGLIT (elit), LOGLIT (ilit));
+      LOG ("re adding lit external %s internal %s to constraint", LOGLIT(elit), LOGLIT(ilit));
       constrain (ilit);
     }
     PHASE ("compact", stats.compacts,

@@ -14,11 +14,11 @@ int Internal::clause_contains_fixed_literal (Clause *c) {
   for (const auto &lit : *c) {
     const int tmp = fixed (lit);
     if (tmp > 0) {
-      LOG (c, "root level satisfied literal %s in", LOGLIT (lit));
+      LOG (c, "root level satisfied literal %s in", LOGLIT(lit));
       satisfied++;
     }
     if (tmp < 0) {
-      LOG (c, "root level falsified literal %s in", LOGLIT (lit));
+      LOG (c, "root level falsified literal %s in", LOGLIT(lit));
       falsified++;
     }
   }
@@ -59,7 +59,7 @@ void Internal::remove_falsified_literals (Clause *c) {
     assert (tmp <= 0);
     if (tmp >= 0)
       continue;
-    LOG ("flushing %s", LOGLIT (lit));
+    LOG ("flushing %s", LOGLIT(lit));
     j--;
   }
   stats.collected += shrink_clause (c, j - c->begin ());
@@ -119,7 +119,7 @@ void Internal::protect_reasons () {
       continue;
     if (reason == external_reason)
       continue;
-    LOG (reason, "protecting assigned %s reason %p", LOGLIT (lit), (void *) reason);
+    LOG (reason, "protecting assigned %s reason %p", LOGLIT(lit), (void *) reason);
     assert (!reason->reason);
     reason->reason = true;
 #ifdef LOGGING
@@ -152,7 +152,7 @@ void Internal::unprotect_reasons () {
       continue;
     if (reason == external_reason)
       continue;
-    LOG (reason, "unprotecting assigned %s reason %p", LOGLIT (lit),
+    LOG (reason, "unprotecting assigned %s reason %p", LOGLIT(lit),
          (void *) reason);
     assert (reason->reason);
     reason->reason = false;
@@ -212,7 +212,7 @@ inline void Internal::flush_watches (Lit lit, Watches &saved) {
       c = w.clause = c->copy;
     w.size = c->size;
     const int new_blit_pos = (c->literals[0] == lit);
-    LOG (c, "clause in flush_watch starting from %s", LOGLIT (lit));
+    LOG (c, "clause in flush_watch starting from %s", LOGLIT(lit));
     assert (c->literals[!new_blit_pos] == lit); /*FW1*/
     w.blit = c->literals[new_blit_pos];
     if (w.binary ())
@@ -255,7 +255,7 @@ void Internal::update_reason_references () {
       continue;
     if (c == external_reason)
       continue;
-    LOG (c, "updating assigned %s reason", LOGLIT (lit));
+    LOG (c, "updating assigned %s reason", LOGLIT(lit));
     assert (c->reason);
     assert (c->moved);
     Clause *d = c->copy;

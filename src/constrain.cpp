@@ -16,18 +16,18 @@ void Internal::constrain (Lit lit) {
     for (vector<Lit>::const_iterator j = i; j != end; j++) {
       int tmp = marked (*j);
       if (tmp > 0) {
-        LOG ("removing duplicated literal %s from constraint", LOGLIT (*j));
+        LOG ("removing duplicated literal %s from constraint", LOGLIT(*j));
       } else if (tmp < 0) {
-        LOG ("tautological since both %s and %s occur in constraint", LOGLIT (-*j),
-             LOGLIT (*j));
+        LOG ("tautological since both %s and %s occur in constraint", LOGLIT(-*j),
+             LOGLIT(*j));
         satisfied_constraint = true;
         break;
       } else {
         tmp = val (*j);
         if (tmp < 0) {
-          LOG ("removing falsified literal %s from constraint clause", LOGLIT (*j));
+          LOG ("removing falsified literal %s from constraint clause", LOGLIT(*j));
         } else if (tmp > 0) {
-          LOG ("satisfied constraint with literal %s", LOGLIT (*j));
+          LOG ("satisfied constraint with literal %s", LOGLIT(*j));
           satisfied_constraint = true;
           break;
         } else {

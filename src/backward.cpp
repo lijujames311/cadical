@@ -58,7 +58,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
     if (tmp < 0)
       continue;
     size_t l = occs (lit).size ();
-    LOG ("literal %s occurs %zd times", LOGLIT (lit), l);
+    LOG ("literal %s occurs %zd times", LOGLIT(lit), l);
     if (l < len)
       best = lit, len = l;
     mark (lit);
@@ -72,7 +72,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
     LOG ("skipping backward subsumption due to too many occurrences");
   } else {
     assert (len);
-    LOG ("literal %s has smallest number of occurrences %zd", LOGLIT (best), len);
+    LOG ("literal %s has smallest number of occurrences %zd", LOGLIT(best), len);
     LOG ("marked %d literals in clause of size %d", size, c->size);
     for (auto &d : occs (best)) {
       if (d == c)
@@ -189,7 +189,7 @@ void Internal::elim_backward_clause (Eliminator &eliminator, Clause *c) {
             elim_update_removed_clause (eliminator, d);
           } else if (unit != INVALID_LIT && unit != OTHER_INVALID_LIT) {
             assert (unit != INVALID_LIT);
-            LOG (d, "unit %s through hyper unary resolution with", LOGLIT (unit));
+            LOG (d, "unit %s through hyper unary resolution with", LOGLIT(unit));
             assign_unit (unit);
             elim_propagate (eliminator, unit);
             lrat_chain.clear ();

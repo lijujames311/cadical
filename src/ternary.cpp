@@ -107,7 +107,7 @@ bool Internal::ternary_find_ternary_clause (Lit a, Lit b, Lit c) {
 // needs to be cleared in any case.
 
 bool Internal::hyper_ternary_resolve (Clause *c, Lit pivot, Clause *d) {
-  LOG ("hyper binary resolving on pivot %s", LOGLIT (pivot));
+  LOG ("hyper binary resolving on pivot %s", LOGLIT(pivot));
   LOG (c, "1st antecedent");
   LOG (d, "2nd antecedent");
   stats.ternres++;
@@ -150,7 +150,7 @@ bool Internal::hyper_ternary_resolve (Clause *c, Lit pivot, Clause *d) {
 // propagation step during search.
 
 void Internal::ternary_lit (Lit pivot, int64_t &steps, int64_t &htrs) {
-  LOG ("starting hyper ternary resolutions on pivot %s", LOGLIT (pivot));
+  LOG ("starting hyper ternary resolutions on pivot %s", LOGLIT(pivot));
   steps -= 1 + cache_lines (occs (pivot).size (), sizeof (Clause *));
   for (const auto &c : occs (pivot)) {
     if (steps < 0)
@@ -245,7 +245,7 @@ void Internal::ternary_idx (Lit idx, int64_t &steps, int64_t &htrs) {
   int pos = occs (idx).size ();
   int neg = occs (-idx).size ();
   if (pos <= opts.ternaryocclim && neg <= opts.ternaryocclim) {
-    LOG ("index %s has %zd positive and %zd negative occurrences", LOGLIT (idx),
+    LOG ("index %s has %zd positive and %zd negative occurrences", LOGLIT(idx),
          occs (idx).size (), occs (-idx).size ());
     Lit pivot = (neg < pos ? -idx : idx);
     ternary_lit (pivot, steps, htrs);

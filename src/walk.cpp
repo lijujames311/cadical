@@ -130,11 +130,11 @@ void Walker::populate_table (double size) {
 // Add the literal to flip to the queue
 
 void Walker::push_flipped (Lit flipped) {
-  LOG ("push literal %s on the flips", LOGLIT (flipped));
+  LOG ("push literal %s on the flips", LOGLIT(flipped));
   assert (flipped != INVALID_LIT);
   if (best_trail_pos < 0) {
     LOG ("not pushing flipped %s to already invalid trail",
-         LOGLIT (flipped));
+         LOGLIT(flipped));
     return;
   }
 
@@ -143,7 +143,7 @@ void Walker::push_flipped (Lit flipped) {
   if (size_trail < limit) {
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zd",
-         LOGLIT (flipped), size_trail + 1);
+         LOGLIT(flipped), size_trail + 1);
     return;
   }
 
@@ -153,12 +153,12 @@ void Walker::push_flipped (Lit flipped) {
     save_walker_trail (true);
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zu",
-         LOGLIT (flipped), flips.size ());
+         LOGLIT(flipped), flips.size ());
     return;
   } else {
     LOG ("trail reached limit %zd without best position", limit);
     flips.clear ();
-    LOG ("not pushing %s to invalidated trail", LOGLIT (flipped));
+    LOG ("not pushing %s to invalidated trail", LOGLIT(flipped));
     best_trail_pos = -1;
     LOG ("best trail position becomes invalid");
   }
@@ -366,14 +366,14 @@ Lit Internal::walk_pick_lit (Walker &walker, Clause *c) {
   for (const auto lit : *c) {
     assert (active (lit));
     if (var (lit).level == 1) {
-      LOG ("skipping assumption %s for scoring", LOGLIT (-lit));
+      LOG ("skipping assumption %s for scoring", LOGLIT(-lit));
       continue;
     }
     assert (active (lit));
     propagations++;
     unsigned tmp = walk_break_value (-lit, walker.ticks);
     double score = walker.score (tmp);
-    LOG ("literal %s break-count %u score %g", LOGLIT (lit), tmp, score);
+    LOG ("literal %s break-count %u score %g", LOGLIT(lit), tmp, score);
     walker.scores.push_back (score);
     sum += score;
   }
@@ -392,19 +392,19 @@ Lit Internal::walk_pick_lit (Walker &walker, Clause *c) {
     res = *i++;
     if (var (res).level > 1)
       break;
-    LOG ("skipping assumption %s without score", LOGLIT (-res));
+    LOG ("skipping assumption %s without score", LOGLIT(-res));
   }
   sum = *j++;
   while (sum <= lim && i != end) {
     res = *i++;
     if (var (res).level == 1) {
-      LOG ("skipping assumption %s without score", LOGLIT (-res));
+      LOG ("skipping assumption %s without score", LOGLIT(-res));
       continue;
     }
     sum += *j++;
   }
   walker.scores.clear ();
-  LOG ("picking literal %s by break-count", LOGLIT (res));
+  LOG ("picking literal %s by break-count", LOGLIT(res));
   stats.ticks.walkpick += walker.ticks - old;
   return res;
 }
@@ -417,7 +417,7 @@ Lit Internal::walk_pick_lit (Walker &walker, ClauseOrBinary c) {
 
 Lit Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
   LOG ("picking literal by break-count on binary clause [%" PRIu64 "]%s %s",
-       c.d->id, LOGLIT (c.lit), LOGLIT (c.other));
+       c.d->id, LOGLIT(c.lit), LOGLIT(c.other));
   assert (walker.scores.empty ());
   const int64_t old = walker.ticks;
   double sum = 0;
@@ -426,7 +426,7 @@ Lit Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
   for (const auto lit : clause) {
     assert (active (lit));
     if (var (lit).level == 1) {
-      LOG ("skipping assumption %s for scoring", LOGLIT (-lit));
+      LOG ("skipping assumption %s for scoring", LOGLIT(-lit));
       continue;
     }
     assert (active (lit));
@@ -434,7 +434,7 @@ Lit Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
     propagations++;
     unsigned tmp = walk_break_value (-lit, walker.ticks);
     double score = walker.score (tmp);
-    LOG ("literal %s break-count %u score %g", LOGLIT (lit), tmp, score);
+    LOG ("literal %s break-count %u score %g", LOGLIT(lit), tmp, score);
     walker.scores.push_back (score);
     sum += score;
   }
@@ -453,20 +453,20 @@ Lit Internal::walk_pick_lit (Walker &walker, const TaggedBinary c) {
     res = *i++;
     if (var (res).level > 1)
       break;
-    LOG ("skipping assumption %s without score", LOGLIT (-res));
+    LOG ("skipping assumption %s without score", LOGLIT(-res));
   }
   sum = *j++;
   while (sum <= lim && i != end) {
     res = *i++;
     if (var (res).level == 1) {
-      LOG ("skipping assumption %s without score", LOGLIT (-res));
+      LOG ("skipping assumption %s without score", LOGLIT(-res));
       continue;
     }
     sum += *j++;
   }
   assert (res != INVALID_LIT);
   walker.scores.clear ();
-  LOG ("picking literal %s by break-count", LOGLIT (res));
+  LOG ("picking literal %s by break-count", LOGLIT(res));
   stats.ticks.walkpick += walker.ticks - old;
   return res;
 }
@@ -478,7 +478,7 @@ bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
   START (walkflip);
   const int64_t old = walker.ticks;
   require_mode (WALK);
-  LOG ("flipping assign %s", LOGLIT (lit));
+  LOG ("flipping assign %s", LOGLIT(lit));
   assert (val (lit) < 0);
 
   // First flip the literal value.
@@ -591,7 +591,7 @@ bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
             (int64_t) walker.broken.size ());
     walker.broken.resize (j - walker.broken.begin ());
     LOG ("made %" PRId64 " clauses by flipping %s, still %zu broken", made,
-         LOGLIT (lit), walker.broken.size ());
+         LOGLIT(lit), walker.broken.size ());
 #ifndef NDEBUG
     for (auto d : walker.broken) {
       if (d.is_binary ()) {
@@ -631,7 +631,7 @@ bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
         const Lit other = w.blit;
         assert (w.blit != -lit);
         if (val (other) > 0) {
-          LOG (d, "unwatch %s in", LOGLIT (-lit));
+          LOG (d, "unwatch %s in", LOGLIT(-lit));
           watch_binary_literal (other, -lit, d);
           ++walker.ticks;
           continue;
@@ -694,7 +694,7 @@ bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
 #endif
       }
     }
-    LOG ("broken %" PRId64 " clauses by flipping %s", broken, LOGLIT (lit));
+    LOG ("broken %" PRId64 " clauses by flipping %s", broken, LOGLIT(lit));
     ws.clear ();
   }
   STOP (walkflip);
@@ -736,7 +736,7 @@ inline void Internal::walk_save_minimum (Walker &walker) {
       for (const auto &lit : *c) {
         const int tmp = internal->val (lit);
         if (tmp > 0) {
-          LOG (c, "satisfied literal %s in", LOGLIT (lit));
+          LOG (c, "satisfied literal %s in", LOGLIT(lit));
           satisfied++;
         }
       }
@@ -820,7 +820,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
         continue;
       tmp = sign (lit);
       const int idx = abs (lit);
-      LOG ("initial assign %s to assumption phase", LOGLIT (lit));
+      LOG ("initial assign %s to assumption phase", LOGLIT(lit));
       set_val (Lit (idx), tmp);
       assert (level == 1);
       var (lit).level = 1;
@@ -837,12 +837,12 @@ int Internal::walk_round (int64_t limit, bool prev) {
     const bool target = opts.warmup ? false : stable || opts.target == 2;
     for (auto idx : vars) {
       if (!active (idx)) {
-        LOG ("skipping inactive variable %s", LOGLIT (idx));
+        LOG ("skipping inactive variable %s", LOGLIT(idx));
         continue;
       }
       if (val (idx)) {
         assert (var (idx).level == 1);
-        LOG ("skipping assumed variable %s", LOGLIT (idx));
+        LOG ("skipping assumed variable %s", LOGLIT(idx));
         continue;
       }
       int tmp = 0;
@@ -854,7 +854,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
       set_val (idx, tmp);
       assert (level == 2);
       var (idx).level = 2;
-      LOG ("initial assign %s to decision phase", LOGLIT (Lit (idx)));
+      LOG ("initial assign %s to decision phase", LOGLIT(Lit (idx)));
     }
 
     LOG ("watching satisfied and registering broken clauses");
@@ -894,9 +894,9 @@ int Internal::walk_round (int64_t limit, bool prev) {
         if (val (lit) > 0) {
           swap (lits[satisfied], lits[i]);
           if (!satisfied++)
-            LOG ("first satisfying literal %s", LOGLIT (lit));
+            LOG ("first satisfying literal %s", LOGLIT(lit));
         } else if (!satisfiable && var (lit).level > 1) {
-          LOG ("non-assumption potentially satisfying literal %s", LOGLIT (lit));
+          LOG ("non-assumption potentially satisfying literal %s", LOGLIT(lit));
           satisfiable = true;
         }
       }

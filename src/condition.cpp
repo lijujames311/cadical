@@ -79,13 +79,13 @@ bool Internal::conditioning () {
 // literals during the procedure.
 
 void Internal::condition_unassign (Lit lit) {
-  LOG ("condition unassign %s", LOGLIT (lit));
+  LOG ("condition unassign %s", LOGLIT(lit));
   assert (val (lit) > 0);
   set_val (lit, 0);
 }
 
 void Internal::condition_assign (Lit lit) {
-  LOG ("condition assign %s", LOGLIT (lit));
+  LOG ("condition assign %s", LOGLIT(lit));
   assert (!val (lit));
   set_val (lit, 1);
 }
@@ -104,7 +104,7 @@ inline bool Internal::is_autarky_literal (Lit lit) const {
 }
 
 inline void Internal::mark_as_conditional_literal (Lit lit) {
-  LOG ("marking %s as conditional literal", LOGLIT (lit));
+  LOG ("marking %s as conditional literal", LOGLIT(lit));
   assert (val (lit) > 0);
   setbit (lit, 0);
   assert (is_conditional_literal (lit));
@@ -112,7 +112,7 @@ inline void Internal::mark_as_conditional_literal (Lit lit) {
 }
 
 inline void Internal::unmark_as_conditional_literal (Lit lit) {
-  LOG ("unmarking %s as conditional literal", LOGLIT (lit));
+  LOG ("unmarking %s as conditional literal", LOGLIT(lit));
   assert (is_conditional_literal (lit));
   unsetbit (lit, 0);
 }
@@ -129,14 +129,14 @@ inline bool Internal::is_in_candidate_clause (Lit lit) const {
 }
 
 inline void Internal::mark_in_candidate_clause (Lit lit) {
-  LOG ("marking %s as literal of the candidate clause", LOGLIT (lit));
+  LOG ("marking %s as literal of the candidate clause", LOGLIT(lit));
   mark67 (lit);
   assert (is_in_candidate_clause (lit));
   assert (!is_in_candidate_clause (-lit));
 }
 
 inline void Internal::unmark_in_candidate_clause (Lit lit) {
-  LOG ("unmarking %s as literal of the candidate clause", LOGLIT (lit));
+  LOG ("unmarking %s as literal of the candidate clause", LOGLIT(lit));
   assert (is_in_candidate_clause (lit));
   unmark67 (lit);
 }
@@ -182,18 +182,18 @@ long Internal::condition_round (long delta) {
       if (v.level) {
         const Lit lit = tmp < 0 ? -idx : idx;
         if (!active (idx)) {
-          LOG ("temporarily unassigning inactive literal %s", LOGLIT (lit));
+          LOG ("temporarily unassigning inactive literal %s", LOGLIT(lit));
           condition_unassign (lit);
         }
         if (frozen (idx)) {
-          LOG ("temporarily unassigning frozen literal %s", LOGLIT (lit));
+          LOG ("temporarily unassigning frozen literal %s", LOGLIT(lit));
           condition_unassign (lit);
         }
       }
     } else if (frozen (idx)) {
-      LOG ("keeping frozen literal %s unassigned", LOGLIT (idx));
+      LOG ("keeping frozen literal %s unassigned", LOGLIT(idx));
     } else if (!active (idx)) {
-      LOG ("keeping inactive literal %s unassigned", LOGLIT (idx));
+      LOG ("keeping inactive literal %s unassigned", LOGLIT(idx));
     } else { // if (preprocessing) {
       if (initial_level == level) {
         level++;
@@ -239,7 +239,7 @@ long Internal::condition_round (long delta) {
       continue;
     if (!var (idx).level)
       continue;
-    LOG ("initial assignment %s", LOGLIT (tmp < 0 ? -idx : idx));
+    LOG ("initial assignment %s", LOGLIT(tmp < 0 ? -idx : idx));
     initial.assigned++;
   }
 
@@ -359,7 +359,7 @@ long Internal::condition_round (long delta) {
 #ifndef QUIET
       watched++;
 #endif
-      LOG (c, "watching %s with %zd occurrences in", LOGLIT (watch), minsize);
+      LOG (c, "watching %s with %zd occurrences in", LOGLIT(watch), minsize);
     }
 
     // The initial global conditional part for the current assignment is
@@ -408,12 +408,12 @@ long Internal::condition_round (long delta) {
          percent (initial.autarky, initial.assigned));
 #ifdef LOGGING
   for (size_t i = 0; i < conditional.size (); i++) {
-    LOG ("initial conditional %s", LOGLIT (conditional[i]));
+    LOG ("initial conditional %s", LOGLIT(conditional[i]));
     assert (is_conditional_literal (conditional[i]));
   }
   for (size_t i = 0; i < trail.size (); i++)
     if (is_autarky_literal (trail[i]))
-      LOG ("initial autarky %s", LOGLIT (trail[i]));
+      LOG ("initial autarky %s", LOGLIT(trail[i]));
 #endif
   assert (initial.conditional == conditional.size ());
   assert (initial.assigned == initial.conditional + initial.autarky);
@@ -547,7 +547,7 @@ long Internal::condition_round (long delta) {
 
     stats.condcands++; // Only now ...
 
-    LOG ("watching first autarky literal %s", LOGLIT (watched_autarky_literal));
+    LOG ("watching first autarky literal %s", LOGLIT(watched_autarky_literal));
 
     // Save assignment sizes for statistics, logging and checking.
     //
@@ -569,15 +569,15 @@ long Internal::condition_round (long delta) {
       assert (next.unassigned == unassigned.size ());
 
       const Lit conditional_lit = conditional[next.conditional++];
-      LOG ("processing next conditional %s", LOGLIT (conditional_lit));
+      LOG ("processing next conditional %s", LOGLIT(conditional_lit));
       assert (is_conditional_literal (conditional_lit));
 
       if (is_in_candidate_clause (-conditional_lit)) {
-        LOG ("conditional %s negated in candidate clause", LOGLIT (-conditional_lit));
+        LOG ("conditional %s negated in candidate clause", LOGLIT(-conditional_lit));
         continue;
       }
 
-      LOG ("conditional %s does not occur negated in candidate clause", LOGLIT (conditional_lit));
+      LOG ("conditional %s does not occur negated in candidate clause", LOGLIT(conditional_lit));
 
       condition_unassign (conditional_lit);
       assert (!is_conditional_literal (conditional_lit));
@@ -591,7 +591,7 @@ long Internal::condition_round (long delta) {
       while (watched_autarky_literal != INVALID_LIT && stats.condprops < limit &&
              next.unassigned < unassigned.size ()) {
         const Lit unassigned_lit = unassigned[next.unassigned++];
-        LOG ("processing next unassigned %s", LOGLIT (unassigned_lit));
+        LOG ("processing next unassigned %s", LOGLIT(unassigned_lit));
         assert (!val (unassigned_lit));
 #ifndef QUIET
         props++;
@@ -629,11 +629,11 @@ long Internal::condition_round (long delta) {
           }
 
           if (replacement != INVALID_LIT) {
-            LOG ("found replacement %s for unassigned %s", LOGLIT (replacement),
-                 LOGLIT (unassigned_lit));
-            LOG (d, "unwatching %s in", LOGLIT (unassigned_lit));
+            LOG ("found replacement %s for unassigned %s", LOGLIT(replacement),
+                 LOGLIT(unassigned_lit));
+            LOG (d, "unwatching %s in", LOGLIT(unassigned_lit));
             i--; // Drop watch!
-            LOG (d, "watching %s in", LOGLIT (replacement));
+            LOG (d, "watching %s in", LOGLIT(replacement));
 
             assert (replacement != unassigned_lit);
             occs (replacement).push_back (d);
@@ -641,7 +641,7 @@ long Internal::condition_round (long delta) {
             continue; // ... with next watched clause 'd'.
           }
 
-          LOG ("no replacement found for unassigned %s", LOGLIT (unassigned_lit));
+          LOG ("no replacement found for unassigned %s", LOGLIT(unassigned_lit));
 
           // Keep watching 'd' by 'unassigned_lit' if no replacement found.
 
@@ -667,7 +667,7 @@ long Internal::condition_round (long delta) {
             if (-lit != watched_autarky_literal)
               continue;
 
-            LOG ("need to replace autarky literal %s in candidate", LOGLIT (-lit));
+            LOG ("need to replace autarky literal %s in candidate", LOGLIT(-lit));
             replacement = INVALID_LIT;
 
             // TODO save starting point because we only move it forward?
@@ -682,7 +682,7 @@ long Internal::condition_round (long delta) {
 #ifndef LOGGING
             if (replacement != INVALID_LIT) {
               LOG (c, "watching autarky %s instead %s in candidate",
-                   LOGLIT (replacement), LOGLIT (watched_autarky_literal));
+                   LOGLIT(replacement), LOGLIT(watched_autarky_literal));
             } else {
               LOG ("failed to find an autarky replacement");
             }
@@ -697,7 +697,7 @@ long Internal::condition_round (long delta) {
           while (j != os.end ())
             *i++ = *j++;
           LOG ("flushed %zd occurrences of %s", os.end () - i,
-               LOGLIT (unassigned_lit));
+               LOGLIT(unassigned_lit));
           os.resize (i - os.begin ());
         }
       } // End of loop which goes over all unprocessed unassigned literals.
@@ -730,12 +730,12 @@ long Internal::condition_round (long delta) {
       if (val (lit)) {
         check.assigned++;
         if (is_conditional_literal (lit)) {
-          LOG ("remaining conditional %s", LOGLIT (lit));
+          LOG ("remaining conditional %s", LOGLIT(lit));
           assert (!is_autarky_literal (lit));
           check.conditional++;
         } else {
           assert (is_autarky_literal (lit));
-          LOG ("remaining autarky %s", LOGLIT (lit));
+          LOG ("remaining autarky %s", LOGLIT(lit));
           check.autarky++;
         }
       } else {
@@ -759,7 +759,7 @@ long Internal::condition_round (long delta) {
       blocked++;
       stats.conditioned++;
       LOG (c, "positive autarky literal %s globally blocks",
-           LOGLIT (watched_autarky_literal));
+           LOGLIT(watched_autarky_literal));
 
       LOG ("remaining %zd assigned literals %.0f%%", remain.assigned,
            percent (remain.assigned, initial.assigned));

@@ -1570,11 +1570,14 @@ struct IrredundantCall : public Call {
 struct ResizeCall : public Call {
   ResizeCall (int max_var) : Call (RESIZE, max_var) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
+#ifndef NDEBUG
     bool has_effect = (s->vars () < arg && !arg);
+#endif
     extend_map_to (s, extendmap);
     s->resize (arg);
+#ifndef NDEBUG
     assert (!has_effect || extendmap.map.back () == s->vars ());
-    printf ("vars = %d", s->vars ());
+#endif
   }
   void print (ostream &o) { o << "resize " << arg << endl; }
   Call *copy () { return new ResizeCall (arg); }
@@ -1585,7 +1588,10 @@ struct DeclareMoreVariablesCall : public Call {
   DeclareMoreVariablesCall (int max_var) : Call (RESIZE, max_var) {arg = max_var;}
   void execute (Solver *&s, ExtendMap &extendmap) {
     extend_map_by (s, extendmap, arg);
-    int i = s->declare_more_variables (arg);
+#ifndef NDEBUG
+    int i =
+#endif
+      s->declare_more_variables (arg);
     // check that our mapping from trace literals to external literals matchs
     // the `declare_more_variables` result.
     assert (!arg || i == s->vars ());
@@ -1600,7 +1606,10 @@ struct DeclareOneMoreVariableCall : public Call {
   DeclareOneMoreVariableCall () : Call (RESIZE) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
     extend_map_by (s, extendmap, 1);
-    int i = s->declare_one_more_variable ();
+#ifndef NDEBUG
+    int i =
+#endif
+      s->declare_one_more_variable ();
     assert (i == s->vars ());
     assert (extendmap.map.back () == i);
   }

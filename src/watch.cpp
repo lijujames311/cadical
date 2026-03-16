@@ -60,14 +60,14 @@ void Internal::connect_watches (bool irredundant_only) {
         const size_t pos0 = var (lit0).trail;
         if (pos0 < propagated) {
           propagated = pos0;
-          LOG ("literal %s resets propagated to %zd", LOGLIT (lit0), pos0);
+          LOG ("literal %s resets propagated to %zd", LOGLIT(lit0), pos0);
         }
       }
       if (tmp1 < 0) {
         const size_t pos1 = var (lit1).trail;
         if (pos1 < propagated) {
           propagated = pos1;
-          LOG ("literal %s resets propagated to %zd", LOGLIT (lit1), pos1);
+          LOG ("literal %s resets propagated to %zd", LOGLIT(lit1), pos1);
         }
       }
     }

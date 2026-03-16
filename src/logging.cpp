@@ -65,7 +65,7 @@ void Logger::log (Internal *internal, const Clause *c, const char *fmt,
           s.push_back (lit);
         sort (s.begin (), s.end (), std::less<Lit> ());
         for (const auto &lit : s)
-          printf (" %s", LOGLIT (lit));
+          printf (" %s", LOGLIT(lit));
       } else {
         for (const auto &lit : *c) {
           printf (" %s", loglit (internal, lit).c_str ());
@@ -144,10 +144,10 @@ void Logger::log (Internal *internal, const vector<Lit> &c, const char *fmt,
       s.push_back (lit);
     sort (s.begin (), s.end (), clause_lit_less_than ());
     for (const auto &lit : s)
-      printf (" %s", LOGLIT (lit));
+      printf (" %s", LOGLIT(lit));
   } else {
     for (const auto &lit : c)
-      printf (" %s", LOGLIT (lit));
+      printf (" %s", LOGLIT(lit));
   }
   fputc ('\n', stdout);
   tout.normal ();
@@ -168,10 +168,10 @@ void Logger::log (Internal *internal, const vector<ELit> &c, const char *fmt,
       s.push_back (lit);
     sort (s.begin (), s.end (), std::less <ELit> ());
     for (const auto &lit : s)
-      printf (" %s", LOGLIT (lit));
+      printf (" %s", LOGLIT(lit));
   } else {
     for (const auto &lit : c)
-      printf (" %s", LOGLIT (lit));
+      printf (" %s", LOGLIT(lit));
   }
   fputc ('\n', stdout);
   tout.normal ();

@@ -118,7 +118,7 @@ void Internal::elim_update_removed_lit (Eliminator &eliminator, Lit lit) {
   if (schedule.contains (idx))
     schedule.update (idx);
   else {
-    LOG ("rescheduling %s for elimination after removing clause", LOGLIT (lit));
+    LOG ("rescheduling %s for elimination after removing clause", LOGLIT(lit));
     schedule.push_back (idx);
   }
 }
@@ -147,7 +147,7 @@ void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
   work.push_back (root);
   while (i < work.size ()) {
     Lit lit = work[i++];
-    LOG ("elimination propagation of %s", LOGLIT (lit));
+    LOG ("elimination propagation of %s", LOGLIT(lit));
     assert (val (lit) > 0);
     const Occs &ns = occs (-lit);
     for (const auto &c : ns) {
@@ -168,18 +168,18 @@ void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
           unit = other;
       }
       if (satisfied != INVALID_LIT) {
-        LOG (c, "elimination propagation of %s finds %s satisfied", LOGLIT (lit), LOGLIT (satisfied));
+        LOG (c, "elimination propagation of %s finds %s satisfied", LOGLIT(lit), LOGLIT(satisfied));
         elim_update_removed_clause (eliminator, c, satisfied);
         mark_garbage (c);
       } else if (unit == INVALID_LIT) {
-        LOG ("empty clause during elimination propagation of %s", LOGLIT (lit));
+        LOG ("empty clause during elimination propagation of %s", LOGLIT(lit));
         // need to set conflict = c for lrat
         conflict = c;
         learn_empty_clause ();
         conflict = 0;
         break;
       } else if (unit != OTHER_INVALID_LIT) {
-        LOG ("new unit %s during elimination propagation of %s", LOGLIT (unit), LOGLIT (lit));
+        LOG ("new unit %s during elimination propagation of %s", LOGLIT(unit), LOGLIT(lit));
         build_chain_for_units (unit, c, 0);
         assign_unit (unit);
         work.push_back (unit);
@@ -191,7 +191,7 @@ void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
     for (const auto &c : ps) {
       if (c->garbage)
         continue;
-      LOG (c, "elimination propagation of %s produces satisfied", LOGLIT (lit));
+      LOG (c, "elimination propagation of %s produces satisfied", LOGLIT(lit));
       elim_update_removed_clause (eliminator, c, lit);
       mark_garbage (c);
     }
@@ -208,7 +208,7 @@ void Internal::elim_propagate (Eliminator &eliminator, Lit root) {
 
 void Internal::elim_on_the_fly_self_subsumption (Eliminator &eliminator,
                                                  Clause *c, Lit pivot) {
-  LOG (c, "pivot %s on-the-fly self-subsuming resolution", LOGLIT (pivot));
+  LOG (c, "pivot %s on-the-fly self-subsuming resolution", LOGLIT(pivot));
   stats.elimotfstr++;
   stats.strengthened++;
   assert (clause.empty ());
@@ -314,7 +314,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
       mark (lit), clause.push_back (lit), s++;
   }
   if (satisfied != INVALID_LIT) {
-    LOG (c, "satisfied by %s antecedent", LOGLIT (satisfied));
+    LOG (c, "satisfied by %s antecedent", LOGLIT(satisfied));
     elim_update_removed_clause (eliminator, c, satisfied);
     mark_garbage (c);
     clause.clear ();
@@ -368,7 +368,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
   }
 
   if (satisfied != INVALID_LIT) {
-    LOG (d, "satisfied by %s antecedent", LOGLIT (satisfied));
+    LOG (d, "satisfied by %s antecedent", LOGLIT(satisfied));
     elim_update_removed_clause (eliminator, d, satisfied);
     mark_garbage (d);
     clause.clear ();
@@ -381,7 +381,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
 
   if (tautological != INVALID_LIT) {
     clause.clear ();
-    LOG ("resolvent tautological on %s", LOGLIT (tautological));
+    LOG ("resolvent tautological on %s", LOGLIT(tautological));
     lrat_chain.clear ();
     return false;
   }
@@ -395,7 +395,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
 
   if (size == 1) {
     Lit unit = clause[0];
-    LOG ("unit resolvent %s", LOGLIT (unit));
+    LOG ("unit resolvent %s", LOGLIT(unit));
     clause.clear ();
     assign_unit (unit); // already clears lrat_chain.
     if (propagate_eagerly)
@@ -416,7 +416,7 @@ bool Internal::resolve_clauses (Eliminator &eliminator, Clause *c,
     clause.clear ();
     // LRAT is c + d (+ eventual units)
     elim_on_the_fly_self_subsumption (eliminator, c, pivot);
-    LOG (d, "double pivot %s on-the-fly self-subsuming resolution", LOGLIT (-pivot));
+    LOG (d, "double pivot %s on-the-fly self-subsuming resolution", LOGLIT(-pivot));
     stats.elimotfsub++;
     stats.subsumed++;
     elim_update_removed_clause (eliminator, d, -pivot);
@@ -464,7 +464,7 @@ bool Internal::elim_resolvents_are_bounded (Eliminator &eliminator,
   const bool substitute = !eliminator.gates.empty ();
   const bool resolve_gates = eliminator.definition_unit;
   if (substitute)
-    LOG ("trying to substitute %s", LOGLIT (pivot));
+    LOG ("trying to substitute %s", LOGLIT(pivot));
 
   stats.elimtried++;
 
@@ -481,7 +481,7 @@ bool Internal::elim_resolvents_are_bounded (Eliminator &eliminator,
 
   LOG ("checking number resolvents on %s bounded by "
        "%" PRId64 " = %" PRId64 " + %" PRId64 " + %" PRId64,
-       LOGLIT (pivot), bound, pos, neg, lim.elimbound);
+       LOGLIT(pivot), bound, pos, neg, lim.elimbound);
 
   // Try all resolutions between a positive occurrence (outer loop) of
   // 'pivot' and a negative occurrence of 'pivot' (inner loop) as long the
@@ -507,15 +507,15 @@ bool Internal::elim_resolvents_are_bounded (Eliminator &eliminator,
         clause.clear ();
         LOG ("now at least %" PRId64
              " non-tautological resolvents on pivot %s",
-             resolvents, LOGLIT (pivot));
+             resolvents, LOGLIT(pivot));
         if (size > opts.elimclslim) {
           LOG ("resolvent size %d too big after %" PRId64
                " resolvents on %s",
-               size, resolvents, LOGLIT (pivot));
+               size, resolvents, LOGLIT(pivot));
           return false;
         }
         if (resolvents > bound) {
-          LOG ("too many non-tautological resolvents on %s", LOGLIT (pivot));
+          LOG ("too many non-tautological resolvents on %s", LOGLIT(pivot));
           return false;
         }
       } else if (unsat)
@@ -540,7 +540,7 @@ inline void Internal::elim_add_resolvents (Eliminator &eliminator,
   const bool substitute = !eliminator.gates.empty ();
   const bool resolve_gates = eliminator.definition_unit;
   if (substitute) {
-    LOG ("substituting pivot %s by resolving with %zd gate clauses", LOGLIT (pivot),
+    LOG ("substituting pivot %s by resolving with %zd gate clauses", LOGLIT(pivot),
          eliminator.gates.size ());
     stats.elimsubst++;
   }
@@ -564,7 +564,7 @@ inline void Internal::elim_add_resolvents (Eliminator &eliminator,
     break;
   }
 
-  LOG ("adding all resolvents on %s", LOGLIT (pivot));
+  LOG ("adding all resolvents on %s", LOGLIT(pivot));
 
   assert (!val (pivot));
   assert (!flags (pivot).eliminated ());
@@ -600,7 +600,7 @@ inline void Internal::elim_add_resolvents (Eliminator &eliminator,
     }
   }
 
-  LOG ("added %" PRId64 " resolvents to eliminate %s", resolvents, LOGLIT (pivot));
+  LOG ("added %" PRId64 " resolvents to eliminate %s", resolvents, LOGLIT(pivot));
 }
 
 /*------------------------------------------------------------------------*/
@@ -612,7 +612,7 @@ void Internal::mark_eliminated_clauses_as_garbage (
     Eliminator &eliminator, Lit pivot, bool &deleted_binary_clause) {
   assert (!unsat);
 
-  LOG ("marking irredundant clauses with %s as garbage", LOGLIT (pivot));
+  LOG ("marking irredundant clauses with %s as garbage", LOGLIT(pivot));
 
   const int64_t substitute = eliminator.gates.size ();
   if (substitute)
@@ -640,7 +640,7 @@ void Internal::mark_eliminated_clauses_as_garbage (
   }
   erase_occs (ps);
 
-  LOG ("marking irredundant clauses with %s as garbage", LOGLIT (-pivot));
+  LOG ("marking irredundant clauses with %s as garbage", LOGLIT(-pivot));
 
   Occs &ns = occs (-pivot);
   for (const auto &d : ns) {
@@ -691,17 +691,17 @@ void Internal::try_to_eliminate_variable (Eliminator &eliminator, Lit pivot,
   }
   LOG ("pivot %s occurs positively %" PRId64
        " times and negatively %" PRId64 " times",
-       LOGLIT (pivot), pos, neg);
+       LOGLIT(pivot), pos, neg);
   assert (!eliminator.schedule.contains (abs (pivot)));
   assert (pos <= neg);
 
   if (pos && neg > opts.elimocclim) {
-    LOG ("too many occurrences thus not eliminated %s", LOGLIT (pivot));
+    LOG ("too many occurrences thus not eliminated %s", LOGLIT(pivot));
     assert (!eliminator.schedule.contains (abs (pivot)));
     return;
   }
 
-  LOG ("trying to eliminate %s", LOGLIT (pivot));
+  LOG ("trying to eliminate %s", LOGLIT(pivot));
   assert (!flags (pivot).eliminated ());
 
   // Sort occurrence lists, such that shorter clauses come first.
@@ -715,7 +715,7 @@ void Internal::try_to_eliminate_variable (Eliminator &eliminator, Lit pivot,
 
   if (!unsat && !val (pivot)) {
     if (elim_resolvents_are_bounded (eliminator, pivot)) {
-      LOG ("number of resolvents on %s are bounded", LOGLIT (pivot));
+      LOG ("number of resolvents on %s are bounded", LOGLIT(pivot));
       elim_add_resolvents (eliminator, pivot);
       if (!unsat)
         mark_eliminated_clauses_as_garbage (eliminator, pivot,
@@ -723,7 +723,7 @@ void Internal::try_to_eliminate_variable (Eliminator &eliminator, Lit pivot,
       if (active (pivot))
         mark_eliminated (pivot);
     } else {
-      LOG ("too many resolvents on %s so not eliminated", LOGLIT (pivot));
+      LOG ("too many resolvents on %s so not eliminated", LOGLIT(pivot));
     }
   }
 
@@ -844,7 +844,7 @@ int Internal::elim_round (bool &completed, bool &deleted_binary_clause) {
       continue;
     if (!flags (idx).elim)
       continue;
-    LOG ("scheduling %s for elimination initially", LOGLIT (idx));
+    LOG ("scheduling %s for elimination initially", LOGLIT(idx));
     schedule.push_back ((unsigned) idx.var ());
   }
 

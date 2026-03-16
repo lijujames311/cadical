@@ -649,7 +649,7 @@ struct Internal {
     Watches &ws = watches (lit);
     ws.push_back (Watch (blit, c));
     assert (c->literals[0] == lit || c->literals[1] == lit);
-    LOG (c, "watch %s blit %s in", LOGLIT (lit), LOGLIT (blit));
+    LOG (c, "watch %s blit %s in", LOGLIT(lit), LOGLIT(blit));
   }
 
   // Watch literal 'lit' in clause with blocking literal 'blit'.
@@ -659,7 +659,7 @@ struct Internal {
     assert (lit != blit);
     Watches &ws = watches (lit);
     ws.push_back (Watch (true, blit, c));
-    LOG (c, "watch binary %s blit %s in", LOGLIT (lit), LOGLIT (blit));
+    LOG (c, "watch binary %s blit %s in", LOGLIT(lit), LOGLIT(blit));
   }
 
   // Add two watches to a clause.  This is used initially during allocation
@@ -1126,7 +1126,7 @@ struct Internal {
     const unsigned bit = bign (lit);
     if (f.factor & bit)
       return;
-    LOG ("marking %s as factor literal candidate", LOGLIT (lit));
+    LOG ("marking %s as factor literal candidate", LOGLIT(lit));
     stats.mark.factor++;
     f.factor |= bit;
   }
@@ -1146,7 +1146,7 @@ struct Internal {
     Flags &f = flags (lit);
     if (f.elim)
       return;
-    LOG ("marking %s as elimination literal candidate", LOGLIT (lit));
+    LOG ("marking %s as elimination literal candidate", LOGLIT(lit));
     stats.mark.elim++;
     f.elim = true;
   }
@@ -1155,7 +1155,7 @@ struct Internal {
     const unsigned bit = bign (lit);
     if (f.block & bit)
       return;
-    LOG ("marking %s as blocking literal candidate", LOGLIT (lit));
+    LOG ("marking %s as blocking literal candidate", LOGLIT(lit));
     stats.mark.block++;
     f.block |= bit;
   }
@@ -1186,7 +1186,7 @@ struct Internal {
     const unsigned bit = bign (lit);
     if (f.skip & bit)
       return;
-    LOG ("marking %s to be skipped as blocking literal", LOGLIT (lit));
+    LOG ("marking %s to be skipped as blocking literal", LOGLIT(lit));
     f.skip |= bit;
   }
   bool marked_skip (Lit lit) {
@@ -1737,7 +1737,7 @@ struct Internal {
         } else
           LOG ("variable %d completely molten", idx);
       } else
-        LOG ("variable %s melted once but remains frozen %u times", LOGLIT (lit),
+        LOG ("variable %s melted once but remains frozen %u times", LOGLIT(lit),
              ref);
     } else
       LOG ("variable %d remains frozen forever", idx);

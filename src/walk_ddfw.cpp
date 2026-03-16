@@ -230,7 +230,7 @@ struct Walker_DDFW {
 #endif
     assert (clause_info (pos).binary || clause_info (pos).clause == clause);
     LOG (clause, "connecting clause on %s with already in occurrences %zu",
-         LOGLIT (lit), occs (lit).size ());
+         LOGLIT(lit), occs (lit).size ());
     occs (lit).push_back (DDFW_Tagged (clause, pos));
   }
   void connect_clause (Clause *clause, position_type pos) {
@@ -246,7 +246,7 @@ struct Walker_DDFW {
   void add_uvar (Lit lit) {
     const int idx = internal->vidx (lit);
     if (internal->var (lit).level == 1) {
-      LOG ("cannot mark %s as uvar", LOGLIT (lit));
+      LOG ("cannot mark %s as uvar", LOGLIT(lit));
       return;
     }
     if (!uvar_count (lit)) {
@@ -255,7 +255,7 @@ struct Walker_DDFW {
       assert (vars_in_broken[position_vars_in_broken[idx]] == lit.labs ());
     }
     ++uvar_count (lit);
-    LOG ("marking %s as uvar, found %d times", LOGLIT (lit), uvar_count (lit));
+    LOG ("marking %s as uvar, found %d times", LOGLIT(lit), uvar_count (lit));
   }
 
   void remove_uvar (Lit lit) {
@@ -271,7 +271,7 @@ struct Walker_DDFW {
       position_vars_in_broken[idx_replacement.var ()] = pos;
     }
     --uvar_count (lit);
-    LOG ("unmarking %s as uvar once, remaining %d times", LOGLIT (lit), uvar_count (lit));
+    LOG ("unmarking %s as uvar once, remaining %d times", LOGLIT(lit), uvar_count (lit));
   }
 
   // Finds the variable that only reduces the most number of unsatisfied
@@ -439,11 +439,11 @@ Walker_DDFW::Walker_DDFW (Internal *i, int64_t l)
 // Add the literal to flip to the queue
 
 void Walker_DDFW::push_flipped (Lit flipped) {
-  LOG ("push literal %s on the flips", LOGLIT (flipped));
+  LOG ("push literal %s on the flips", LOGLIT(flipped));
   assert (flipped != INVALID_LIT);
   if (best_trail_pos < 0) {
     LOG ("not pushing flipped %s to already invalid trail",
-         LOGLIT (flipped));
+         LOGLIT(flipped));
     return;
   }
 
@@ -452,7 +452,7 @@ void Walker_DDFW::push_flipped (Lit flipped) {
   if (size_trail < limit) {
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zd",
-         LOGLIT (flipped), size_trail + 1);
+         LOGLIT(flipped), size_trail + 1);
     return;
   }
 
@@ -462,12 +462,12 @@ void Walker_DDFW::push_flipped (Lit flipped) {
     save_walker_trail (true);
     flips.push_back (flipped);
     LOG ("pushed flipped %s to trail which now has size %zu",
-         LOGLIT (flipped), flips.size ());
+         LOGLIT(flipped), flips.size ());
     return;
   } else {
     LOG ("trail reached limit %zd without best position", limit);
     flips.clear ();
-    LOG ("not pushing %s to invalidated trail", LOGLIT (flipped));
+    LOG ("not pushing %s to invalidated trail", LOGLIT(flipped));
     best_trail_pos = -1;
     LOG ("best trail position becomes invalid");
   }
@@ -606,7 +606,7 @@ void Walker_DDFW::make_clause (DDFW_Tagged t, Lit lit) {
 
 void Walker_DDFW::make_clauses_along_occurrences (Lit lit) {
   const auto &occs = this->occs (lit);
-  LOG ("making clauses with %s along %zu occurrences", LOGLIT (lit),
+  LOG ("making clauses with %s along %zu occurrences", LOGLIT(lit),
        occs.size ());
   assert (internal->val (lit) > 0);
   size_t made = 0;
@@ -623,9 +623,9 @@ void Walker_DDFW::make_clauses_along_occurrences (Lit lit) {
     this->make_clause (c, lit);
     made++;
   }
-  LOG ("made %zu clauses by flipping %s, still %zu broken", made, LOGLIT (lit),
+  LOG ("made %zu clauses by flipping %s, still %zu broken", made, LOGLIT(lit),
        broken.size ());
-  LOG ("made %zu clauses with flipped %s", made, LOGLIT (lit));
+  LOG ("made %zu clauses with flipped %s", made, LOGLIT(lit));
   (void) made;
 }
 
@@ -644,7 +644,7 @@ void Walker_DDFW::make_clauses (Lit lit) {
 void Walker_DDFW::break_clauses (Lit lit) {
   START (walkflipbroken);
   const int64_t old = ticks;
-  LOG ("breaking clauses on %s", LOGLIT (lit));
+  LOG ("breaking clauses on %s", LOGLIT(lit));
   // Finally add all new unsatisfied (broken) clauses.
 
 #ifdef LOGGING
@@ -694,7 +694,7 @@ void Walker_DDFW::break_clauses (Lit lit) {
     broken++;
 #endif
   }
-  LOG ("broken %zd clauses by flipping %s", broken, LOGLIT (lit));
+  LOG ("broken %zd clauses by flipping %s", broken, LOGLIT(lit));
   internal->stats.ticks.walkflipbroken += ticks - old;
   STOP (walkflipbroken);
 }
@@ -981,7 +981,7 @@ std::pair<Lit,double> Walker_DDFW::find_weight_reducing_variable () {
     // number of new satisfied clauses: the old unsat now sat - the new unsat
     // ones (formerly critical sat)
     double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
-    LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
+    LOG ("considering flipping %s gives %.3f", LOGLIT(lit), flip_gain);
     // the condition `flip_gain > 0 ` is only in Tassat, not in Yallin. That
     // being said, it is not really useful, since `best_new_satisfied` can be
     // initialized to 0.
@@ -1001,7 +1001,7 @@ std::pair<Lit,double> Walker_DDFW::find_weight_reducing_variable () {
     const Lit idx = *it;
     const Lit lit = internal->val (idx) > 0 ? -idx : idx;
     double flip_gain = critical_unsat_weight (lit) - critical_sat_weight (lit);
-    LOG ("considering flipping %s gives %.3f", LOGLIT (lit), flip_gain);
+    LOG ("considering flipping %s gives %.3f", LOGLIT(lit), flip_gain);
     if (flip_gain < 0.0)
       continue;
     if (flip_gain > best_new_satisfied) {
@@ -1020,7 +1020,7 @@ std::pair<Lit,double> Walker_DDFW::find_weight_reducing_variable () {
     weight_reducing_var = -weight_reducing_var;
 
   if (weight_reducing_var != INVALID_LIT)
-    LOG ("deciding to flip %s gives %.3f", LOGLIT (weight_reducing_var), best_new_satisfied);
+    LOG ("deciding to flip %s gives %.3f", LOGLIT(weight_reducing_var), best_new_satisfied);
   else
     LOG ("no literal to flip");
   STOP (walkwrv);
@@ -1065,9 +1065,9 @@ bool Walker_DDFW::import_clauses (bool &failed) {
          critical_var ^= internal->vidx (lit);
          swap (lits[satisfied], lits[i]);
          if (!satisfied++)
-           LOG ("first satisfying literal %s", LOGLIT (lit));
+           LOG ("first satisfying literal %s", LOGLIT(lit));
        } else if (!satisfiable && internal->var (lit).level > 1) {
-         LOG ("non-assumption potentially satisfying literal %s", LOGLIT (lit));
+         LOG ("non-assumption potentially satisfying literal %s", LOGLIT(lit));
          satisfiable = true;
        }
      }
@@ -1188,7 +1188,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       assert (tmp == 0);
       if (!active (lit))
         continue;
-      LOG ("initial assign %s to assumption phase", LOGLIT (lit));
+      LOG ("initial assign %s to assumption phase", LOGLIT(lit));
       set_val (lit, true);
       assert (level == 1);
       var (lit).level = 1;
@@ -1203,12 +1203,12 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
     const bool target = opts.warmup ? false : stable || opts.target == 2;
     for (auto idx : vars) {
       if (!active (idx)) {
-        LOG ("skipping inactive variable %s", LOGLIT (idx));
+        LOG ("skipping inactive variable %s", LOGLIT(idx));
         continue;
       }
       if (val (idx)) {
         assert (var (idx).level == 1);
-        LOG ("skipping assumed variable %s", LOGLIT (idx));
+        LOG ("skipping assumed variable %s", LOGLIT(idx));
         continue;
       }
       int tmp = 0;
@@ -1221,7 +1221,7 @@ int Internal::walk_ddfw_round (int64_t limit, bool prev) {
       assert (level == 2);
       var (idx).level = 2;
       walker.best_values[idx.var ()] = tmp;
-      LOG ("initial assign %s to decision phase", LOGLIT (tmp < 0 ? -idx : idx));
+      LOG ("initial assign %s to decision phase", LOGLIT(tmp < 0 ? -idx : idx));
     }
 
     LOG ("watching satisfied and registering broken clauses");

@@ -73,7 +73,7 @@ Lit Internal::most_occurring_literal () {
       res = lit;
     }
   }
-  LOG ("maximum occurrence %" PRId64 " of literal %s", max_noccs, LOGLIT (res));
+  LOG ("maximum occurrence %" PRId64 " of literal %s", max_noccs, LOGLIT(res));
   reset_noccs ();
   return res;
 }
@@ -120,7 +120,7 @@ void Internal::lookahead_flush_probes () {
     assert (!noccs (lit)), assert (noccs (-lit) > 0);
     if (propfixed (lit) >= stats.all.fixed)
       continue;
-    LOG ("keeping probe %s negated occs %" PRId64 "", LOGLIT (lit), noccs (-lit));
+    LOG ("keeping probe %s negated occs %" PRId64 "", LOGLIT(lit), noccs (-lit));
     *j++ = lit;
   }
   size_t remain = j - probes.begin ();
@@ -180,7 +180,7 @@ void Internal::lookahead_generate_probes () {
       if (propfixed (probe) >= stats.all.fixed)
         continue;
 
-      LOG ("scheduling probe %s negated occs %" PRId64 "", LOGLIT (probe),
+      LOG ("scheduling probe %s negated occs %" PRId64 "", LOGLIT(probe),
            noccs (-probe));
       probes.push_back (probe);
     }
@@ -193,7 +193,7 @@ void Internal::lookahead_generate_probes () {
       if (propfixed (probe) >= stats.all.fixed)
         continue;
 
-      LOG ("scheduling probe %s negated occs %" PRId64 "", LOGLIT (probe),
+      LOG ("scheduling probe %s negated occs %" PRId64 "", LOGLIT(probe),
            noccs (-probe));
       probes.push_back (probe);
     }
@@ -389,7 +389,7 @@ Lit Internal::lookahead_probing () {
 #endif
   int64_t hbrs = stats.hbrs - old_hbrs;
 
-  LOG ("lookahead-probe-round %" PRId64 " probed %" PRId64
+  MSG ("lookahead-probe-round %" PRId64 " probed %" PRId64
        " and found %d failed literals",
        stats.probingrounds, probed, failed);
 
@@ -397,7 +397,7 @@ Lit Internal::lookahead_probing () {
     PHASE ("lookahead-probe-round", stats.probingrounds,
            "found %" PRId64 " hyper binary resolvents", hbrs);
 
-  LOG ("lookahead literal %s with %d\n", LOGLIT (res), max_hbrs);
+  LOG ("lookahead literal %s with %d", LOGLIT(res), max_hbrs);
 
   return res;
 }
@@ -474,13 +474,13 @@ InternalCubesWithStatus Internal::generate_cubes (int depth, int min_depth) {
       }
 
       if (res == INVALID_LIT) {
-        LOG ("no lit to split %s", LOGLIT (res));
+        LOG ("no lit to split %s", LOGLIT(res));
         cubes.push_back (cubes2[j]);
         continue;
       }
 
       assert (res != INVALID_LIT);
-      LOG ("splitting on lit %s", LOGLIT (res));
+      LOG ("splitting on lit %s", LOGLIT(res));
       std::vector<Lit> cube1{cubes2[j]};
       cube1.push_back (res);
       std::vector<Lit> cube2{std::move (cubes2[j])};

@@ -19,7 +19,7 @@ Lit Internal::next_decision_variable_on_queue () {
     stats.searched += searched;
     update_queue_unassigned (res.var ());
   }
-  LOG ("next queue decision variable %s bumped %" PRId64 "", LOGLIT (res),
+  LOG ("next queue decision variable %s bumped %" PRId64 "", LOGLIT(res),
        bumped (res));
   return res;
 }
@@ -34,7 +34,7 @@ Lit Internal::next_decision_variable_with_best_score () {
       break;
     (void) scores.pop_front ();
   }
-  LOG ("next decision variable %s with score %g", LOGLIT (res), score (res));
+  LOG ("next decision variable %s with score %g", LOGLIT(res), score (res));
   return res;
 }
 
@@ -110,7 +110,7 @@ Lit Internal::next_random_decision () {
 Lit Internal::next_decision_variable () {
   Lit res = next_random_decision ();
   if (res != INVALID_LIT) {
-    LOG ("randomized decision %s", LOGLIT (res));
+    LOG ("randomized decision %s", LOGLIT(res));
     return res;
   }
   if (use_scores ())
@@ -234,15 +234,15 @@ int Internal::decide () {
     assert (assumed (lit));
     const signed char tmp = val (lit);
     if (tmp < 0) {
-      LOG ("assumption %s falsified", LOGLIT (lit));
+      LOG ("assumption %s falsified", LOGLIT(lit));
       res = 20;
     } else if (tmp > 0) {
-      LOG ("assumption %s already satisfied", LOGLIT (lit));
+      LOG ("assumption %s already satisfied", LOGLIT(lit));
       new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level");
       notify_decision ();
     } else {
-      LOG ("deciding assumption %s", LOGLIT (lit));
+      LOG ("deciding assumption %s", LOGLIT(lit));
       search_assume_decision (lit);
     }
   } else if ((size_t) level == assumptions.size () && constraint.size ()) {
@@ -268,18 +268,18 @@ int Internal::decide () {
 
       const signed char tmp = val (lit);
       if (tmp < 0) {
-        LOG ("constraint literal %s falsified", LOGLIT (lit));
+        LOG ("constraint literal %s falsified", LOGLIT(lit));
         continue;
       }
 
       if (tmp > 0) {
-        LOG ("constraint literal %s satisfied", LOGLIT (lit));
+        LOG ("constraint literal %s satisfied", LOGLIT(lit));
         satisfied_lit = lit;
         break;
       }
 
       assert (!tmp);
-      LOG ("constraint literal %s unassigned", LOGLIT (lit));
+      LOG ("constraint literal %s unassigned", LOGLIT(lit));
 
       if (unassigned_lit == INVALID_LIT || better_decision (lit, unassigned_lit))
         unassigned_lit = lit;
@@ -291,7 +291,7 @@ int Internal::decide () {
 
       LOG ("literal %s satisfies constraint and "
            "is implied by assumptions",
-           LOGLIT (satisfied_lit));
+           LOGLIT(satisfied_lit));
 
       new_trail_level (INVALID_LIT);
       LOG ("added pseudo decision level for constraint");
@@ -313,7 +313,7 @@ int Internal::decide () {
 
       if (unassigned_lit != INVALID_LIT) {
 
-        LOG ("deciding %s to satisfy constraint", LOGLIT (unassigned_lit));
+        LOG ("deciding %s to satisfy constraint", LOGLIT(unassigned_lit));
         search_assume_decision (unassigned_lit);
 
       } else {

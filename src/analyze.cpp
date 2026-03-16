@@ -41,7 +41,7 @@ void Internal::learn_empty_clause () {
 
 void Internal::learn_unit_clause (Lit lit) {
   assert (!unsat);
-  LOG ("learned unit clause %s, stored at position %d", LOGLIT (lit), vlit (lit));
+  LOG ("learned unit clause %s, stored at position %d", LOGLIT(lit), vlit (lit));
   external->check_learned_unit_clause (lit);
   int64_t id = ++clause_id;
   if (lrat || frat) {
@@ -291,7 +291,7 @@ inline void Internal::analyze_literal (Lit lit, int &open,
     v.reason = learn_external_reason_clause (-lit, INVALID_ELIT, true);
     if (!v.reason) { // actually a unit
       --antecedent_size;
-      LOG ("%s unit after explanation", LOGLIT (-lit));
+      LOG ("%s unit after explanation", LOGLIT(-lit));
       if (f.seen || !lrat)
         return;
       f.seen = true;
@@ -319,7 +319,7 @@ inline void Internal::analyze_literal (Lit lit, int &open,
   if (v.trail < l.seen.trail)
     l.seen.trail = v.trail;
   ++resolvent_size;
-  LOG ("analyzed literal %s assigned at level %d", LOGLIT (lit), v.level);
+  LOG ("analyzed literal %s assigned at level %d", LOGLIT(lit), v.level);
   if (v.level == level)
     open++;
 }
@@ -361,7 +361,7 @@ inline bool Internal::bump_also_reason_literal (Lit lit) {
     return false;
   f.seen = true;
   analyzed.push_back (lit);
-  LOG ("bumping also reason literal %s assigned at level %d", LOGLIT (lit), v.level);
+  LOG ("bumping also reason literal %s assigned at level %d", LOGLIT(lit), v.level);
   return true;
 }
 
@@ -566,7 +566,7 @@ inline int Internal::otfs_find_backtrack_level (Lit &forced) {
       forced = lit;
     } else if (tmp > res) {
       res = tmp;
-      LOG ("bt level is now %d due to %s", res, LOGLIT (lit));
+      LOG ("bt level is now %d due to %s", res, LOGLIT(lit));
     }
   }
   return res;
@@ -635,7 +635,7 @@ inline int Internal::find_conflict_level (Lit &forced) {
       continue;
 
     if (highest_position > 1) {
-      LOG (conflict, "unwatch %s in", LOGLIT (lit));
+      LOG (conflict, "unwatch %s in", LOGLIT(lit));
       remove_watch (watches (lit), conflict);
     }
 
@@ -781,7 +781,7 @@ void Internal::eagerly_subsume_recently_learned_clauses (Clause *c) {
 Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
   assert (new_conflict);
   assert (new_conflict->size > 2);
-  LOG (new_conflict, "applying OTFS on lit %s", LOGLIT (uip));
+  LOG (new_conflict, "applying OTFS on lit %s", LOGLIT(uip));
   auto sorted = std::vector<Lit> ();
   sorted.reserve (new_conflict->size);
   assert (sorted.empty ());
@@ -842,13 +842,13 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
       assert (val (other) < 0);
       const int level = var (other).level;
       assert (level);
-      LOG ("checking %s", LOGLIT (other));
+      LOG ("checking %s", LOGLIT(other));
       if (level <= highest_level)
         continue;
       highest_pos = i;
       highest_level = level;
     }
-    LOG ("highest lit is %s", LOGLIT (lits[highest_pos]));
+    LOG ("highest lit is %s", LOGLIT(lits[highest_pos]));
     if (highest_pos != 1)
       swap (lits[1], lits[highest_pos]);
     LOG ("removing %d literals", new_conflict->size - new_size);
@@ -981,7 +981,7 @@ void Internal::analyze () {
 
       assert (forced != INVALID_LIT);
       assert (conflict_level > 0);
-      LOG ("single highest level literal %s", LOGLIT (forced));
+      LOG ("single highest level literal %s", LOGLIT(forced));
 
       // The pseudo code in the SAT'18 paper actually backtracks to the
       // 'second highest decision' level, while their code backtracks
@@ -997,7 +997,7 @@ void Internal::analyze () {
       //
       build_chain_for_units (forced, conflict, 0);
 
-      LOG ("forcing %s", LOGLIT (forced));
+      LOG ("forcing %s", LOGLIT(forced));
       search_assign_driving (forced, conflict);
 
       conflict = 0;
@@ -1085,7 +1085,7 @@ void Internal::analyze () {
       if (!reason) {
         uip = -other;
         assert (open == 1);
-        LOG ("clause is actually unit %s, stopping", LOGLIT (-uip));
+        LOG ("clause is actually unit %s, stopping", LOGLIT(-uip));
         reverse (begin (mini_chain), end (mini_chain));
         for (auto id : mini_chain)
           lrat_chain.push_back (id);
@@ -1116,7 +1116,7 @@ void Internal::analyze () {
         UPDATE_AVERAGE (averages.current.level, new_level);
         backtrack (new_level);
 
-        LOG ("forcing %s", LOGLIT (forced));
+        LOG ("forcing %s", LOGLIT(forced));
         search_assign_driving (forced, conflict);
 
         // Clean up.
@@ -1183,11 +1183,11 @@ void Internal::analyze () {
       var (uip).reason = reason;
     }
     assert (reason != external_reason);
-    LOG (reason, "analyzing %s reason", LOGLIT (uip));
+    LOG (reason, "analyzing %s reason", LOGLIT(uip));
     assert (resolvent_size);
     --resolvent_size;
   }
-  LOG ("first UIP %s", LOGLIT (uip));
+  LOG ("first UIP %s", LOGLIT(uip));
   clause.push_back (-uip);
 
   // Update glue and learned (1st UIP literals) statistics.

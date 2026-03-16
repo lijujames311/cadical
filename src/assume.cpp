@@ -15,10 +15,10 @@ void Internal::assume (Lit lit) {
   Flags &f = flags (lit);
   const unsigned char bit = bign (lit);
   if (f.assumed & bit) {
-    LOG ("ignoring already assumed %s", LOGLIT (lit));
+    LOG ("ignoring already assumed %s", LOGLIT(lit));
     return;
   }
-  LOG ("assume %s", LOGLIT (lit));
+  LOG ("assume %s", LOGLIT(lit));
   f.assumed |= bit;
   assumptions.push_back (lit);
   freeze (lit);
@@ -56,7 +56,7 @@ void Internal::assume_analyze_literal (Lit lit) {
     return;
   }
   assert (assumed (-lit));
-  LOG ("failed assumption %s", LOGLIT (-lit));
+  LOG ("failed assumption %s", LOGLIT(-lit));
   clause.push_back (lit);
 }
 
@@ -177,7 +177,7 @@ void Internal::failing () {
     // First case (1).
     if (failed_unit != INVALID_LIT) {
       assert (failed == failed_unit);
-      LOG ("root-level falsified assumption %s", LOGLIT (failed));
+      LOG ("root-level falsified assumption %s", LOGLIT(failed));
       if (proof) {
         if (lrat) {
           unsigned eidx = efailed.vlit ();
@@ -200,7 +200,7 @@ void Internal::failing () {
     // Second case (2).
     if (failed_clashing != INVALID_LIT) {
       assert (failed == failed_clashing);
-      LOG ("clashing assumptions %s and %s", LOGLIT (failed), LOGLIT (-failed));
+      LOG ("clashing assumptions %s and %s", LOGLIT(failed), LOGLIT(-failed));
       Flags &f = flags (-failed);
       const unsigned bit = bign (-failed);
       assert (!(f.failed & bit));
@@ -216,7 +216,7 @@ void Internal::failing () {
     // Fall through to third case (3).
     LOG ("starting with assumption %s falsified on minimum decision level "
          "%d",
-         LOGLIT (first_failed), failed_level);
+         LOGLIT(first_failed), failed_level);
 
     assert (first_failed != INVALID_LIT);
     assert (failed_level > 0);
@@ -226,7 +226,7 @@ void Internal::failing () {
     // units are reached.  This is simpler than corresponding code in
     // 'analyze'.
     {
-      LOG ("failed assumption %s", LOGLIT (first_failed));
+      LOG ("failed assumption %s", LOGLIT(first_failed));
       Flags &f = flags (first_failed);
       assert (!f.seen);
       f.seen = true;
@@ -297,7 +297,7 @@ void Internal::failing () {
           }
         } else {
           assert (assumed (lit));
-          LOG ("failed assumption %s", LOGLIT (lit));
+          LOG ("failed assumption %s", LOGLIT(lit));
           clause.push_back (-lit);
           Flags &f = flags (lit);
           const unsigned bit = bign (lit);
@@ -584,7 +584,7 @@ void Internal::sort_and_reuse_assumptions () {
     target = lev;
     if (val (alit) > 0 &&
         var (alit).level < lev) { // we can ignore propagated assumptions
-      LOG ("ILB skipping propagation %s", LOGLIT (alit));
+      LOG ("ILB skipping propagation %s", LOGLIT(alit));
       ++j;
       continue;
     }
@@ -600,7 +600,7 @@ void Internal::sort_and_reuse_assumptions () {
     target = lev - 1;
     LOG ("first different literal %s on the trail and %s from the "
          "assumptions",
-         LOGLIT (lit), LOGLIT (alit));
+         LOGLIT(lit), LOGLIT(alit));
     break;
   }
   if (opts.ilb == 1 &&

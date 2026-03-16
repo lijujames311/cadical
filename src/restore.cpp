@@ -136,7 +136,7 @@ void External::restore_clauses () {
 
       if (marked (tainted, -elit)) {
         tlit = elit;
-        LOG ("negation of witness literal %s tainted", LOGLIT (tlit));
+        LOG ("negation of witness literal %s tainted", LOGLIT(tlit));
       }
 
       assert (p != end_of_extension);
@@ -168,7 +168,7 @@ void External::restore_clauses () {
     //
     if (satisfied != INVALID_ELIT && !internal->opts.restoreflush) {
       LOG (p, end_of_clause, "forced to not remove %s satisfied",
-           LOGLIT (satisfied));
+           LOGLIT(satisfied));
       satisfied = INVALID_ELIT;
     }
 
@@ -177,7 +177,7 @@ void External::restore_clauses () {
       if (satisfied != INVALID_ELIT) {
         LOG (p, end_of_clause,
              "flushing implied clause satisfied by %s from extension stack",
-             LOGLIT (satisfied));
+             LOGLIT(satisfied));
         clauses.satisfied++;
       } else {
         restore_clause (p, end_of_clause, id); // Might taint literals.

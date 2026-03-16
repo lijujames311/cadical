@@ -13,7 +13,7 @@ inline void Internal::unassign (Lit lit) {
   set_val (lit, 0);
 
   int idx = vidx (lit);
-  LOG ("unassign %s @ %d", LOGLIT (lit), var (lit).level);
+  LOG ("unassign %s @ %d", LOGLIT(lit), var (lit).level);
   num_assigned--;
 
   if (flags (lit).declared ())
@@ -114,7 +114,7 @@ void Internal::backtrack_without_updating_phases (int new_level) {
   const size_t assigned = control[new_level + 1].trail;
 
   LOG ("backtracking to decision level %d with decision %s and trail %zd",
-       new_level, LOGLIT (control[new_level].decision), assigned);
+       new_level, LOGLIT(control[new_level].decision), assigned);
 
   const size_t end_of_trail = trail.size ();
   size_t i = assigned, j = i;
@@ -150,9 +150,9 @@ void Internal::backtrack_without_updating_phases (int new_level) {
               did_external_prop);
 #ifdef LOGGING
       if (!v.level)
-        LOG ("reassign %s @ 0 unit clause %s", LOGLIT (lit), LOGLIT (lit));
+        LOG ("reassign %s @ 0 unit clause %s", LOGLIT(lit), LOGLIT(lit));
       else
-        LOG (v.reason, "reassign %s @ %d", LOGLIT (lit), v.level);
+        LOG (v.reason, "reassign %s @ %d", LOGLIT(lit), v.level);
 #endif
       trail[j] = lit;
       v.trail = j++;

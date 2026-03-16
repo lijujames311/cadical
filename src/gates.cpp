@@ -376,7 +376,7 @@ void Internal::find_and_gate (Eliminator &eliminator, Lit pivot) {
 
 #ifdef LOGGING
     if (opts.log) {
-      LOG (c, "found arity %u AND gate %s = ", arity, LOGLIT (-pivot));
+      LOG (c, "found arity %u AND gate %s = ", arity, LOGLIT(-pivot));
     }
 #endif
     stats.elimands++;
@@ -675,7 +675,7 @@ void Internal::find_xor_gate (Eliminator &eliminator, Lit pivot) {
     if (opts.log) {
       Logger::print_log_prefix (this);
       tout.magenta ();
-      printf ("found arity %u XOR gate %s = ", arity, LOGLIT (-pivot));
+      printf ("found arity %u XOR gate %s = ", arity, LOGLIT(-pivot));
       bool first = true;
       for (const auto &lit : *d) {
         if (lit == pivot)
@@ -683,7 +683,7 @@ void Internal::find_xor_gate (Eliminator &eliminator, Lit pivot) {
         assert (lit != -pivot);
         if (!first)
           fputs (" ^ ", stdout);
-        printf ("%s", LOGLIT (lit));
+        printf ("%s", LOGLIT(lit));
         first = false;
       }
       fputc ('\n', stdout);

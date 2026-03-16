@@ -53,8 +53,7 @@ void External::check_solution_on_learned_unit_clause (Lit unit) {
   auto eunit = internal->externalize (unit);
   if (sol (eunit) == eunit)
     return;
-  auto internal = this->internal;
-  FATAL ("learned unit %s contradicts solution", LOGLIT (eunit));
+  FATAL ("learned unit %d contradicts solution", (eunit).signed_representation());
 }
 
 } // namespace CaDiCaL
