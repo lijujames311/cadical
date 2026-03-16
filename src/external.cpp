@@ -39,8 +39,8 @@ Lit External::declare_var (ELit new_var, bool extension) {
       ilit = Lit (internal->max_var+1);
     else {
       ilit = Lit (new_var.signed_representation ());
-      if (internal->i2e.size () > (size_t)ilit.var () && internal->i2e[ilit.var ()] != INVALID_ELIT) {
-        LOG ("the slot is already used by %s, giving the next available name", LOGLIT (internal->i2e[ilit.var ()]));
+      if (internal->i2e.size () > (size_t)ilit.var () && internal->to_external (ilit) != INVALID_ELIT) {
+        LOG ("the slot is already used by %s, giving the next available name", LOGLIT (internal->to_external (ilit)));
         ilit = Lit (internal->max_var+1);
       }
     }
@@ -50,7 +50,7 @@ Lit External::declare_var (ELit new_var, bool extension) {
     }
     LOG ("new mapping external %s to internal %s", LOGLIT (new_var), LOGLIT (ilit));
     e2i[new_var] = ilit;
-    internal->i2e[ilit.var ()] = new_var;
+    internal->to_external (ilit) = new_var;
     internal->declare_variable (ilit);
     assert (Lit (internal->max_var) >= ilit);
   }
@@ -176,7 +176,7 @@ Lit External::internalize (ELit elit, bool extension) {
       LOG ("mapping external %s to internal %s", LOGLIT (eidx), LOGLIT (ilit));
       e2i[eidx] = ilit;
       internal->i2e.push_back (eidx);
-      assert (internal->i2e[ilit.var ()] == eidx);
+      assert (internal->to_external(ilit) == eidx);
       assert (e2i[eidx] == ilit);
       if (elit.is_negated())
         ilit = -ilit;

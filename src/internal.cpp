@@ -1326,7 +1326,7 @@ void Internal::activating_all_new_imported_literals () {
   if (imports.empty ())
     return;
   if (opts.varindexorder)
-    std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return i2e[vidx(l)] < i2e[vidx (o)];});
+    std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return to_external(l.labs ()) < to_external(o.labs ());});
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
   auto max_it = std::max_element(imports.begin(), imports.end(), std::less<Lit>{});

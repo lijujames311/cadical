@@ -1682,6 +1682,24 @@ struct Internal {
     return res;
   }
 
+  // External variable of an existing internal variable
+  //
+  // Use `externalize (Lit)` to get a literal back with the correct polarity
+  ELit &to_external (Lit ilit) {
+    assert (ilit.is_positive ());
+    assert (ilit.var () < i2e.size ());
+    return i2e[ilit.var ()];
+  }
+
+  // External variable of an existing internal variable.
+  //
+  // Use `externalize (Lit)` to get a literal back with the correct polarity
+  const ELit &to_external (Lit ilit) const {
+    assert (ilit.is_positive ());
+    assert (ilit.var () < i2e.size ());
+    return i2e[ilit.var ()];
+  }
+
   // Explicit freezing and melting of variables.
   //
   void freeze (Lit lit) {
