@@ -1785,7 +1785,7 @@ struct PropagateAssumptionsCall : public Call {
 
 struct ImpliedCall : public Call {
   ImpliedCall (int r = 0) : Call (IMPLIED_LITERALS, 0, r) {}
-  void execute (Solver *&s) {
+  void execute (Solver *&s, ExtendMap &extendmap) {
     std::vector<int> entrailed;
     if (mobical.donot.enforce || s->state () == State::SATISFIED ||
         s->state () == State::INCONCLUSIVE)
@@ -1799,8 +1799,9 @@ struct ImpliedCall : public Call {
 
 struct ResetAssumptionsCall : public Call {
   ResetAssumptionsCall (int r = 0) : Call (RESET_ASSUMPTIONS, 0, r) {}
-  void execute (Solver *&s) {
+  void execute (Solver *&s, ExtendMap &extendmap) {
     s->reset_assumptions ();
+    (void) (extendmap);
   }
   void print (ostream &o) { o << "reset_assumptions" << endl; }
   Call *copy () { return new ResetAssumptionsCall (arg); }
