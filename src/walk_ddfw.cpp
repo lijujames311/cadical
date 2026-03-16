@@ -492,7 +492,7 @@ void Walker_DDFW::save_walker_trail (bool keep) {
     const Lit lit = *it;
     assert (lit != INVALID_LIT);
     const signed char value = sign (lit);
-    const int idx = abs (lit);
+    const int idx = lit.var ();
     best_values[idx] = value;
   }
   if (!keep) {

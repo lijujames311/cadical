@@ -137,7 +137,7 @@ int Internal::reuse_trail () {
   if (use_scores ()) {
     while (res < level) {
       Lit decision = control[res + 1].decision;
-      if (decision != INVALID_LIT && score_smaller (this) (abs (decision), next_decision.var ()))
+      if (decision != INVALID_LIT && score_smaller (this) (decision.var (), next_decision.var ()))
         break;
       res++;
     }

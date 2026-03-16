@@ -244,10 +244,13 @@ bool External::traverse_witnesses_forward (WitnessIterator &it) {
   if (i != end) {
     ELit lit (*i++);
     do {
-      assert (lit != INVALID_ELIT), (void) lit;
-      while (lit = ELit (*i), *i++)
+      assert (lit == INVALID_ELIT), (void) lit;
+      while (lit = ELit (*i), *i++) {
         witness.push_back (lit.signed_representation ());
-      assert (lit != INVALID_ELIT);
+        auto internal = this->internal;
+      LOG ("found %s", LOGLIT (ELit (witness.back())));
+      }
+      assert (lit == INVALID_ELIT);
       assert (i != end);
       assert (!*i);
       const int64_t id =

@@ -162,7 +162,7 @@ struct External {
   inline int vidx (ELit elit) const {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int res = abs (elit);
+    int res = elit.var ();
     assert (res <= max_var);
     return res;
   }
@@ -170,14 +170,14 @@ struct External {
   inline int vlit (ELit elit) const {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    assert (abs (elit) <= max_var);
+    assert (elit.var () <= max_var);
     return elit.signed_representation();
   }
 
   inline bool is_valid_input (ELit elit) {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = abs (elit);
+    int eidx = elit.var ();
     return eidx > max_var || !ervars[eidx];
   }
 
@@ -218,7 +218,7 @@ struct External {
   unsigned elit2ulit (ELit elit) const {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    const int idx = abs (elit) - 1;
+    const int idx = elit.var () - 1;
     assert (idx <= max_var);
     return 2u * idx + (elit.is_negated ());
   }
@@ -267,7 +267,7 @@ struct External {
   bool frozen (ELit elit) {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = abs (elit);
+    int eidx = elit.var ();
     if (eidx > max_var)
       return false;
     if (eidx >= (int) frozentab.size ())
@@ -362,7 +362,7 @@ struct External {
 
   inline ELit ival (ELit elit) const {
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = abs (elit);
+    int eidx = elit.var ();
     bool val = false;
     if (eidx <= max_var && (size_t) eidx < vals.size ())
       val = vals[eidx];
@@ -485,7 +485,7 @@ struct External {
   inline ELit sol (ELit elit) const {
     assert (solution);
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = abs (elit);
+    int eidx = elit.var ();
     if (eidx > max_var)
       return ELit ();
     else if (eidx > solution_size)

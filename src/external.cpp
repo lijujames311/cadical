@@ -33,6 +33,7 @@ void External::enlarge (ELit new_max_var) {
 
 Lit External::declare_var (ELit new_var, bool extension) {
   assert (new_var != INVALID_ELIT);
+  assert (new_var.is_positive());
   Lit ilit = internal_lit (new_var);
   if (ilit == INVALID_LIT) {
     if (!internal->opts.varkeepname)
@@ -97,14 +98,14 @@ void External::init (ELit new_max_lit, bool extension) {
   LOG ("%s external variables from %s", LOGLIT(new_max_lit), LOGLIT(ELit (max_var)));
   assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
   if (new_max_var <= max_var) {
-    declare_var (new_max_lit, extension);
+    declare_var (new_max_lit.labs (), extension);
     return;
   }
   int new_vars = new_max_var - max_var;
   LOG ("initialized %d external variables", new_vars);
   resize (new_max_lit);
 
-  declare_var (new_max_lit, extension);
+  //declare_var (new_max_lit, extension);
   if (extension)
     internal->stats.variables_extension += new_vars;
   else
@@ -210,7 +211,7 @@ void External::add (ELit elit) {
              "extension variable '%d' defined by the solver internally "
              "(all user variables have to be declared explicitly "
 	     "if 'factor' is enabled)", // TODO only reason?
-             (int) abs(elit));
+             (int) elit.signed_representation());
   reset_extended ();
 
   bool forgettable = false;
@@ -242,10 +243,10 @@ void External::add (ELit elit) {
       unsigned eidx = (-elit).vlit ();
       assert ((size_t) eidx < ext_units.size ());
       const int64_t id = ext_units[eidx];
-      bool added = ext_flags[abs (elit)];
+      bool added = ext_flags[elit.var ()];
       LOG ("%s not a unit: %" PRId64, LOGLIT(elit), id);
       if (id && !added) {
-        ext_flags[abs (elit)] = true;
+        ext_flags[elit.var ()] = true;
         internal->lrat_chain.push_back (id);
       }
     }
@@ -253,7 +254,7 @@ void External::add (ELit elit) {
 
   if (elit == INVALID_ELIT && internal->proof && internal->lrat) {
     for (const auto &elit : eclause) {
-      ext_flags[abs (elit)] = false;
+      ext_flags[elit.var ()] = false;
     }
   }
 
@@ -285,7 +286,7 @@ bool External::flip (ELit elit) {
   assert (elit != OTHER_INVALID_ELIT);
   assert (!propagator);
 
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return false;
   if (marked (witness, elit))
@@ -304,7 +305,7 @@ bool External::flippable (ELit elit) {
   assert (elit != OTHER_INVALID_ELIT);
   assert (!propagator);
 
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return false;
   if (marked (witness, elit))
@@ -318,7 +319,7 @@ bool External::flippable (ELit elit) {
 bool External::failed (ELit elit) {
   assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return 0;
   Lit ilit = e2i[elit.labs ()];
@@ -356,7 +357,7 @@ void External::phase (ELit elit) {
   assert (elit != OTHER_INVALID_ELIT);
   // this test is a bit stupid, it is triggereing an assertion, but we we could
   // simply add thos to the other if...
-  if (abs(elit) > max_var) {
+  if (elit.var () > max_var) {
     reset_extended ();
   }
   const Lit ilit = internalize (elit);
@@ -371,7 +372,7 @@ void External::phase (ELit elit) {
 void External::unphase (ELit elit) {
   assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var) {
   UNUSED:
     LOG ("resetting forced phase of unused external %s ignored", LOGLIT(elit));
@@ -398,7 +399,7 @@ void External::add_observed_var (ELit elit) {
   assert (elit != OTHER_INVALID_ELIT);
   reset_extended (); // tainting!
 
-  int eidx = abs (elit);
+  int eidx = elit.var ();
 
   REQUIRE (eidx > max_var ||
                (!marked (witness, elit) && !marked (witness, -elit)),
@@ -461,7 +462,7 @@ void External::add_observed_var (ELit elit) {
 void External::remove_observed_var (ELit elit) {
   assert (propagator); // REQ is in Solver::remove_observed_var
 
-  int eidx = abs (elit);
+  int eidx = elit.var ();
 
   if (eidx > max_var) // Ignore call if variable does not exist
     return;
@@ -493,7 +494,7 @@ void External::reset_observed_vars () {
     return;
 
   for (auto elit : vars) {
-    int eidx = abs (elit);
+    int eidx = elit.var ();
     assert (eidx <= max_var);
     if ((size_t) eidx >= is_observed.size ())
       break;
@@ -510,7 +511,7 @@ void External::reset_observed_vars () {
 bool External::observed (ELit elit) {
   assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return false;
   if (eidx >= (int) is_observed.size ())
@@ -522,7 +523,7 @@ bool External::observed (ELit elit) {
 bool External::is_witness (ELit elit) {
   assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return false;
   return (marked (witness, elit) || marked (witness, -elit));
@@ -531,7 +532,7 @@ bool External::is_witness (ELit elit) {
 bool External::is_decision (ELit elit) {
   assert (elit != INVALID_ELIT);
   assert (elit != OTHER_INVALID_ELIT);
-  int eidx = abs (elit);
+  int eidx = elit.var ();
   if (eidx > max_var)
     return false;
 
@@ -571,7 +572,7 @@ void External::implied (std::vector<int> &trailed) {
   for (const auto &ilit : ilit_implicants) {
     assert (ilit != INVALID_LIT);
     const ELit elit = internal->externalize (ilit);
-    const int eidx = abs (elit);
+    const int eidx = elit.var ();
     const bool is_extension_var = ervars[eidx];
     if (!marked (tainted, elit) && !is_extension_var) {
       trailed.push_back (elit.signed_representation());
@@ -1030,8 +1031,8 @@ void External::copy_flags (External &other) const {
       continue;
     assert (this_ilit != INVALID_LIT);
     assert (other_ilit != INVALID_LIT);
-    const Flags &this_flags = this_ftab[abs (this_ilit)];
-    Flags &other_flags = other_ftab[abs (other_ilit)];
+    const Flags &this_flags = this_ftab[this_ilit.var ()];
+    Flags &other_flags = other_ftab[other_ilit. var ()];
     this_flags.copy (other_flags);
   }
   internal->external->ervars = other.ervars;

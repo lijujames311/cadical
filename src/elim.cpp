@@ -99,7 +99,7 @@ void Internal::elim_update_added_clause (Eliminator &eliminator,
     if (frozen (lit))
       continue;
     noccs (lit)++;
-    const int idx = abs (lit);
+    const int idx = lit.var ();
     if (schedule.contains (idx))
       schedule.update (idx);
   }
@@ -113,7 +113,7 @@ void Internal::elim_update_removed_lit (Eliminator &eliminator, Lit lit) {
   int64_t &score = noccs (lit);
   assert (score > 0);
   score--;
-  const int idx = abs (lit);
+  const int idx = lit.var ();
   ElimSchedule &schedule = eliminator.schedule;
   if (schedule.contains (idx))
     schedule.update (idx);
@@ -692,12 +692,12 @@ void Internal::try_to_eliminate_variable (Eliminator &eliminator, Lit pivot,
   LOG ("pivot %s occurs positively %" PRId64
        " times and negatively %" PRId64 " times",
        LOGLIT(pivot), pos, neg);
-  assert (!eliminator.schedule.contains (abs (pivot)));
+  assert (!eliminator.schedule.contains (pivot.var ()));
   assert (pos <= neg);
 
   if (pos && neg > opts.elimocclim) {
     LOG ("too many occurrences thus not eliminated %s", LOGLIT(pivot));
-    assert (!eliminator.schedule.contains (abs (pivot)));
+    assert (!eliminator.schedule.contains (pivot.var ()));
     return;
   }
 

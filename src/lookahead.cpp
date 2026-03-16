@@ -24,7 +24,7 @@ std::vector<Lit> Internal::lookahead_populate_locc () {
     if (!c->redundant)
       for (const auto &lit : *c)
         if (active (lit))
-          ++loccs[abs (lit)];
+          ++loccs[lit.var ()];
   std::sort (begin (loccs), end (loccs));
   std::vector<Lit> locc_map;
   locc_map.reserve (max_var);

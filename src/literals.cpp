@@ -7,10 +7,6 @@ Lit::base_type abs (Lit a) {
   return a.var ();
 }
 
-ELit::base_type abs (ELit a) {
-  return a.var ();
-}
-
 Lit operator*(int sign, Lit lit) {
     assert (sign == -1 || sign == 1);
     return Lit (lit.lit * sign);

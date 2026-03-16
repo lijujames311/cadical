@@ -312,7 +312,7 @@ bool Internal::decompose_round () {
                   learn_empty_clause ();
                   lrat_chain.clear ();
                 } else {
-                  if (abs (other) < abs (repr))
+                  if (other.var () < repr.var ())
                     repr = other;
 #ifndef QUIET
                   size++;

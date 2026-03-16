@@ -199,13 +199,13 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
   int64_t neg = flush_elimfast_occs (-pivot);
   if (neg && pos > occ_bound) {
     LOG ("too many occurrences thus not eliminated %s", LOGLIT(pivot));
-    assert (!eliminator.schedule.contains (abs (pivot)));
+    assert (!eliminator.schedule.contains (pivot.var ()));
     return;
   }
 
   if (pos && neg > occ_bound) {
     LOG ("too many occurrences thus not eliminated %s", LOGLIT(-pivot));
-    assert (!eliminator.schedule.contains (abs (pivot)));
+    assert (!eliminator.schedule.contains (pivot.var ()));
     return;
   }
 
@@ -223,7 +223,7 @@ void Internal::try_to_fasteliminate_variable (Eliminator &eliminator,
        " times and negatively %" PRId64 " times",
        LOGLIT(pivot), pos, neg);
 
-  assert (!eliminator.schedule.contains (abs (pivot)));
+  assert (!eliminator.schedule.contains (pivot.var ()));
   assert (pos <= neg);
 
   LOG ("trying to eliminate %s", LOGLIT(pivot));

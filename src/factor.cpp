@@ -306,7 +306,7 @@ Lit Internal::next_factor (Factoring &factoring, unsigned *next_count_ptr) {
           next = other;
         }
         assert (next != INVALID_LIT);
-        if (abs (next) > abs (initial))
+        if (next.var() > initial.var ())
           continue;
         if (!active (next))
           continue;

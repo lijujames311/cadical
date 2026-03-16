@@ -471,9 +471,9 @@ struct sort_literals_by_var_rank_except {
   typedef uint64_t Type;
   Type operator() (const Lit &a) const {
     Type res = 0;
-    if (abs (a) == abs (except))
+    if (a.var() == except.var ())
       res = 1 - (!a.is_negated ());
-    else if (abs (a) == abs (lhs))
+    else if (a.var() == lhs.var ())
       res = 3 - (!a.is_negated ());
     else
       res = internal->vlit (a) + 2; // probably +2 enough
@@ -1532,7 +1532,7 @@ bool Closure::really_merge_literals (
     return false;
   }
   assert (repr_lit != repr_other);
-  if (abs (smaller_repr) > abs (larger_repr)) {
+  if (smaller_repr.var () > larger_repr.var ()) {
     swap (smaller_repr, larger_repr);
     swap (smaller, larger);
     swap (smaller_chain, larger_chain);
@@ -1883,7 +1883,7 @@ bool Closure::merge_literals_from_clauses (Lit lit, Lit other, Clause *c1,
   Lit smaller = lit;
   Lit larger = other;
 
-  if (abs (smaller_repr) > abs (larger_repr)) {
+  if (smaller_repr.var () > larger_repr.var ()) {
     swap (smaller_repr, larger_repr);
     swap (smaller, larger);
   }
@@ -4761,7 +4761,7 @@ void Closure::simplify_xor_gate (Gate *g) {
 /*------------------------------------------------------------------------*/
 // propagation of clauses and simplification
 void Closure::schedule_literal (Lit lit) {
-  const int idx = abs (lit);
+  const int idx = lit.var ();
   if (scheduled[idx])
     return;
   scheduled[idx] = true;
@@ -4872,7 +4872,7 @@ size_t Closure::propagate_units_and_equivalences () {
       ++propagated;
       Lit lit = schedule.front ();
       schedule.pop ();
-      scheduled[abs (lit)] = false;
+      scheduled[lit.var ()] = false;
       if (!propagate_equivalence (lit))
         break;
     }
@@ -5036,7 +5036,7 @@ void Closure::forward_subsume_matching_clauses () {
         break;
       }
       if (!contains_matchable) {
-        const int idx = abs (lit);
+        const int idx = lit.var ();
         if (matchable[idx])
           contains_matchable = true;
       }

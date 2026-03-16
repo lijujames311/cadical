@@ -319,7 +319,7 @@ Lit Internal::sweep_repr (Sweeper &sweeper, Lit lit) {
   Lit res;
   {
     Lit prev = lit;
-    while ((res = sweeper.reprs[vidx (prev)]) != prev)
+    while ((res = sweeper.reprs[prev ()]) != prev)
       prev = res;
   }
   if (res == lit)
@@ -344,7 +344,7 @@ void Internal::add_literal_to_environment (Sweeper &sweeper, unsigned depth,
   const Lit repr = sweep_repr (sweeper, lit);
   if (repr != lit)
     return;
-  const int idx = abs (lit);
+  const int idx = lit.var ();
   if (sweeper.depths[idx])
     return;
   assert (depth < UINT_MAX);
@@ -382,7 +382,7 @@ void Internal::sweep_clause (Sweeper &sweeper, unsigned depth, Clause *c) {
     }
     if (tmp < 0) {
       if (lrat)
-        sweeper.prev_units[abs (lit)] = true;
+        sweeper.prev_units[lit.var ()] = true;
       continue;
     }
     sweeper.clause.push_back (lit);
@@ -533,7 +533,7 @@ void Internal::add_core (Sweeper &sweeper, unsigned core_idx) {
                   continue;
                 if (flags (lit).seen)
                   continue;
-                const int idx = abs (lit);
+                const int idx = lit.var ();
                 if (sweeper.prev_units[idx]) {
                   int64_t uid = unit_id (-lit);
                   lrat_chain.push_back (uid);
@@ -1195,7 +1195,7 @@ void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
     count++;
     const auto lit = sb.lit;
     const auto other = sb.other;
-    if (abs (lit) < abs (other)) {
+    if (lit.var () < other.var ()) {
       substitute_connected_clauses (sweeper, -other, lit, sb.id);
     } else {
       substitute_connected_clauses (sweeper, -lit, other, sb.id);
@@ -1234,7 +1234,7 @@ void Internal::sweep_substitute_new_equivalences (Sweeper &sweeper) {
     delete_sweep_binary (sb);
     if (count == 2) {
       if (!val (lit) && !val (other)) {
-        const auto idx = abs (lit) < abs (other) ? other : lit;
+        const auto idx = lit.var () < other.var () ? other : lit;
         if (!flags (idx).fixed ())
           mark_substituted (idx);
       }
@@ -1390,7 +1390,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
   // really are equivalent, but we avoid the issue by not trying
   // for equivalence at all if the non-representative is frozen.
   // i.e., the higher absolute value
-  if (abs (lit) > abs (other) && frozen (lit)) {
+  if (lit.var () > other.var () && frozen (lit)) {
     if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %s", LOGLIT(lit));
       sweeper.partition.resize (sweeper.partition.size () - 3);
@@ -1401,7 +1401,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
       sweeper.partition.resize (sweeper.partition.size () - 1);
     }
     return false;
-  } else if (abs (other) > abs (lit) && frozen (other)) {
+  } else if (other.var ()> lit.var () && frozen (other)) {
     if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %s", LOGLIT(lit));
       sweeper.partition.resize (sweeper.partition.size () - 3);
@@ -1476,7 +1476,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
     stats.sweep_equivalences++;
     sweep_binary bin1;
     sweep_binary bin2;
-    if (abs (lit) > abs (other)) {
+    if (lit.var () > other.var ()) {
       bin1.lit = lit;
       bin1.other = not_other;
       bin2.lit = not_lit;
@@ -1498,7 +1498,7 @@ bool Internal::sweep_equivalence_candidates (Sweeper &sweeper, Lit lit,
   }
 
   Lit repr;
-  if (abs (lit) < abs (other)) {
+  if (lit.var () < other.var ()) {
     repr = sweeper.reprs[other ()] = lit;
     sweeper.reprs[not_other ()] = not_lit;
     sweep_remove (sweeper, other);
@@ -1521,7 +1521,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
   if (!active (idx))
     return "inactive variable";
   const Lit start = idx;
-  if (sweeper.reprs[vidx (start)] != start)
+  if (sweeper.reprs[start ()] != start)
     return "non-representative variable";
   assert (sweeper.vars.empty ());
   assert (sweeper.clauses.empty ());

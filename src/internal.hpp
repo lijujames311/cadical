@@ -1109,7 +1109,7 @@ struct Internal {
     Flags &f = flags (lit);
     if (f.subsume)
       return;
-    LOG ("marking %d as subsuming literal candidate", abs (lit));
+    LOG ("marking %d as subsuming literal candidate", lit.var ());
     stats.mark.subsume++;
     f.subsume = true;
   }
@@ -1117,7 +1117,7 @@ struct Internal {
     Flags &f = flags (lit);
     if (f.ternary)
       return;
-    LOG ("marking %d as ternary resolution literal candidate", abs (lit));
+    LOG ("marking %d as ternary resolution literal candidate", lit.var ());
     stats.mark.ternary++;
     f.ternary = true;
   }

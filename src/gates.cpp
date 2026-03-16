@@ -518,9 +518,9 @@ void Internal::find_if_then_else (Eliminator &eliminator, Lit pivot) {
       if (cj == pivot)
         swap (aj, cj);
       assert (aj == pivot);
-      if (abs (bi) == abs (cj))
+      if (bi.var () == cj.var ())
         swap (bj, cj);
-      if (abs (ci) == abs (cj))
+      if (ci.var () == cj.var ())
         continue;
       if (bi != -bj)
         continue;

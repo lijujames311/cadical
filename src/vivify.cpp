@@ -327,7 +327,7 @@ struct vivify_more_noccs {
       return false; // smaller occurrences / score last
     if (a == -b)
       return a.is_positive();           // positive literal first
-    return abs (a) < abs (b); // smaller index first
+    return a.var () < b.var (); // smaller index first
   }
 };
 

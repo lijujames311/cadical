@@ -209,8 +209,8 @@ bool Internal::satisfied () {
 }
 
 bool Internal::better_decision (Lit lit, Lit other) {
-  Lit::base_type lit_idx = abs (lit);
-  Lit::base_type other_idx = abs (other);
+  Lit::base_type lit_idx = lit.var ();
+  Lit::base_type other_idx = other.var ();
   if (stable)
     return stab[lit_idx] > stab[other_idx];
   else

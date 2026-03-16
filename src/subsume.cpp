@@ -310,7 +310,7 @@ struct subsume_less_noccs {
       return true;
     if (m > n)
       return false;
-    return abs (a) < abs (b);
+    return a.var () < b.var ();
   }
 };
 

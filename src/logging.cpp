@@ -244,7 +244,7 @@ void Logger::log (Internal *internal, const int *literals,
 
 string Logger::loglit (Internal *internal, Lit lit) {
   std::string v = std::to_string (lit.signed_representation ());
-  if (lit != INVALID_LIT && internal->max_var >= lit.var ()) {
+  if (lit != INVALID_LIT && lit != OTHER_INVALID_LIT && internal->max_var >= lit.var ()) {
     const int va = internal->val (lit);
     if (va) {
       v = v + "@" + std::to_string (internal->var (lit).level);

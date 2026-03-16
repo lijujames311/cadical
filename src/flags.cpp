@@ -17,7 +17,7 @@ void Internal::mark_fixed (Lit lit) {
   if (external->fixed_listener) {
     ELit elit = externalize (lit);
     assert (elit != INVALID_ELIT);
-    const int eidx = abs (elit);
+    const int eidx = elit.var ();
     if (!external->ervars[eidx])
       external->fixed_listener->notify_fixed_assignment (elit.signed_representation());
   }

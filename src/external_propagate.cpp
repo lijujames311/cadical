@@ -170,7 +170,7 @@ void Internal::renotify_full_trail_between_trail_pos (
     // This happens on root level, so notification about their assignment
     // is already done.
     assert (external->observed (elit) || fixed (ilit));
-    if (!external->ervars[abs (elit)])
+    if (!external->ervars[elit.var ()])
       assigned.push_back (elit.signed_representation());
   }
 
@@ -304,14 +304,14 @@ bool Internal::external_propagate () {
 
 
     REQUIRE (
-        !dimacs_elit || ((size_t) abs (elit) < external->is_observed.size () &&
-                  external->is_observed[abs (elit)]),
+        !dimacs_elit || ((size_t) elit.var () < external->is_observed.size () &&
+                  external->is_observed[elit.var ()]),
         "external propagations are only allowed over observed variables.");
 
     stats.ext_prop.ext_cb++;
     stats.ext_prop.eprop_call++;
     while (elit != INVALID_ELIT) {
-      assert (external->is_observed[abs (elit)]);
+      assert (external->is_observed[elit.var ()]);
       Lit ilit = external->e2i[elit.labs ()];
       if (elit.is_negated ())
         ilit = -ilit;
@@ -556,8 +556,8 @@ void Internal::add_external_clause (ELit propagated_elit,
     elit = ELit (external->propagator->cb_add_external_clause_lit ());
 
   REQUIRE (
-      !elit.var () || ((size_t) abs (elit) < external->is_observed.size () &&
-                external->is_observed[abs (elit)]),
+      !elit.var () || ((size_t) elit.var () < external->is_observed.size () &&
+                external->is_observed[elit.var ()]),
       "external (reason) clause must contain only observed variables.");
 
   // we need to be build a new LRAT chain if we are already in the middle of
@@ -586,8 +586,8 @@ void Internal::add_external_clause (ELit propagated_elit,
       elit = ELit (external->propagator->cb_add_external_clause_lit ());
 
     REQUIRE (
-        !elit.var () || ((size_t) abs (elit) < external->is_observed.size () &&
-                  external->is_observed[abs (elit)]),
+        !elit.var () || ((size_t) elit.var () < external->is_observed.size () &&
+                  external->is_observed[elit.var ()]),
         "external (reason) clause must contain only observed variables.");
   }
   external->add (elit);
@@ -1045,14 +1045,14 @@ void Internal::notify_assignments () {
 
     ELit elit = externalize (ilit); // TODO: double-check tainting
     assert (elit != INVALID_ELIT);
-    if (external->ervars[abs (elit)])
+    if (external->ervars[elit.var ()])
       continue;
     // Fixed variables might get mapped (during compact) to another
     // non-observed but fixed variable.
     // This happens on root level, so notification about their assignment is
     // already done.
     assert (external->observed (elit) ||
-            (fixed (ilit) && !external->ervars[abs (elit)]));
+            (fixed (ilit) && !external->ervars[elit.var ()]));
     assigned.push_back (elit.signed_representation());
   }
   if (assigned.size ())
@@ -1125,11 +1125,11 @@ Lit Internal::ask_decision () {
     return INVALID_LIT;
   LOG ("external propagator proposes decision: %s", LOGLIT(elit));
 
-  REQUIRE ((size_t) abs (elit) < external->is_observed.size () &&
-               external->is_observed[abs (elit)],
+  REQUIRE ((size_t) elit.var () < external->is_observed.size () &&
+               external->is_observed[elit.var ()],
            "external decisions are only allowed over observed variables.");
 
-  assert (external->is_observed[abs (elit)]);
+  assert (external->is_observed[elit.var ()]);
 
   Lit ilit = external->e2i[elit.labs ()];
   if (elit.is_negated ())
@@ -1318,7 +1318,7 @@ void Internal::get_all_fixed_literals (std::vector<int> &fixed_lits) {
     if (ilit != INVALID_LIT && !external->ervars[eidx.var ()]) {
       Flags &f = flags (ilit);
       if (f.status == Flags::FIXED) {
-        fixed_lits.push_back ((vals[abs (ilit)] * eidx).signed_representation());
+        fixed_lits.push_back ((vals[ilit.var ()] * eidx).signed_representation());
       }
     }
   }

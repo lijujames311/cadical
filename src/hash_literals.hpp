@@ -28,11 +28,7 @@ struct hash<ELit>
 
 namespace CaDiCaL {
 
-  Lit::base_type abs (Lit a);
   Lit operator*(int sign, Lit lit);
-  ELit::base_type abs (ELit a);
   ELit operator*(int sign, ELit lit);
-  Lit::base_type abs (Lit::base_type a);
-
 }
 #endif

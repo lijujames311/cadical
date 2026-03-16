@@ -184,7 +184,7 @@ void Walker::save_walker_trail (bool keep) {
     const Lit lit = *it;
     assert (lit != INVALID_LIT);
     const signed char value = sign (lit);
-    const int idx = abs (lit);
+    const int idx = lit.var ();
     best_values[idx] = value;
   }
   if (!keep) {
@@ -484,7 +484,7 @@ bool Internal::walk_flip_lit (Walker &walker, Lit lit) {
   // First flip the literal value.
   //
   const signed char tmp = sign (lit);
-  const int idx = abs (lit);
+  const int idx = lit.var ();
   set_val (Lit (idx), tmp);
   assert (val (lit) > 0);
 
@@ -819,7 +819,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
       if (!active (lit))
         continue;
       tmp = sign (lit);
-      const int idx = abs (lit);
+      const int idx = lit.var ();
       LOG ("initial assign %s to assumption phase", LOGLIT(lit));
       set_val (Lit (idx), tmp);
       assert (level == 1);

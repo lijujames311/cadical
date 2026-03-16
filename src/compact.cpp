@@ -148,7 +148,7 @@ struct Mapper {
     for (; i != end; i++) {
       const Lit src = *i;
       Lit dst = map_idx (src.labs ());
-      assert (abs (dst) <= abs (src));
+      assert (dst.var () <= src.var ());
       if (dst == INVALID_LIT)
         continue;
       if (src.is_negated())

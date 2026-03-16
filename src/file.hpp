@@ -143,7 +143,7 @@ public:
       int i = sizeof buffer;
       buffer[--i] = 0;
       assert (lit != Lit (INT_MIN));
-      unsigned idx = abs (lit);
+      unsigned idx = lit.var ();
       while (idx) {
         assert (i > 0);
         buffer[--i] = '0' + idx % 10;

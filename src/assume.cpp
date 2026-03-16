@@ -531,7 +531,7 @@ struct sort_assumptions_positive_rank {
     const Var &v = internal->var (a);
     uint64_t res = (assigned ? (unsigned) v.level : max_level);
     res <<= 32;
-    res |= (assigned ? v.trail : abs (a));
+    res |= (assigned ? v.trail : a.var());
     return res;
   }
 };
