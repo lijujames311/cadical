@@ -192,6 +192,8 @@ struct Internal {
   bool external_prop_is_lazy; // true if the external propagator is lazy
   bool forced_backt_allowed;  // external propagator can force backtracking
   bool private_steps;   // no notification of ext. prop during these steps
+  vector<int> etrail;   // notification trail for ext. prop
+  vector<int> assigned; // notification trail for ext. prop
   char rephased;        // last type of resetting phases
   Reluctant reluctant;  // restart counter in stable mode
   size_t vsize;         // actually allocated variable data size

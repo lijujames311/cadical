@@ -957,38 +957,41 @@ bool Internal::external_check_solution () {
 
   bool trail_changed = true;
   bool added_new_clauses = false;
+
   while (trail_changed || added_new_clauses) {
     notify_assignments ();
     if (!satisfied ())
       break;
-    trail_changed = false; // to be on the safe side
-    added_new_clauses = false;
     LOG ("Final check by external propagator is invoked.");
     stats.ext_prop.echeck_call++;
-    external->reset_extended ();
-    external->extend ();
-
-    std::vector<int> etrail;
 
     // Here the variables must be filtered by external->is_observed,
     // because fixed variables are internally not necessarily observed
     // anymore.
-    for (int idx = 1;
-         idx <= std::min ((int) external->is_observed.size () - 1,
-                          external->max_var);
-         idx++) {
-      if (!external->is_observed[idx])
-        continue;
-      const int lit = external->ival (idx);
-      etrail.push_back (lit);
+    if (trail_changed) {
+
+      external->reset_extended ();
+      external->extend ();
+      // printf ("trail changed %b\n", trail_changed);
+      for (int idx = 1;
+           idx <= std::min ((int) external->is_observed.size () - 1,
+                            external->max_var);
+           idx++) {
+        if (!external->is_observed[idx])
+          continue;
+        const int lit = external->ival (idx);
+        etrail.push_back (lit);
 #ifndef NDEBUG
 #ifdef LOGGING
-      bool p = external->vals[idx];
-      LOG ("evals[%d]: %d ival(%d): %d", idx, p, idx, lit);
+        bool p = external->vals[idx];
+        LOG ("evals[%d]: %d ival(%d): %d", idx, p, idx, lit);
 #endif
 #endif
+      }
     }
 
+    trail_changed = false; // to be on the safe side
+    added_new_clauses = false;
     forced_backt_allowed = true;
     size_t assigned = num_assigned;
     int level_before = level;
@@ -1002,10 +1005,12 @@ bool Internal::external_check_solution () {
       // In case an external forced backtracking was performed, the CDCL
       // loop needs to continue withouth further checks of the model.
       trail_changed = true;
+      etrail.clear ();
       return !conflict;
     }
 
     if (is_consistent) {
+      etrail.clear ();
       LOG ("Found solution is approved by external propagator.");
       return true;
     }
@@ -1027,6 +1032,8 @@ bool Internal::external_check_solution () {
           (num_assigned != assigned || level != level_before ||
            propagated < trail.size ());
       added_new_clauses = true;
+      // printf ("trail changed %b\n", trail_changed);
+
       //
       // There are many possible scenarios here:
       // - Learned conflicting clause: return to CDCL loop (conflict true)
@@ -1062,6 +1069,7 @@ bool Internal::external_check_solution () {
     }
   }
 
+  etrail.clear ();
   return !conflict;
 }
 
@@ -1079,7 +1087,6 @@ void Internal::notify_assignments () {
     return;
 
   LOG ("notify external propagator about new assignments");
-  std::vector<int> assigned;
 
   while (notified < end_of_trail) {
     int ilit = trail[notified++];
@@ -1100,6 +1107,7 @@ void Internal::notify_assignments () {
   }
   if (assigned.size ())
     external->propagator->notify_assignment (assigned);
+  assigned.clear ();
   return;
 }
 
