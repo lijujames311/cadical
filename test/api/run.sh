@@ -112,6 +112,7 @@ run newdelete
 run unit
 run morenmore
 run ctest
+run cilb
 run example
 run example_declare_one_more_variable
 run example_constraint
