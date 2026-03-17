@@ -970,6 +970,7 @@ bool Internal::external_check_solution () {
     // anymore.
     if (trail_changed) {
 
+      etrail.clear ();
       external->reset_extended ();
       external->extend ();
       // printf ("trail changed %b\n", trail_changed);
