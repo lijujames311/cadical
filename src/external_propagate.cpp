@@ -485,8 +485,10 @@ void Internal::move_literals_to_watch () {
       highest_value = other_value;
     }
 #ifndef NDEBUG
-    LOG ("highest position: %d highest level: %d highest value: %d trail position: %d",
-         highest_position, highest_level, highest_value, var (highest_literal).trail);
+    LOG ("highest position: %d highest level: %d highest value: %d trail "
+         "position: %d",
+         highest_position, highest_level, highest_value,
+         var (highest_literal).trail);
 #endif
 
     if (highest_position == i)
@@ -822,9 +824,9 @@ void Internal::handle_external_clause (Clause *res) {
     // new unit clause. For now just backtrack.
     assert (!force_no_backtrack);
     assert (level);
-    // if (!opts.chrono) {
-    backtrack ();
-    // }
+    if (!opts.chrono) {
+      backtrack ();
+    }
     return;
   }
   if (from_propagator)
@@ -837,52 +839,57 @@ void Internal::handle_external_clause (Clause *res) {
     assert (val (pos0) >= 0);
     return;
     // TODO: maybe fix levels
-  } 
-  if (val (pos0) > 0 && val(pos1) < 0) {
-    //It is a clause that would have propagated
+  }
+  if (val (pos0) > 0 && val (pos1) < 0) {
+    // It is a clause that would have propagated
     Var &v = var (pos0);
     Var &other = var (pos1);
-    
+
     if (v.level > other.level) {
-      // It would have propagated pos0 on an earlier level than it is assigned
-      LOG(res, "elevate assignment of %d from level %d to level %d with new reason clause",pos0,var (pos0).level,var (pos1).level );
-    
+      // It would have propagated pos0 on an earlier level than it is
+      // assigned
+      LOG (res,
+           "elevate assignment of %d from level %d to level %d with new "
+           "reason clause",
+           pos0, var (pos0).level, var (pos1).level);
+
       // Find the highest literal based on trail-position of the clause
       int highest_literal = res->literals[0];
-      assert (val(highest_literal));
+      assert (val (highest_literal));
 
       int highest_position = var (highest_literal).trail;
 
       for (int i = 1; i < res->size; i++) {
         const int highest_candidate = res->literals[i];
-        assert (val(highest_candidate));
+        assert (val (highest_candidate));
         if (var (highest_candidate).trail > highest_position) {
           highest_position = var (highest_candidate).trail;
           highest_literal = highest_candidate;
         }
       }
-      Var &m = var(highest_literal);
-      assert(v.level >= m.level);
-      
+      Var &m = var (highest_literal);
+      assert (v.level >= m.level);
+
       if (v.trail >= m.trail && v.reason && opts.chrono) {
-        // If v.trail == m.trail, then the propagated literal is the maximum 
+        // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
         v.level = other.level;
         v.reason = res;
       } else {
         // we need to make sure that v.trail >= m.trail
-        
+
         assert (!force_no_backtrack);
 
-        backtrack (other.level); //pos0 is unassigned by that backtrack step
+        backtrack (other.level); // pos0 is unassigned by that backtrack
+                                 // step
 
         assert (!val (pos0) && val (pos1));
         search_assign_driving (pos0, res);
-        
-        assert(v.trail >= m.trail);
-        assert(v.level == other.level);
-        assert(val (pos0) > 0 && val (pos1) < 0);
+
+        assert (v.trail >= m.trail);
+        assert (v.level == other.level);
+        assert (val (pos0) > 0 && val (pos1) < 0);
       }
     }
   }
