@@ -844,6 +844,8 @@ void Internal::handle_external_clause (Clause *res) {
     // It is a clause that would have propagated
     Var &v = var (pos0);
     Var &other = var (pos1);
+    // printf ("pos0(%d)=%d@%d, pos1(%d)=%d@%d\n", pos0, val (pos0),
+    //      var (pos0).level, pos1, val (pos1), var (pos1).level);
 
     if (v.level > other.level) {
       // It would have propagated pos0 on an earlier level than it is
@@ -870,7 +872,7 @@ void Internal::handle_external_clause (Clause *res) {
       Var &m = var (highest_literal);
       assert (v.level >= m.level);
 
-      if (v.trail >= m.trail && v.reason && opts.chrono) {
+      if (v.trail >= m.trail && opts.chrono) {
         // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
@@ -879,12 +881,13 @@ void Internal::handle_external_clause (Clause *res) {
       } else {
         // we need to make sure that v.trail >= m.trail
 
+        // printf ("else");
         assert (!force_no_backtrack);
 
         backtrack (other.level); // pos0 is unassigned by that backtrack
                                  // step
 
-        assert (!val (pos0) && val (pos1));
+        assert (!val (pos0) && val (pos1) < 0);
         search_assign_driving (pos0, res);
 
         assert (v.trail >= m.trail);
@@ -894,6 +897,7 @@ void Internal::handle_external_clause (Clause *res) {
     }
   }
   const int l1 = var (pos1).level;
+  const int l0 = var (pos0).level;
   if (val (pos0) < 0) { // conflicting or propagating clause
     assert (0 < l1 && l1 <= var (pos0).level);
     if (!opts.chrono) {
@@ -903,18 +907,18 @@ void Internal::handle_external_clause (Clause *res) {
       conflict = res;
       if (!from_propagator) {
         // its better to backtrack instead of analyze
-        backtrack (l1 - 1);
+        backtrack (l0 - 1);
         conflict = 0;
-        assert (!val (pos0) && !val (pos1));
+        assert (!val (pos0) && val (pos1) < 0);
+        search_assign_driving (pos0, res);
       }
-    } else {
+    } else if (val (pos1) < 0) {
       search_assign_driving (pos0, res);
     }
     if (from_propagator)
       stats.ext_prop.elearn_conf++;
     return;
-  }
-  if (val (pos1) < 0 && !val (pos0)) { // propagating clause
+  } else if (val (pos1) < 0 && !val (pos0)) { // propagating clause
     if (!opts.chrono) {
       backtrack (l1);
     }

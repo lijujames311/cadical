@@ -28,15 +28,22 @@ int main (void) {
   for (int i = 1; i < BIG_NUM; i++) {
     assert (ccadical_val (solver, i) == i);
   }
-  for (int i = 2; i < BIG_NUM; i++) {
+  for (int i = BIG_NUM; i > 2; i--) {
     if (__builtin_popcount (i) == 1)
       printf ("iteration %d\n", i);
+    ccadical_add (solver, -(i - 2));
     ccadical_add (solver, (i - 1));
-    ccadical_add (solver, -(i));
     ccadical_add (solver, 0);
     int res = ccadical_solve (solver);
     assert (res == 10);
   }
+  /*
+  ccadical_add (solver, -(1));
+  ccadical_add (solver, -(BIG_NUM - 1));
+  ccadical_add (solver, 0);
+  res = ccadical_solve (solver);
+  assert (res == 10);
+  */
   ccadical_release (solver);
   return 0;
 }
