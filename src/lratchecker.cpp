@@ -272,6 +272,9 @@ bool LratChecker::check_resolution (vector<int64_t> proof_chain) {
     }
     if (!checked_lit (lit)) {
       // learned clause is subsumed by resolvents
+      // should only be triggered by following options.
+      assert (internal->opts.vivifyinst || internal->opts.cover ||
+              internal->opts.instantiate);
       checked_lit (lit) = true;
     }
     checked_lit (-lit) = true;

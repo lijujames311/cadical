@@ -280,7 +280,7 @@ OPTION( vivifycalctier,    1,  0,  1,0,0,1, "use tier limits") \
 OPTION( vivifydemote,      0,  0,  1,0,1,1, "demote irredundant or delete directly") \
 OPTION( vivifyeffort,     50,  0,1e5,1,0,1, "overall efficiency per mille") \
 OPTION( vivifyflush,       1,  0,  1,1,0,1,  "flush subsumed before vivification rounds") \
-OPTION( vivifyinst,        1,  0,  1,0,0,1, "instantiate last literal when vivify") \
+OPTION( vivifyinst,        0,  0,  1,0,0,1, "instantiate last literal when vivify") \
 OPTION( vivifyirred,       1,  0,  1,0,0,1, "vivification of irredundant clauses") \
 OPTION( vivifyirredeff,    3,  1,100,1,0,1, "irredundant efficiency per mille") \
 OPTION( vivifyonce,        0,  0,  2,0,0,1, "vivify once: 1=red, 2=red+irr") \
