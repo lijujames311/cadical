@@ -1327,6 +1327,8 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
     size_t i = 0;
     for (auto def : factoring.fresh) {
       const auto &lit = def[0];
+      if (fixed (lit))
+        continue;
       const auto &other = replace[i++];
       if (fixed (lit))
         continue;
