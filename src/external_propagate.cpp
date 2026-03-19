@@ -824,9 +824,9 @@ void Internal::handle_external_clause (Clause *res) {
     // new unit clause. For now just backtrack.
     assert (!force_no_backtrack);
     assert (level);
-    if (!opts.chrono) {
-      backtrack ();
-    }
+    // if (!opts.chrono) {
+    backtrack ();
+    // }
     return;
   }
   if (from_propagator)
