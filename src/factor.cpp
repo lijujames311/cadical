@@ -1242,7 +1242,7 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
       const auto &lit = def[0];
       assert (lit > 0 && internal->max_var);
       const double old_score = score (lit);
-      COVER (!scores.contains (lit));
+      // COVER (!scores.contains (lit));
       if (!scores.contains (lit))
         continue;
       double new_score = old_score;
@@ -1268,7 +1268,7 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
     for (auto def : factoring.fresh) {
       const auto &lit = def[0];
       assert (lit > 0 && internal->max_var);
-      COVER (!scores.contains (lit));
+      // COVER (!scores.contains (lit));
       if (!scores.contains (lit))
         continue;
       score (lit) = new_score;
@@ -1279,12 +1279,16 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
   if (opts.factorbumpqueue == 0) {
     for (auto def : factoring.fresh) {
       const auto lit = def[0];
+      if (fixed (lit))
+        continue;
       LOG ("dequeuing %s", LOGLIT (lit));
       queue.dequeue (links, lit);
     }
 
     for (auto def : factoring.fresh) {
       const auto &lit = def[0];
+      if (fixed (lit))
+        continue;
       LOG ("enqueuing %s at bottom", LOGLIT (lit));
       queue.bury (links, lit);
     }
@@ -1303,6 +1307,8 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
     vector<int> replace;
     for (auto def : factoring.fresh) {
       const auto &lit = def[0];
+      if (fixed (lit))
+        continue;
       LOG ("dequeuing %s", LOGLIT (lit));
       queue.dequeue (links, lit);
       int after = 0;
@@ -1322,6 +1328,8 @@ void Internal::adjust_scores_and_phases_of_fresh_variables (
     for (auto def : factoring.fresh) {
       const auto &lit = def[0];
       const auto &other = replace[i++];
+      if (fixed (lit))
+        continue;
       if (!other) {
         COVER (true);
         LOG ("enqueuing %s at bottom", LOGLIT (lit));

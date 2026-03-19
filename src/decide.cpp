@@ -223,9 +223,9 @@ int Internal::decide () {
   START (decide);
   // during interaction with the user propagator, new variables can be added
   // (for example by observed).
-  if (!imports.empty())
+  if (!imports.empty ())
     activating_all_new_imported_literals ();
-  check_queue();
+  check_queue ();
   int res = 0;
   if ((size_t) level < assumptions.size ()) {
     const int lit = assumptions[level];
@@ -345,14 +345,14 @@ int Internal::decide () {
         const bool target = (opts.target > 1 || (stable && opts.target));
         decision = decide_phase (idx, target);
       }
-      assert (!flags (decision).unused());
+      assert (!flags (decision).unused ());
       search_assume_decision (decision);
     }
   }
   if (res)
     marked_failed = false;
   STOP (decide);
-  check_var_stats();
+  check_var_stats ();
   return res;
 }
 } // namespace CaDiCaL
