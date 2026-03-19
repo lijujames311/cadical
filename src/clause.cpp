@@ -500,7 +500,8 @@ void Internal::add_new_original_clause (int64_t id) {
         if (lrat || frat)
           unit_clauses (uidx) = new_id;
         mark_fixed (clause[0]);
-      } else if (val (clause[0]) > 0 && opts.chrono) {
+      } else if (val (clause[0]) > 0 && opts.chrono &&
+                 var (clause[0]).reason) {
         const int idx = vidx (clause[0]);
         assert (val (clause[0]) >= 0);
         assert (!flags (idx).eliminated ());
@@ -515,9 +516,9 @@ void Internal::add_new_original_clause (int64_t id) {
       } else {
         const int lit = clause[0];
         assert (!val (lit) || var (lit).level);
-        if (val (lit) < 0)
+        if (val (lit) != 0)
           backtrack (var (lit).level - 1);
-        assert (val (lit) >= 0);
+        assert (val (lit) == 0);
         handle_external_clause (0);
         assign_original_unit (new_id, lit);
       }

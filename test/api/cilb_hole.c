@@ -37,13 +37,12 @@ int main (void) {
     int res = ccadical_solve (solver);
     assert (res == 10);
   }
-  /*
   ccadical_add (solver, -(1));
   ccadical_add (solver, -(BIG_NUM - 1));
   ccadical_add (solver, 0);
+  printf ("problematic conflict\n");
   res = ccadical_solve (solver);
   assert (res == 10);
-  */
   ccadical_release (solver);
   return 0;
 }

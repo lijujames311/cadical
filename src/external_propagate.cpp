@@ -872,7 +872,7 @@ void Internal::handle_external_clause (Clause *res) {
       Var &m = var (highest_literal);
       assert (v.level >= m.level);
 
-      if (v.trail >= m.trail && opts.chrono) {
+      if (v.trail >= m.trail && opts.chrono && v.reason) {
         // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
@@ -898,26 +898,23 @@ void Internal::handle_external_clause (Clause *res) {
   }
   const int l1 = var (pos1).level;
   const int l0 = var (pos0).level;
-  if (val (pos0) < 0) { // conflicting or propagating clause
+  if (val (pos0) < 0) { // conflicting
     assert (0 < l1 && l1 <= var (pos0).level);
     if (!opts.chrono) {
       backtrack (l1);
     }
-    if (val (pos0) < 0) {
-      conflict = res;
-      if (!from_propagator) {
-        // its better to backtrack instead of analyze
+    if (!from_propagator) {
+      // its better to backtrack instead of analyze
+      if (val (pos0))
         backtrack (l0 - 1);
-        conflict = 0;
-        assert (!val (pos0) && val (pos1) < 0);
+      assert (!val (pos0) && val (pos1) <= 0);
+      if (val (pos1) < 0)
         search_assign_driving (pos0, res);
-      }
-    } else if (val (pos1) < 0) {
-      search_assign_driving (pos0, res);
-    }
-    if (from_propagator)
+    } else if (from_propagator) {
+      // we analyze clauses from the propagator instead
+      conflict = res;
       stats.ext_prop.elearn_conf++;
-    return;
+    }
   } else if (val (pos1) < 0 && !val (pos0)) { // propagating clause
     if (!opts.chrono) {
       backtrack (l1);
@@ -925,7 +922,6 @@ void Internal::handle_external_clause (Clause *res) {
     search_assign_driving (pos0, res);
     if (from_propagator)
       stats.ext_prop.elearn_conf++;
-    return;
   }
 }
 
