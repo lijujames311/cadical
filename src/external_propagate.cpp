@@ -912,7 +912,8 @@ void Internal::handle_external_clause (Clause *res) {
         search_assign_driving (pos0, res);
     } else if (from_propagator) {
       // we analyze clauses from the propagator instead
-      conflict = res;
+      if (val (pos0))
+        conflict = res;
       stats.ext_prop.elearn_conf++;
     }
   } else if (val (pos1) < 0 && !val (pos0)) { // propagating clause
