@@ -18,6 +18,11 @@ User Facing Changes:
   default, activation with `-L`), due to a ticks limit of 0. Only noticeable if
   you run the solver with `-L1`.
 
+- By default, all solver techniques support LRAT resolution checking
+  (enabling easy interpolation). Exceptions are `factor` which requires
+  LRAT with extended resolution (and therefore no interpolation) and
+  `cover`, `instantiate` and `vivifyinst` which all require less strict
+  LRAT checking where the antecedents subsume the learned clause.
 
 New and Improved Techniques:
 
@@ -27,11 +32,13 @@ New and Improved Techniques:
 - Improved performance of congruence closure thanks to a new hash
   table instead of relying on the C++ standard one.
 
+- Improved BVA, now includes XOR and ITE factorization and considers
+  learned clauses.
+
 - New DDFW algorithm for walking.
 
 - Equivalent literals substitution (`decompose`) now also works on frozen
-  literals: those literals are replaced (but are kept obviously via binary
-  clauses).
+  literals: those literals are replaced (but are kept via binary clauses).
 
 - Major rework of literal import:
 
