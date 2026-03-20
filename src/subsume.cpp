@@ -164,6 +164,46 @@ void Internal::strengthen_clause (Clause *c, int lit) {
     new_binary_since_dedup = true;
 }
 
+void Internal::strengthen_clause_and_remove_units (Clause *c, int lit) {
+  if (opts.check && is_external_forgettable (c->id))
+    mark_garbage_external_forgettable (c->id);
+  stats.strengthened++;
+  assert (c->size > 2);
+  LOG (c, "removing %d and units in", lit);
+  std::vector<int> clause;
+  int j = 0;
+  for (int i = 0; i < c->size; ) {
+    int other = c->literals[i++];
+    c->literals[j++] = other;
+    clause.push_back(other);
+    if (other == lit) {
+      --j;
+      continue;
+    }
+    if (fixed (other)) {
+      --j;
+      continue;
+    }
+  }
+  shrink_clause (c, j);
+  if (proof) {
+    LOG (lrat_chain, "strengthening clause with chain");
+    proof->otfs_strengthen_clause(c, clause, lrat_chain);
+  }
+  if (!c->redundant)
+    mark_removed (lit);
+  /*
+  auto new_end = remove (c->begin (), c->end (), lit);
+  assert (new_end + 1 == c->end ()), (void) new_end;
+  (void) shrink_clause (c, c->size - 1);
+  */
+  // bump_clause2 (c);
+  LOG (c, "strengthened");
+  external->check_shrunken_clause (c);
+  if (c->size == 2)
+    new_binary_since_dedup = true;
+}
+
 /*------------------------------------------------------------------------*/
 
 // Find clauses connected in the occurrence lists 'occs' which subsume the

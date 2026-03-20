@@ -831,7 +831,7 @@ inline void Internal::vivify_increment_stats (const Vivifier &vivifier) {
 bool Internal::vivify_instantiate (
     const std::vector<int> &sorted, Clause *c,
     std::vector<std::tuple<int, Clause *, bool>> &lrat_stack,
-    int64_t &ticks) {
+    int64_t &ticks, bool removed_units) {
   LOG ("now trying instantiation");
   conflict = nullptr;
   const int lit = sorted.back ();
@@ -859,7 +859,10 @@ bool Internal::vivify_instantiate (
     conflict = nullptr;
     unwatch_clause (c);
     backtrack_without_updating_phases (level - 2);
-    strengthen_clause (c, remove);
+    if (removed_units)
+      strengthen_clause_and_remove_units (c, remove);
+    else
+      strengthen_clause (c, remove);
     vivify_sort_watched (c);
     watch_clause (c);
     assert (!conflict);
@@ -897,6 +900,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
   //
   auto &sorted = vivifier.sorted;
   sorted.clear ();
+  bool found_units = false;
 
   for (const auto &lit : *c) {
     const int tmp = fixed (lit);
@@ -904,6 +908,8 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
       LOG (c, "satisfied by propagated unit %d", lit);
       mark_garbage (c);
       return false;
+    } else if (tmp < 0) {
+      found_units = true;
     } else if (!tmp)
       sorted.push_back (lit);
   }
@@ -1117,6 +1123,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     LOG (clause, "learning clause");
     conflict = nullptr; // TODO dup from below
     vivify_strengthen (c, ticks);
+    found_units = false; // all units have already been removed
     res = true;
   } else if (subsume && c->redundant) {
     LOG (c, "vivification implied");
@@ -1149,7 +1156,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     lrat_chain.clear ();
     assert (!subsume);
     if (!subsume && opts.vivifyinst) {
-      res = vivify_instantiate (sorted, c, lrat_stack, ticks);
+      res = vivify_instantiate (sorted, c, lrat_stack, ticks, found_units);
       assert (!conflict);
     } else {
       LOG ("cannot apply instantiation");

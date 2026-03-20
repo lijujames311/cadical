@@ -990,6 +990,7 @@ struct Internal {
   // Regular forward subsumption checking in 'subsume.cpp'.
   //
   void strengthen_clause (Clause *, int);
+  void strengthen_clause_and_remove_units (Clause *, int);
   void subsume_clause (Clause *subsuming, Clause *subsumed);
   int subsume_check (Clause *subsuming, Clause *subsumed);
   int try_to_subsume_clause (Clause *, vector<Clause *> &shrunken);
@@ -1023,7 +1024,7 @@ struct Internal {
   bool vivify_instantiate (
       const std::vector<int> &, Clause *,
       std::vector<std::tuple<int, Clause *, bool>> &lrat_stack,
-      int64_t &ticks);
+      int64_t &ticks, bool removed_units);
   void vivify_analyze_redundant (Vivifier &, Clause *start, bool &);
   void vivify_build_lrat (int, Clause *,
                           std::vector<std::tuple<int, Clause *, bool>> &);
