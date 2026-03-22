@@ -201,6 +201,8 @@ int Internal::determine_autarky (std::vector<signed char> &autarky_val, std::vec
   clear_watches();
 
   for (auto *c : clauses) {
+    if (!assigned)
+      break;
     if (c->garbage)
       continue;
     if (c->redundant)
@@ -220,12 +222,9 @@ int Internal::determine_autarky (std::vector<signed char> &autarky_val, std::vec
           Watches &ws = watches (lit);
           ws.push_back (Watch (other, c));
           LOG (c, "watch %d blit %d in", lit, other);
-          break;
         }
       }
     }
-    // removed: propagate_autarky
-
   }
 
   clear_watches();
