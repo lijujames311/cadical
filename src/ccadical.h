@@ -14,6 +14,11 @@ extern "C" {
 
 typedef struct CCaDiCaL CCaDiCaL;
 
+struct COption {
+  const char *name;
+  int def, lo, hi;
+};
+
 const char *ccadical_signature (void);
 CCaDiCaL *ccadical_init (void);
 void ccadical_release (CCaDiCaL *);
@@ -29,7 +34,11 @@ void ccadical_set_terminate (CCaDiCaL *, void *state,
 
 void ccadical_set_learn (CCaDiCaL *, void *state, int max_length,
                          void (*learn) (void *state, int *clause));
+void ccadical_set_learn2 (CCaDiCaL *, void *state, int max_length,
+                         void (*learn) (void *state, int32_t const *clause, int, void*));
 
+void ccadical_set_fixed_listener (CCaDiCaL *ptr, void *state,
+                         void (*fixed) (void *state, int fixed));
 /*------------------------------------------------------------------------*/
 
 // Non-IPASIR conformant 'C' functions.
@@ -37,6 +46,7 @@ void ccadical_set_learn (CCaDiCaL *, void *state, int max_length,
 void ccadical_constrain (CCaDiCaL *, int lit);
 int ccadical_constraint_failed (CCaDiCaL *);
 void ccadical_set_option (CCaDiCaL *, const char *name, int val);
+struct COption* ccadical_options (CCaDiCaL *wrapper, size_t *len);
 void ccadical_limit (CCaDiCaL *, const char *name, int limit);
 int ccadical_get_option (CCaDiCaL *, const char *name);
 void ccadical_print_statistics (CCaDiCaL *);

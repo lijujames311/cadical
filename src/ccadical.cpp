@@ -1,11 +1,12 @@
 #include "cadical.hpp"
+#include "options.hpp"
 
 #include <cstdlib>
 #include <cstring>
 
 namespace CaDiCaL {
 
-struct Wrapper : Learner, Terminator {
+struct Wrapper : Learner, Terminator, FixedAssignmentListener {
 
   Solver *solver;
   struct {
@@ -15,10 +16,23 @@ struct Wrapper : Learner, Terminator {
 
   struct {
     void *state;
+    void (*function) (void* data, int32_t fixed);
+  } fixed_listener;
+
+  struct {
+    void *state;
     int max_length;
     int *begin_clause, *end_clause, *capacity_clause;
     void (*function) (void *, int *);
   } learner;
+
+  // ipasir 2 has slightly incompatible types
+  struct {
+    void *state;
+    int max_length;
+    int *begin_clause, *end_clause, *capacity_clause;
+    void (*function) (void *, int32_t const *, int32_t len, void* proofmeta);
+  } learner2;
 
   bool terminate () {
     if (!terminator.function)
@@ -27,36 +41,66 @@ struct Wrapper : Learner, Terminator {
   }
 
   bool learning (int size) {
-    if (!learner.function)
+    if (!learner.function && !learner2.function)
       return false;
-    return size <= learner.max_length;
+    if (learner.function)
+      return size <= learner.max_length;
+    assert (learner2.function);
+    return size <= learner2.max_length;
   }
 
   void learn (int lit) {
-    if (learner.end_clause == learner.capacity_clause) {
-      size_t count = learner.end_clause - learner.begin_clause;
-      size_t size = count ? 2 * count : 1;
-      learner.begin_clause =
+    if (learner.function) {
+      if (learner.end_clause == learner.capacity_clause) {
+        size_t count = learner.end_clause - learner.begin_clause;
+        size_t size = count ? 2 * count : 1;
+        learner.begin_clause =
           (int *) realloc (learner.begin_clause, size * sizeof (int));
-      learner.end_clause = learner.begin_clause + count;
-      learner.capacity_clause = learner.begin_clause + size;
+        learner.end_clause = learner.begin_clause + count;
+        learner.capacity_clause = learner.begin_clause + size;
+      }
+      *learner.end_clause++ = lit;
+      if (!lit) {
+        learner.function (learner.state, learner.begin_clause);
+        learner.end_clause = learner.begin_clause;
+      }
     }
-    *learner.end_clause++ = lit;
-    if (lit)
-      return;
-    learner.function (learner.state, learner.begin_clause);
-    learner.end_clause = learner.begin_clause;
+
+    if (learner2.function) {
+      if (learner2.end_clause == learner2.capacity_clause) {
+        size_t count = learner2.end_clause - learner2.begin_clause;
+        size_t size = count ? 2 * count : 1;
+        learner2.begin_clause =
+          (int *) realloc (learner2.begin_clause, size * sizeof (int));
+        learner2.end_clause = learner2.begin_clause + count;
+        learner2.capacity_clause = learner2.begin_clause + size;
+      }
+      *learner2.end_clause++ = lit;
+      if (!lit) {
+        learner2.function (learner2.state, learner2.begin_clause, learner.end_clause - learner.begin_clause, nullptr);
+        learner2.end_clause = learner2.begin_clause;
+      }
+    }
+  }
+
+
+  void notify_fixed_assignment (int lit) {
+    fixed_listener.function (fixed_listener.state, lit);
   }
 
   Wrapper () : solver (new Solver ()) {
     memset (&terminator, 0, sizeof terminator);
     memset (&learner, 0, sizeof learner);
+    memset (&learner2, 0, sizeof learner2);
   }
 
   ~Wrapper () {
     terminator.function = 0;
+    fixed_listener.function = 0;
     if (learner.begin_clause)
       free (learner.begin_clause);
+    if (learner2.begin_clause)
+      free (learner2.begin_clause);
     delete solver;
   }
 };
@@ -85,6 +129,22 @@ int ccadical_constraint_failed (CCaDiCaL *wrapper) {
 
 void ccadical_set_option (CCaDiCaL *wrapper, const char *name, int val) {
   ((Wrapper *) wrapper)->solver->set (name, val);
+}
+
+COption* ccadical_options (CCaDiCaL *, size_t *len) {
+  std::vector<COption> solver_options;
+  solver_options.resize(CaDiCaL::number_of_options + 1);
+
+  for (CaDiCaL::Option* option = CaDiCaL::Options::begin(); option != CaDiCaL::Options::end(); ++option) {
+    COption opt;
+    opt.name = option->name;
+    opt.def = option->def;
+    opt.lo = option->lo;
+    opt.hi = option->hi;
+    solver_options.push_back (opt);
+  }
+  *len = solver_options.size ();
+  return solver_options.data ();
 }
 
 void ccadical_limit (CCaDiCaL *wrapper, const char *name, int val) {
@@ -161,6 +221,30 @@ void ccadical_set_learn (CCaDiCaL *ptr, void *state, int max_length,
   else
     wrapper->solver->disconnect_learner ();
 }
+
+void ccadical_set_learn2 (CCaDiCaL *ptr, void *state, int max_length,
+                         void (*learn) (void *state, int const *clause, int32_t len, void* proofmeta)) {
+  Wrapper *wrapper = (Wrapper *) ptr;
+  wrapper->learner2.state = state;
+  wrapper->learner2.max_length = max_length;
+  wrapper->learner2.function = learn;
+  if (learn)
+    wrapper->solver->connect_learner (wrapper);
+  else
+    wrapper->solver->disconnect_learner ();
+}
+
+void ccadical_set_fixed_listener (CCaDiCaL *ptr, void *state,
+                         void (*fixed) (void *state, int fixed)) {
+  Wrapper *wrapper = (Wrapper *) ptr;
+  wrapper->fixed_listener.state = state;
+  wrapper->fixed_listener.function = fixed;
+  if (fixed)
+    wrapper->solver->connect_fixed_listener (wrapper);
+  else
+    wrapper->solver->disconnect_fixed_listener ();
+}
+
 
 void ccadical_freeze (CCaDiCaL *ptr, int lit) {
   ((Wrapper *) ptr)->solver->freeze (lit);
