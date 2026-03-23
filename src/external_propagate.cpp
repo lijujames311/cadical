@@ -824,9 +824,7 @@ void Internal::handle_external_clause (Clause *res) {
     // new unit clause. For now just backtrack.
     assert (!force_no_backtrack);
     assert (level);
-    // if (!opts.chrono) {
     backtrack ();
-    // }
     return;
   }
   if (from_propagator)
@@ -844,8 +842,6 @@ void Internal::handle_external_clause (Clause *res) {
     // It is a clause that would have propagated
     Var &v = var (pos0);
     Var &other = var (pos1);
-    // printf ("pos0(%d)=%d@%d, pos1(%d)=%d@%d\n", pos0, val (pos0),
-    //      var (pos0).level, pos1, val (pos1), var (pos1).level);
 
     if (v.level > other.level) {
       // It would have propagated pos0 on an earlier level than it is
@@ -872,13 +868,13 @@ void Internal::handle_external_clause (Clause *res) {
       Var &m = var (highest_literal);
       assert (v.level >= m.level);
 
-      if (v.trail >= m.trail && opts.chrono && v.reason) {
+      if (v.trail >= m.trail && opts.chrono && opts.chronoadd && v.reason) {
         // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
         v.level = other.level;
         v.reason = res;
-      } else {
+      } else if (opts.chronoadd != -1) {
         // we need to make sure that v.trail >= m.trail
 
         // printf ("else");
