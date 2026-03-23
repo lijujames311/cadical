@@ -285,10 +285,8 @@ void Internal::autarky_apply (const std::vector<signed char> &autarky_val,
       if (proof)
         proof->weaken_minus(c);
       if (!compact) {
-        external->push_zero_on_extension_stack ();
-        for (auto lit : actual_autarky)
-          external->push_witness_literal_on_extension_stack (lit);
-        external->push_clause_on_extension_stack (c);
+        std::vector<int> witness = actual_autarky;
+        external->push_external_clause_and_witness_on_extension_stack(c, std::move (witness));
       }
       LOG (c, "autarky removed satisfied clause");
       mark_garbage (c);
@@ -300,12 +298,7 @@ void Internal::autarky_apply (const std::vector<signed char> &autarky_val,
     for (auto lit : lits) {
       const signed char v = autarky_val [vlit (lit)];
       if (v > 0) {
-        external->push_zero_on_extension_stack ();
-        external->push_witness_literal_on_extension_stack (lit);
-        external->push_zero_on_extension_stack ();
-        external->push_id_on_extension_stack (lit); //fake id
-        external->push_zero_on_extension_stack ();
-        external->push_clause_literal_on_extension_stack (lit);
+        external->push_external_clause_and_witness_on_extension_stack({lit}, {lit}, lit);
       }
     }
   }
