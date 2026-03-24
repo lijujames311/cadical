@@ -846,10 +846,6 @@ void Internal::handle_external_clause (Clause *res) {
     if (v.level > other.level) {
       // It would have propagated pos0 on an earlier level than it is
       // assigned
-      LOG (res,
-           "elevate assignment of %d from level %d to level %d with new "
-           "reason clause",
-           pos0, var (pos0).level, var (pos1).level);
 
       // Find the highest literal based on trail-position of the clause
       int highest_literal = res->literals[0];
@@ -868,16 +864,26 @@ void Internal::handle_external_clause (Clause *res) {
       Var &m = var (highest_literal);
       assert (v.level >= m.level);
 
-      if (v.trail >= m.trail && opts.chrono && opts.chronoadd && v.reason) {
+      if (v.trail >= m.trail && opts.chrono && opts.chronoadd > 0 &&
+          v.reason) {
         // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
+        LOG (res,
+             "elevate assignment of %d from level %d to level %d with new "
+             "reason clause",
+             pos0, var (pos0).level, var (pos1).level);
         v.level = other.level;
         v.reason = res;
       } else if (opts.chronoadd != -1) {
         // we need to make sure that v.trail >= m.trail
 
         // printf ("else");
+        LOG (res,
+             "backtrack due to missed assignment of %d from level %d to "
+             "level %d with new "
+             "reason clause",
+             pos0, var (pos0).level, var (pos1).level);
         assert (!force_no_backtrack);
 
         backtrack (other.level); // pos0 is unassigned by that backtrack
@@ -889,7 +895,12 @@ void Internal::handle_external_clause (Clause *res) {
         assert (v.trail >= m.trail);
         assert (v.level == other.level);
         assert (val (pos0) > 0 && val (pos1) < 0);
-      }
+      } else
+        LOG (res,
+             "ignore missed assignment of %d from level %d to "
+             "level %d with new "
+             "reason clause",
+             pos0, var (pos0).level, var (pos1).level);
     }
   }
   const int l1 = var (pos1).level;
