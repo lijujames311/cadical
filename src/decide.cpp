@@ -211,7 +211,7 @@ bool Internal::better_decision (int lit, int other) {
     return btab[lit_idx] > btab[other_idx];
 }
 
-#if !defined(NDEBUG) && 1
+#if defined(CHECKMISSED) && 1
 #define CHECK_MISSED() \
   do { \
     for (auto *c : clauses) { \
