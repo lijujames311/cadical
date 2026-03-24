@@ -473,7 +473,7 @@ void Internal::move_literals_to_watch () {
           continue;
         if (other_level < highest_level)
           continue;
-        if (other_trail < highest_trail)
+        if (other_level == highest_level && other_trail < highest_trail)
           continue;
       } else if (other_value > 0) {
         if (highest_value > 0 && other_level >= highest_level)
