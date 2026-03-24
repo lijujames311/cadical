@@ -867,7 +867,7 @@ void Internal::handle_external_clause (Clause *res) {
 
       Var &v = var (pos0);
       if (v.trail >= m.trail && opts.chrono && opts.chronoadd > 0 &&
-          v.reason) {
+          (opts.chronoadd > 1 || v.reason)) {
         // If v.trail == m.trail, then the propagated literal is the maximum
         // as well, so no need to backtrack
         // we simply reassign the reason and level of the propagation
@@ -877,6 +877,12 @@ void Internal::handle_external_clause (Clause *res) {
              pos0, var (pos0).level, var (pos1).level);
         v.level = l1;
         v.reason = res;
+      } else if (v.trail < m.trail && opts.chrono && opts.chronoadd > 0) {
+        LOG (res,
+             "ignore out-of-order missed assignment of %d from level %d to "
+             "level %d with new "
+             "reason clause",
+             pos0, var (pos0).level, var (pos1).level);
       } else if (!opts.chrono || opts.chronoadd != -1) {
         // we need to make sure that v.trail >= m.trail
 
@@ -897,12 +903,14 @@ void Internal::handle_external_clause (Clause *res) {
         assert (v.trail >= m.trail);
         assert (v.level == l1);
         assert (val (pos0) > 0 && val (pos1) < 0);
-      } else
+      } else {
+        // this will lead to missed implications later.
         LOG (res,
              "ignore missed assignment of %d from level %d to "
              "level %d with new "
              "reason clause",
              pos0, var (pos0).level, var (pos1).level);
+      }
     }
   } else if (!val (pos0) && val (pos1) < 0) { // propagating
     if (!opts.chrono) {
