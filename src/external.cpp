@@ -40,7 +40,7 @@ Lit External::declare_var (ELit new_var, bool extension) {
       ilit = Lit (internal->max_var+1);
     else {
       ilit = Lit (new_var.signed_representation ());
-      if (internal->i2e.size () > (size_t)ilit.var () && internal->to_external (ilit) != INVALID_ELIT) {
+      if (internal->to_external (ilit) != INVALID_ELIT) {
         LOG ("the slot is already used by %s, giving the next available name", LOGLIT(internal->to_external (ilit)));
         ilit = Lit (internal->max_var+1);
       }

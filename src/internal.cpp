@@ -1166,6 +1166,8 @@ void Internal::finalize (int res) {
     }
     // finalize internal units
     for (const auto &lit : lits) {
+      if (flags (lit).unused())
+        continue;
       const auto elit = externalize (lit);
       if (elit != INVALID_ELIT) {
         const int64_t id = external->external_unit_reason (elit);
