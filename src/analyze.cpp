@@ -785,20 +785,51 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, int uip) {
 
   const int old_size = new_conflict->size;
   int new_size = 0;
+  int best = 0;
+  int second_best = 0;
   for (int i = 0; i < old_size; ++i) {
     const int other = lits[i];
     sorted.push_back (other);
     if (var (other).level)
       lits[new_size++] = other;
+    if (other == uip)
+      continue;
+    if (!best || var (other).level > var (best).level) {
+      second_best = best;
+      best = other;
+    } else if (!second_best || var (other).level > var (second_best).level)
+      second_best = other;
   }
 
   LOG (new_conflict, "removing all units in");
 
   assert (lits[0] == uip || lits[1] == uip);
-  const int other = lits[0] ^ lits[1] ^ uip;
+  int other = lits[0] ^ lits[1] ^ uip;
   lits[0] = other;
   lits[1] = lits[--new_size];
   LOG (new_conflict, "putting uip at pos 1");
+
+  if (lits[0] != best) {
+    const int repl = lits[0];
+    other = lits[0] = best;
+    for (int i = 1; i < new_size; i++) {
+      if (lits[i] != best)
+        continue;
+      lits[i] = repl;
+      break;
+    }
+  }
+  if (lits[1] != second_best) {
+    const int repl = lits[1];
+    lits[1] = second_best;
+    for (int i = 2; i < new_size; i++) {
+      if (lits[i] != second_best)
+        continue;
+      lits[i] = repl;
+      break;
+    }
+  }
+  LOG (new_conflict, "fix watch invariant");
 
   if (other_init != other)
     remove_watch (watches (other_init), new_conflict);
