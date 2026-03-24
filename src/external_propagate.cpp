@@ -884,18 +884,17 @@ void Internal::handle_external_clause (Clause *res) {
              "reason clause",
              pos0, var (pos0).level, var (pos1).level);
       } else if (!opts.chrono || opts.chronoadd != -1) {
-        // we need to make sure that v.trail >= m.trail
 
-        // printf ("else");
         LOG (res,
              "backtrack due to missed assignment of %d from level %d to "
-             "level %d with new "
-             "reason clause",
-             pos0, var (pos0).level, var (pos1).level);
+             "level %d with new reason clause",
+             pos0, l0, l1);
         assert (!force_no_backtrack);
 
-        backtrack (l1); // pos0 is unassigned by that backtrack
-                        // step
+        if (opts.chrono)
+          backtrack (l0 - 1);
+        else
+          backtrack (l1);
 
         assert (!val (pos0) && val (pos1) < 0);
         search_assign_driving (pos0, res);
