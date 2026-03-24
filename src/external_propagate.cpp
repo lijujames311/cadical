@@ -460,16 +460,20 @@ void Internal::move_literals_to_watch () {
 
     int highest_level = var (highest_literal).level;
     int highest_value = val (highest_literal);
+    int highest_trail = var (highest_literal).trail;
 
     for (size_t j = i + 1; j < clause.size (); j++) {
       const int other = clause[j];
       const int other_level = var (other).level;
       const int other_value = val (other);
+      const int other_trail = var (other).trail;
 
       if (other_value < 0) {
         if (highest_value >= 0)
           continue;
-        if (other_level <= highest_level)
+        if (other_level < highest_level)
+          continue;
+        if (other_trail < highest_trail)
           continue;
       } else if (other_value > 0) {
         if (highest_value > 0 && other_level >= highest_level)
@@ -483,6 +487,7 @@ void Internal::move_literals_to_watch () {
       highest_literal = other;
       highest_level = other_level;
       highest_value = other_value;
+      highest_trail = other_trail;
     }
 #ifndef NDEBUG
     LOG ("highest position: %d highest level: %d highest value: %d trail "
