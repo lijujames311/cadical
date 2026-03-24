@@ -877,7 +877,7 @@ void Internal::handle_external_clause (Clause *res) {
              pos0, var (pos0).level, var (pos1).level);
         v.level = l1;
         v.reason = res;
-      } else if (opts.chronoadd != -1) {
+      } else if (!opts.chrono || opts.chronoadd != -1) {
         // we need to make sure that v.trail >= m.trail
 
         // printf ("else");
