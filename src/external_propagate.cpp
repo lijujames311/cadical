@@ -858,6 +858,7 @@ void Internal::handle_external_clause (Clause *res) {
       assert (val (highest_literal));
 
       int highest_position = var (highest_literal).trail;
+      int highest_idx = 0;
 
       for (int i = 1; i < res->size; i++) {
         const int highest_candidate = res->literals[i];
@@ -865,6 +866,7 @@ void Internal::handle_external_clause (Clause *res) {
         if (var (highest_candidate).trail > highest_position) {
           highest_position = var (highest_candidate).trail;
           highest_literal = highest_candidate;
+          highest_idx = i;
         }
       }
       Var &m = var (highest_literal);
@@ -883,6 +885,11 @@ void Internal::handle_external_clause (Clause *res) {
         v.level = l1;
         v.reason = res;
       } else if (v.trail < m.trail && opts.chrono && opts.chronoadd > 0) {
+        assert (highest_idx);
+        if (highest_idx != 1) {
+          res->literals[1] = highest_literal;
+          res->literals[highest_idx] = pos1;
+        }
         LOG (res,
              "ignore out-of-order missed assignment of %d from level %d to "
              "level %d with new "

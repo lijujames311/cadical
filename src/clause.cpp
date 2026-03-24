@@ -533,10 +533,10 @@ void Internal::add_new_original_clause (int64_t id) {
       Clause *c = new_clause (clause_redundancy, glue);
       c->id = new_id;
       clause_id--;
-      watch_clause (c);
       clause.clear ();
       original.clear ();
       handle_external_clause (c);
+      watch_clause (c);
       newest_clause = c;
     }
   }
