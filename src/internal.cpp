@@ -1154,12 +1154,11 @@ void Internal::finalize (int res) {
   if (frat) {
     for (const auto &evar : external->vars) {
       assert (evar.is_positive ());
-      const auto eidx = evar.vlit ();
       int sign = 1;
-      int64_t id = external->ext_units[eidx];
+      int64_t id = external->external_unit_reason (evar);
       if (!id) {
         sign = -1;
-        id = external->ext_units[eidx + 1];
+        id = external->external_unit_reason (-evar);
       }
       if (id) {
         proof->finalize_external_unit (id, sign * evar);
@@ -1169,8 +1168,7 @@ void Internal::finalize (int res) {
     for (const auto &lit : lits) {
       const auto elit = externalize (lit);
       if (elit != INVALID_ELIT) {
-        const unsigned eidx = elit.vlit ();
-        const int64_t id = external->ext_units[eidx];
+        const int64_t id = external->external_unit_reason (elit);
         if (id) {
           assert (unit_clauses (vlit (lit)) == id);
           continue;

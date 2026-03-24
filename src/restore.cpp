@@ -58,12 +58,10 @@ void External::restore_clause (const vector<int>::const_iterator &begin,
     const auto &elit = ELit (*p);
     eclause.push_back (elit);
     if (internal->proof && internal->lrat) {
-      unsigned eidx = (-elit).vlit ();
-      assert ((size_t) eidx < ext_units.size ());
-      const int64_t id = ext_units[eidx];
-      bool added = ext_flags[elit.var ()];
+      const int64_t id = external_unit_reason (-elit);
+      bool added = external_marked (elit);
       if (id && !added) {
-        ext_flags[elit.var ()] = true;
+        external_marked (elit) = true;
         internal->lrat_chain.push_back (id);
       }
     }
@@ -72,7 +70,7 @@ void External::restore_clause (const vector<int>::const_iterator &begin,
   }
   if (internal->proof && internal->lrat) {
     for (const auto &elit : eclause) {
-      ext_flags[elit.var ()] = false;
+      external_marked (elit) = false;
     }
   }
   internal->finish_added_clause_with_id (id, true);

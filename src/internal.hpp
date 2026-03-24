@@ -227,7 +227,7 @@ struct Internal {
   signed char *vals;            // assignment [-max_var,max_var]
   vector<signed char> marks;    // signed marks [1,max_var]
   vector<unsigned> frozentab;   // frozen counters [1,max_var]
-  vector<ELit> i2e;              // maps internal 'idx' to external 'lit'
+  std::unordered_map<Lit, ELit> i2e;              // maps internal 'idx' to external 'lit'
   vector<unsigned> relevanttab; // Reference counts for observed variables.
   Queue queue;                  // variable move to front decision queue
   Links links;                  // table of links for decision queue
@@ -1676,7 +1676,7 @@ struct Internal {
     const int idx = vidx (lit);
     assert (idx);
     assert (idx <= max_var);
-    ELit res = i2e[idx];
+    ELit res = i2e[lit.labs ()];
     if (lit.is_negated ())
       res = -res;
     return res;
@@ -1687,17 +1687,18 @@ struct Internal {
   // Use `externalize (Lit)` to get a literal back with the correct polarity
   ELit &to_external (Lit ilit) {
     assert (ilit.is_positive ());
-    assert ((size_t)ilit.var () < i2e.size ());
-    return i2e[ilit.var ()];
+    return i2e[ilit];
   }
 
   // External variable of an existing internal variable.
   //
   // Use `externalize (Lit)` to get a literal back with the correct polarity
-  const ELit &to_external (Lit ilit) const {
+  const ELit to_external (Lit ilit) const {
     assert (ilit.is_positive ());
-    assert ((size_t)ilit.var () < i2e.size ());
-    return i2e[ilit.var ()];
+    auto it = i2e.find (ilit);
+    if (it != i2e.end ())
+      return INVALID_ELIT;
+    return it->second;
   }
 
   // Explicit freezing and melting of variables.

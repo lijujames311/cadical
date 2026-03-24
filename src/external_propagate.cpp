@@ -170,7 +170,7 @@ void Internal::renotify_full_trail_between_trail_pos (
     // This happens on root level, so notification about their assignment
     // is already done.
     assert (external->observed (elit) || fixed (ilit));
-    if (!external->ervars[elit.var ()])
+    if (!external->is_extension_var (elit))
       assigned.push_back (elit.signed_representation());
   }
 
@@ -1045,14 +1045,14 @@ void Internal::notify_assignments () {
 
     ELit elit = externalize (ilit); // TODO: double-check tainting
     assert (elit != INVALID_ELIT);
-    if (external->ervars[elit.var ()])
+    if (external->is_extension_var (elit))
       continue;
     // Fixed variables might get mapped (during compact) to another
     // non-observed but fixed variable.
     // This happens on root level, so notification about their assignment is
     // already done.
     assert (external->observed (elit) ||
-            (fixed (ilit) && !external->ervars[elit.var ()]));
+            (fixed (ilit) && !external->is_extension_var (elit)));
     assigned.push_back (elit.signed_representation());
   }
   if (assigned.size ())
@@ -1315,7 +1315,7 @@ void Internal::get_all_fixed_literals (std::vector<int> &fixed_lits) {
   for (auto id : external->e2i) {
     Lit ilit = id.second;
     ELit eidx = id.first;
-    if (ilit != INVALID_LIT && !external->ervars[eidx.var ()]) {
+    if (ilit != INVALID_LIT && !external->is_extension_var (eidx)) {
       Flags &f = flags (ilit);
       if (f.status == Flags::FIXED) {
         fixed_lits.push_back ((vals[ilit.var ()] * eidx).signed_representation());

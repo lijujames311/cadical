@@ -280,7 +280,7 @@ void External::conclude_sat () {
     extend ();
   vector<int> model;
   for (int idx = 1; idx <= max_var; idx++) {
-    if (ervars[idx])
+    if (is_extension_var (ELit (idx)))
       continue;
     const ELit lit = ival (ELit (idx));
     model.push_back (lit.signed_representation());

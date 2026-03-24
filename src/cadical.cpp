@@ -274,7 +274,7 @@ void App::print_witness (FILE *file) {
     for (auto elit = 1; elit <= solver->external->max_var; ++elit) {
       if (!c)
         fputc ('v', file), c = 1;
-      if (solver->external->ervars[elit])
+      if (solver->external->is_extension_var (ELit (elit)))
         continue;
       else
         tmp = solver->val (elit) < 0 ? ELit (-elit) : ELit (elit);
@@ -295,7 +295,7 @@ void App::print_witness (FILE *file) {
         fputc ('v', file), c = 1;
       if (ilit == INVALID_LIT)
         continue;
-      if (solver->external->ervars[elit.var ()])
+      if (solver->external->is_extension_var (elit))
         continue;
       else
         tmp = solver->val (elit.signed_representation()) < 0 ? -elit : elit;

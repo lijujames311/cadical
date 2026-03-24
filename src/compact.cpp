@@ -119,7 +119,30 @@ struct Mapper {
     v.resize (new_vsize);
     shrink_vector (v);
   }
-
+  template <class U> void map_vector (unordered_map<Lit, U> &v) {
+    for (auto src : internal->vars) {
+      const Lit dst = map_idx (src);
+      if (dst == INVALID_LIT) {
+        continue;
+      }
+      assert (dst.is_positive());
+      assert (dst.valid());
+      assert (dst <= src);
+      v[dst] = v[src];
+    }
+    /*
+    for(auto it = begin(v); it != end(v);)
+    {
+      if ((size_t)it->second.var () >= (size_t)new_vsize)
+      {
+        printf("c erasing %d\n", it->first.signed_representation ());
+        it = v.erase(it); // previously this was something like m_map.erase(it++);
+      }
+      else
+        ++it;
+    }
+*/
+  }
   /*----------------------------------------------------------------------*/
   // Map positive and negative variable indices in two-sided vector.
   //
@@ -218,17 +241,18 @@ void Internal::compact () {
     }
     if (lrat || frat) {
       assert (eidx.is_positive());
-      assert (external->ext_units.size () >= (size_t) (-eidx).vlit ());
-      LOG ("eidx: %s to be mapped from %s", LOGLIT(eidx), LOGLIT(src));
-      int64_t id1 = external->ext_units[eidx.vlit ()];
-      int64_t id2 = external->ext_units[(-eidx).vlit ()];
+      LOG ("eidx: %s to be mapped from %s", LOGLIT (eidx), LOGLIT (src));
+      int64_t id1 = external->external_unit_reason (eidx);
+      int64_t id2 = external->external_unit_reason (-eidx);
       assert (!id1 || !id2);
       if (!id1 && !id2) {
         int64_t new_id1 = unit_clauses (src.vlit ());
         int64_t new_id2 = unit_clauses ((-src).vlit ());
-        external->ext_units[eidx.vlit ()] = new_id1;
-        external->ext_units[(-eidx).vlit ()] = new_id2;
-        LOG ("eidx: %s to be mapped from %s with %" PRId64 " and %" PRId64, LOGLIT(eidx), LOGLIT(src), new_id1, new_id2);
+        if (new_id1)
+          external->external_unit_reason (eidx) = new_id1;
+        if (new_id2)
+          external->external_unit_reason (-eidx) = new_id2;
+        LOG ("eidx: %s to be mapped from %s with %" PRId64 " and %" PRId64, LOGLIT (eidx), LOGLIT (src), new_id1, new_id2);
       }
     }
     Lit dst = mapper.map_lit (src);

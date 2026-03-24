@@ -76,9 +76,9 @@ struct External {
   vector<ELit> assumptions; // External assumptions.
   vector<ELit> constraint;  // External constraint. Terminated by zero.
 
-  vector<int64_t>
+  std::unordered_map<ELit::base_type,int64_t>
       ext_units; // External units. Needed to compute LRAT for eclause
-  vector<bool> ext_flags; // to avoid duplicate units
+  std::unordered_map<ELit::base_type,signed char> ext_flags; // to avoid duplicate units
   vector<ELit> eclause;    // External version of original input clause.
   // The extension stack for reconstructing complete satisfying assignments
   // (models) of the original external formula is kept in this external
@@ -94,7 +94,7 @@ struct External {
   vector<bool> witness; // Literal witness on extension stack.
   vector<bool> tainted; // Literal tainted in adding literals.
 
-  vector<bool> ervars; // Variables added through Extended Resolution.
+  std::unordered_map<ELit::base_type,signed char> ervars; // Variables added through Extended Resolution.
 
   vector<unsigned> frozentab; // Reference counts for frozen variables.
 
@@ -135,6 +135,10 @@ struct External {
   bool is_witness (ELit elit);
   bool is_decision (ELit elit);
 
+  signed char &external_marked (ELit);
+  signed char &is_extension_var (ELit);
+  int64_t &external_unit_reason (ELit);
+  int64_t external_unit_reason (ELit) const;
   void force_backtrack (int new_level);
 
   //----------------------------------------------------------------------//
@@ -178,7 +182,7 @@ struct External {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
     int eidx = elit.var ();
-    return eidx > max_var || !ervars[eidx];
+    return eidx > max_var || !is_extension_var (elit);
   }
 
   inline Lit internal_lit (ELit elit) const {

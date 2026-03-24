@@ -45,11 +45,7 @@ Lit External::declare_var (ELit new_var, bool extension) {
         ilit = Lit (internal->max_var+1);
       }
     }
-    if (internal->i2e.size () <= (size_t)ilit.signed_representation ()) {
-      reserve_at_least (internal->i2e, ilit.var () + 1);
-      internal->i2e.resize (ilit.var () + 1);
-    }
-    LOG ("new mapping external %s to internal %s", LOGLIT(new_var), LOGLIT(ilit));
+    LOG ("new mapping external %s to internal %s", LOGLIT (new_var), LOGLIT (ilit));
     e2i[new_var] = ilit;
     internal->to_external (ilit) = new_var;
     internal->declare_variable (ilit);
@@ -64,29 +60,13 @@ void External::resize (ELit new_max_lit) {
   ELit::base_type new_max_var = new_max_lit.var ();
   assert (max_var < new_max_var);
   internal->reserve_vars (new_max_var);
-  reserve_at_least (ext_units, 2 * new_max_var + 2);
-  reserve_at_least (ervars, new_max_var + 1);
-  reserve_at_least (ext_flags, new_max_var + 1);
-  reserve_at_least (internal->i2e, new_max_var + 1);
   if (!max_var) {
     assert (e2i.empty ());
-    ext_units.push_back (0);
-    ext_units.push_back (0);
-    ext_flags.push_back (0);
-    ervars.push_back (0);
-    assert (internal->i2e.empty ());
-    internal->i2e.push_back (INVALID_ELIT);
+    ELit elit (0);
+    is_extension_var(elit) = false;
+    external_marked(elit) = false;
+    internal->i2e[INVALID_LIT] = elit;
   }
-  unsigned eidx;
-  for (eidx = max_var + 1u; eidx <= (unsigned) new_max_var;
-       eidx++) {
-    ext_units.push_back (0);
-    ext_units.push_back (0);
-    ext_flags.push_back (0);
-    ervars.push_back (0);
-  }
-  assert (internal->i2e.size () == (size_t)internal->max_var + 1);
-  assert (eidx == (size_t) new_max_var + 1);
   int new_vars = new_max_var - max_var;
   max_var = new_max_var;
   internal->stats.variables_original += new_vars;
@@ -95,8 +75,7 @@ void External::resize (ELit new_max_lit) {
 void External::init (ELit new_max_lit, bool extension) {
   ELit::base_type new_max_var = new_max_lit.var ();
   assert (!extended);
-  LOG ("%s external variables from %s", LOGLIT(new_max_lit), LOGLIT(ELit (max_var)));
-  assert (!max_var || internal->i2e.size () == (size_t)internal->max_var + 1);
+  LOG ("%s external variables from %s", LOGLIT (new_max_lit), LOGLIT (ELit (max_var)));
   if (new_max_var <= max_var) {
     declare_var (new_max_lit.labs (), extension);
     return;
@@ -113,7 +92,6 @@ void External::init (ELit new_max_lit, bool extension) {
   if (internal->opts.checkfrozen)
     if (new_max_var >= (int64_t) moltentab.size ())
       moltentab.resize (1 + (size_t) new_max_var, false);
-  assert (ext_units.size () == (size_t) new_max_var * 2 + 2);
 }
 
 /*------------------------------------------------------------------------*/
@@ -160,8 +138,7 @@ Lit External::internalize (ELit elit, bool extension) {
       init (eidx, extension);
     }
     if (extension) {
-      assert (ervars.size () > (size_t) eidx.var ());
-      ervars[eidx.var ()] = true;
+      is_extension_var (eidx) = true;
     }
     ilit = e2i[eidx];
     if (ilit == INVALID_LIT)
@@ -176,7 +153,6 @@ Lit External::internalize (ELit elit, bool extension) {
       e2i[eidx] = ilit;
       LOG ("mapping external %s to internal %s", LOGLIT(eidx), LOGLIT(ilit));
       e2i[eidx] = ilit;
-      internal->i2e.push_back (eidx);
       assert (internal->to_external(ilit) == eidx);
       assert (e2i[eidx] == ilit);
       if (elit.is_negated())
@@ -240,13 +216,11 @@ void External::add (ELit elit) {
     eclause.push_back (elit);
     if (internal->lrat) {
       // actually find unit of -elit (flips elit < 0)
-      unsigned eidx = (-elit).vlit ();
-      assert ((size_t) eidx < ext_units.size ());
-      const int64_t id = ext_units[eidx];
-      bool added = ext_flags[elit.var ()];
-      LOG ("%s not a unit: %" PRId64, LOGLIT(elit), id);
+      const int64_t id = external_unit_reason (-elit);
+      bool added = external_marked (elit);
+      LOG ("%s not a unit: %" PRId64, LOGLIT (elit), id);
       if (id && !added) {
-        ext_flags[elit.var ()] = true;
+        external_marked (elit) = true;
         internal->lrat_chain.push_back (id);
       }
     }
@@ -254,7 +228,7 @@ void External::add (ELit elit) {
 
   if (elit == INVALID_ELIT && internal->proof && internal->lrat) {
     for (const auto &elit : eclause) {
-      ext_flags[elit.var ()] = false;
+      external_marked (elit) = false;
     }
   }
 
@@ -572,9 +546,8 @@ void External::implied (std::vector<int> &trailed) {
   for (const auto &ilit : ilit_implicants) {
     assert (ilit != INVALID_LIT);
     const ELit elit = internal->externalize (ilit);
-    const int eidx = elit.var ();
-    const bool is_extension_var = ervars[eidx];
-    if (!marked (tainted, elit) && !is_extension_var) {
+    const bool is_extension = is_extension_var (elit);
+    if (!marked (tainted, elit) && !is_extension) {
       trailed.push_back (elit.signed_representation());
     }
   }
@@ -1076,4 +1049,22 @@ void External::export_learned_large_clause (const vector<Lit> &clause) {
     LOG ("not exporting learned clause of size %zu", size);
 }
 
+signed char &External::external_marked (ELit elit) {
+  return ext_flags[elit.var ()];
+}
+
+signed char &External::is_extension_var (ELit elit) {
+  return ervars[elit.var ()];
+}
+
+int64_t &External::external_unit_reason (ELit elit) {
+  return ext_units[elit.vlit ()];
+}
+int64_t External::external_unit_reason (ELit elit) const {
+  auto it = ext_units.find (elit.vlit ());
+  if (it == ext_units.end ())
+    return 0;
+  else
+    return it->second;
+}
 } // namespace CaDiCaL

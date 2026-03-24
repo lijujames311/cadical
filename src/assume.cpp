@@ -180,9 +180,8 @@ void Internal::failing () {
       LOG ("root-level falsified assumption %s", LOGLIT(failed));
       if (proof) {
         if (lrat) {
-          unsigned eidx = efailed.vlit ();
-          assert ((size_t) eidx < external->ext_units.size ());
-          const int64_t id = external->ext_units[eidx];
+
+          const int64_t id = external->external_unit_reason (efailed);
           if (id) {
             lrat_chain.push_back (id);
           } else {
@@ -419,9 +418,8 @@ void Internal::failing () {
       if (proof) {
         for (auto &elit : econstraints) {
           if (lrat) {
-            unsigned eidx = elit.vlit ();
-            assert ((size_t) eidx < external->ext_units.size ());
-            const int64_t id = external->ext_units[eidx];
+
+            const int64_t id = external->external_unit_reason (elit);
             if (id) {
               lrat_chain.push_back (id);
             } else {
