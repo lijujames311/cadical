@@ -285,6 +285,7 @@ private:
   // MockPropagator parameters
   size_t lemma_per_cb = 2;
   bool logging = false;
+  size_t forced_bt = 0;
 
   struct ExternalLemma {
     size_t id;
@@ -805,12 +806,13 @@ public:
 
     if ((decision_loc % observed_variables.size ()) == 0) {
       if (!(observed_variables.size () % 11) &&
-          observed_trail.size () > 1) {
+          observed_trail.size () > 1 && forced_bt < 100) {
         int target = std::min (observed_variables.size () % 5,
                                observed_trail.size () - 2);
         MLOG ("cb_decide forces backtracking to level " << target
                                                         << std::endl);
         s->force_backtrack (target);
+        forced_bt++;
       }
       size_t n = decision_loc / observed_variables.size ();
       auto is_unassigned = [satisfied_literals] (int lit) {
@@ -2194,8 +2196,8 @@ public:
         // They are (ideally) are executed already
         if (c->type == Call::LEMMA)
           continue;
-          // if (c->type == Call::CONTINUE)
-          //   continue;
+        // if (c->type == Call::CONTINUE)
+        //   continue;
 #ifdef MOBICAL_MEMORY
         if (c->type == Call::MAXALLOC) {
           memory_bad_alloc = c->val;
