@@ -959,6 +959,42 @@ void Internal::update_decision_rate_average () {
   saved_decisions = current;
 }
 
+void Internal::fix_trail_levels () {
+  LOG ("fixing all trail levels before backtracking");
+  assert (out_of_order_level != -1);
+  if (out_of_order_level > level) {
+    out_of_order_level = -1;
+    out_of_order_trail = -1;
+    return;
+  }
+  const size_t trix = control[out_of_order_level].trail;
+  assert (trix < trail.size ());
+  for (size_t i = trix; i < trail.size (); i++) {
+    const int lit = trail[i];
+    const Clause *reason = var (lit).reason;
+    if (!reason || reason == external_reason)
+      continue;
+
+    int res = 0;
+
+    for (const auto &other : *reason) {
+      if (other == lit)
+        continue;
+      assert (val (other));
+      int tmp = var (other).level;
+      if (tmp > res)
+        res = tmp;
+    }
+    if (var (lit).level != res)
+      LOG (reason, "update level of %d from %d to %d with", lit,
+           var (lit).level, res);
+
+    var (lit).level = res;
+  }
+  out_of_order_level = -1;
+  out_of_order_trail = -1;
+}
+
 /*------------------------------------------------------------------------*/
 
 // This is the main conflict analysis routine.  It assumes that a conflict
@@ -994,7 +1030,12 @@ void Internal::analyze () {
 
     int forced;
 
-    const int conflict_level = find_conflict_level (forced);
+    int conflict_level = find_conflict_level (forced);
+
+    if (control[conflict_level].trail <= out_of_order_trail) {
+      fix_trail_levels ();
+      conflict_level = find_conflict_level (forced);
+    }
 
     // In principle we can perform conflict analysis as in non-chronological
     // backtracking except if there is only one literal with the maximum

@@ -121,7 +121,7 @@ int main () {
             << std::endl;
   CaDiCaL::Solver *solver = new CaDiCaL::Solver;
   solver->set ("exteagerrecalc", 0);
-  // solver->set ("exteagerreasons", 0);
+  solver->set ("exteagerreasons", 0);
   ILBPropagator *ilb = new ILBPropagator (solver);
   for (int i = 1; i < 2 * BIG_NUM; i++) {
     solver->add (i);

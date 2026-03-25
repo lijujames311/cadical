@@ -7,7 +7,7 @@
 
 #include <assert.h>
 
-#define BIG_NUM 100000
+#define BIG_NUM 10000
 
 int main (void) {
   // At the start of main():
@@ -17,6 +17,7 @@ int main (void) {
   struct CCaDiCaL *solver = ccadical_init ();
   ccadical_set_option (solver, "verbose", 3);
   ccadical_set_option (solver, "ilb", 2);
+  ccadical_set_option (solver, "chronoadd", 2);
   // ccadical_set_option (solver, "log", 1);
   for (int i = 2; i < BIG_NUM; i++) {
     ccadical_add (solver, i - 1);

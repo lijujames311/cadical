@@ -884,6 +884,10 @@ void Internal::handle_external_clause (Clause *res) {
              pos0, var (pos0).level, var (pos1).level);
         v.level = l1;
         v.reason = res;
+        if (out_of_order_level == -1 || l1 < out_of_order_level)
+          out_of_order_level = l1;
+        if (v.trail > out_of_order_trail)
+          out_of_order_trail = v.trail;
       } else if (v.trail < m.trail && opts.chrono && opts.chronoadd > 0) {
         assert (highest_idx);
         if (highest_idx != 1) {
