@@ -165,7 +165,7 @@ long Internal::condition_round (long delta) {
     limit = stats.condprops + delta;
 
   size_t initial_trail_level = trail.size ();
-  int initial_level = level;
+  Var::Level initial_level = level;
 
   LOG ("initial trail level %zd", initial_trail_level);
 

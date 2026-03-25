@@ -40,14 +40,14 @@ Lit External::declare_var (ELit new_var, bool extension) {
       ilit = Lit (internal->max_var+1);
     else {
       ilit = Lit (new_var.signed_representation ());
-      if (internal->to_external (ilit) != INVALID_ELIT) {
-        LOG ("the slot is already used by %s, giving the next available name", LOGLIT(internal->to_external (ilit)));
+      if (internal->i2e.size () > (size_t)ilit.var () && internal->to_external_var (ilit) != INVALID_ELIT) {
+        LOG ("the slot is already used by %s, giving the next available name", LOGLIT (internal->to_external_var (ilit)));
         ilit = Lit (internal->max_var+1);
       }
     }
     LOG ("new mapping external %s to internal %s", LOGLIT (new_var), LOGLIT (ilit));
     e2i[new_var] = ilit;
-    internal->to_external (ilit) = new_var;
+    internal->to_external_var (ilit) = new_var;
     internal->declare_variable (ilit);
     assert (Lit (internal->max_var) >= ilit);
   }
@@ -59,7 +59,11 @@ Lit External::declare_var (ELit new_var, bool extension) {
 void External::resize (ELit new_max_lit) {
   ELit::base_type new_max_var = new_max_lit.var ();
   assert (max_var < new_max_var);
-  internal->reserve_vars (new_max_var);
+  //internal->reserve_vars (new_max_var);
+  //reserve_at_least (ext_units, 2 * new_max_var + 2);
+  reserve_at_least (ervars, new_max_var + 1);
+  reserve_at_least (ext_flags, new_max_var + 1);
+  reserve_at_least (internal->i2e, new_max_var + 1);
   if (!max_var) {
     assert (e2i.empty ());
     ELit elit (0);
@@ -153,7 +157,8 @@ Lit External::internalize (ELit elit, bool extension) {
       e2i[eidx] = ilit;
       LOG ("mapping external %s to internal %s", LOGLIT(eidx), LOGLIT(ilit));
       e2i[eidx] = ilit;
-      assert (internal->to_external(ilit) == eidx);
+      internal->i2e.push_back (eidx);
+      assert (internal->to_external_var(ilit) == eidx);
       assert (e2i[eidx] == ilit);
       if (elit.is_negated())
         ilit = -ilit;
@@ -216,8 +221,10 @@ void External::add (ELit elit) {
     eclause.push_back (elit);
     if (internal->lrat) {
       // actually find unit of -elit (flips elit < 0)
-      const int64_t id = external_unit_reason (-elit);
-      bool added = external_marked (elit);
+      unsigned eidx = (-elit).vlit ();
+      assert ((size_t) eidx < ext_units.size ());
+      const int64_t id = ext_units[eidx];
+      bool added = ;
       LOG ("%s not a unit: %" PRId64, LOGLIT (elit), id);
       if (id && !added) {
         external_marked (elit) = true;

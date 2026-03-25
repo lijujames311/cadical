@@ -343,7 +343,7 @@ int Internal::decide_and_propagate_all_assumptions (std::vector<Lit> &set_litera
   LOG ("decide and propagate all assumptions to fill the vectors");
   assert (!private_steps);
   int res = 0;
-  int last_assumption_level = assumptions.size ();
+  Var::Level last_assumption_level = assumptions.size ();
   if (!last_assumption_level)
     return res;
   if (constraint.size ())

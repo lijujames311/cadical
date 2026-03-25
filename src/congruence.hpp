@@ -446,7 +446,7 @@ struct Gate {
   static size_t bytes (int size) {
     assert (size > 1);
     const size_t header_bytes = sizeof (Gate);
-    const size_t actual_literal_bytes = size * sizeof (int);
+    const size_t actual_literal_bytes = size * sizeof (Lit::base_type);
     size_t combined_bytes = header_bytes + actual_literal_bytes;
 #ifdef NFLEXIBLE
     const size_t faked_literals_bytes = sizeof ((Gate *) 0)->rhs;

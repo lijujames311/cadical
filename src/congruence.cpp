@@ -3481,7 +3481,7 @@ void Closure::add_xor_shrinking_proof_chain (Gate *g, Lit pivot) {
   assert (!internal->lrat || first.size () == 2 * end);
 #ifdef LOGGING
   for (auto pair : first) {
-    LOG (pair.clause, "key %d", pair.current_lit.lit);
+    LOG (pair.clause, "key %" VAR, pair.current_lit.lit);
   }
 #endif
   for (unsigned i = 0; i != end; ++i) {
@@ -3798,7 +3798,7 @@ void Closure::produce_lrat_chain_for_xor_merge (
     } else {
       second_ids.push_back (LitIdPair (rest, pair.clause->id));
     }
-    LOG (pair.clause, "key %d, rest: %d", pair.current_lit.lit, rest);
+    LOG (pair.clause, "key %" VAR ", rest: %d", pair.current_lit.lit, rest);
   }
   for (auto pair : second) {
     bool first = pair.current_lit.lit & 1;
@@ -3809,7 +3809,7 @@ void Closure::produce_lrat_chain_for_xor_merge (
     } else {
       second_ids.push_back (LitIdPair (rest, pair.clause->id));
     }
-    LOG (pair.clause, "key %d, rest: %d", pair.current_lit.lit, rest);
+    LOG (pair.clause, "key %" VAR ", rest: %d", pair.current_lit.lit, rest);
   }
   do {
     vector<LitIdPair> first_tmp;

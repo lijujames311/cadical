@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include "literals.hpp"
 
 /*========================================================================*/
 
@@ -425,6 +426,9 @@ public:
   //   ensure (VALID_OR_SOLVING)
   //
   void add_observed_var (int var);
+  #ifdef LITERAL64
+    void add_observed_var (ELit::base_type new_level);
+  #endif
 
   // Removes the 'observed' flag from the given variable. A variable can be
   // set unobserved only when it is unassigned, in order to guarantee
@@ -434,6 +438,9 @@ public:
   //   ensure (VALID_OR_SOLVING)
   //
   void remove_observed_var (int var);
+  #ifdef LITERAL64
+    void remove_observed_var (ELit::base_type new_level);
+  #endif
 
   // Removes all the 'observed' flags from the variables. Disconnecting the
   // propagator invokes this step as well.
@@ -451,6 +458,9 @@ public:
   //   ensure (VALID_OR_SOLVING)
   //
   bool is_decision (int lit);
+  #ifdef LITERAL64
+    void is_decision (ELit::base_type new_level);
+  #endif
 
   // Force solve to backtrack to certain decision level. Can be called only
   // during 'cb_decide' and 'cb_check_final_model' of a connected External
@@ -462,6 +472,9 @@ public:
   //   ensure (SOLVING)
   //
   void force_backtrack (int new_level);
+#ifdef LITERAL64
+  void force_backtrack (ELit::base_type new_level);
+#endif
 
   // ====== END IPASIR-UP ==================================================
 
@@ -614,7 +627,7 @@ public:
   //   require (READY)
   //   ensure (STEADY)
   //
-  void resize (int min_max_var);
+  void resize (ELit::base_type min_max_var);
 
   // Increase the maximum variable index by a number of new variables.
   // initializes 'number_of_vars' new variables and protects them from
@@ -986,10 +999,10 @@ public:
   //   require (VALID)
   //   ensure (VALID)
   //
-  const char *read_dimacs (FILE *file, const char *name, int &vars,
+  const char *read_dimacs (FILE *file, const char *name, ELit::base_type &vars,
                            int strict = 1);
 
-  const char *read_dimacs (const char *path, int &vars, int strict = 1);
+  const char *read_dimacs (const char *path, ELit::base_type &vars, int strict = 1);
 
   // The following routines work the same way but parse both DIMACS and
   // INCCNF files (with 'p inccnf' header and 'a <cube>' lines).  If the
@@ -997,11 +1010,11 @@ public:
   // to true and the cubes are stored in the given vector (each cube
   // terminated by a zero).
 
-  const char *read_dimacs (FILE *file, const char *name, int &vars,
+  const char *read_dimacs (FILE *file, const char *name, ELit::base_type &vars,
                            int strict, bool &incremental,
                            std::vector<int> &cubes);
 
-  const char *read_dimacs (const char *path, int &vars, int strict,
+  const char *read_dimacs (const char *path, ELit::base_type &vars, int strict,
                            bool &incremental, std::vector<int> &cubes);
 
   //------------------------------------------------------------------------
@@ -1174,7 +1187,7 @@ private:
   //   require (VALID)
   //   ensure (VALID)
   //
-  const char *read_dimacs (File *, int &, int strict, bool *incremental = 0,
+  const char *read_dimacs (File *, ELit::base_type &, int strict, bool *incremental = 0,
                            std::vector<int> * = 0);
 
   // Factored out common code for 'solve', 'simplify' and 'lookahead'.

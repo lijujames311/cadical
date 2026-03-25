@@ -48,7 +48,7 @@ class App : public Handler, public Terminator {
 
   // Internal variables.
   //
-  int max_var;           // Set after parsing.
+  ELit::base_type max_var;           // Set after parsing.
   volatile bool timesup; // Asynchronous termination.
 
   // Printing.

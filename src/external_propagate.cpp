@@ -115,7 +115,7 @@ void Internal::renotify_trail_after_ilb () {
   }
   LOG ("notify external propagator about new assignments (after ilb)");
 #ifndef NDEBUG
-  LOG ("(decision level: %d, trail size: %zd, notified %zd)", level,
+  LOG ("(decision level: %" LEVEL ", trail size: %zd, notified %zd)", level,
        trail.size (), notified);
 #endif
   renotify_full_trail ();
@@ -128,19 +128,19 @@ void Internal::renotify_trail_after_local_search () {
   LOG ("notify external propagator about new assignments (after local "
        "search)");
 #ifndef NDEBUG
-  LOG ("(decision level: %d, trail size: %zd, notified %zd)", level,
+  LOG ("(decision level: %" LEVEL ", trail size: %zd, notified %zd)", level,
        trail.size (), notified);
 #endif
   renotify_full_trail ();
 }
 
 void Internal::renotify_full_trail_between_trail_pos (
-    int start_level, int end_level, int propagator_level,
+    Var::Level start_level, Var::Level end_level, Var::Level propagator_level,
     std::vector<int> &assigned, bool start_new_level) {
   assert (assigned.empty ());
-  int j = start_level;
+  Var::Level j = start_level;
 #ifdef LOGGING
-  LOG ("starting notification of level %d from trail %d .. %d",
+  LOG ("starting notification of level %" LEVEL " from trail %" LEVEL " .. %" LEVEL,
        propagator_level, start_level, end_level);
 #else
   (void) propagator_level;
@@ -162,8 +162,8 @@ void Internal::renotify_full_trail_between_trail_pos (
 
     ELit elit = externalize (ilit); // TODO: double-check tainting
 
-    LOG ("notifying elit %d @ %s aka %s", propagator_level, LOGLIT(elit),
-         LOGLIT(ilit));
+    LOG ("notifying elit %" LEVEL " @ %s aka %s", propagator_level, LOGLIT (elit),
+         LOGLIT (ilit));
     assert (elit != INVALID_ELIT);
     // Fixed variables might get mapped (during compact) to another
     // non-observed but fixed variable.
@@ -194,7 +194,7 @@ void Internal::renotify_full_trail () {
   }
   std::vector<int> assigned;
 
-  int propagator_level = 0;
+  Var::Level propagator_level = 0;
 
   const int c_size = control.size ();
   { // first all root-level literals
@@ -210,7 +210,7 @@ void Internal::renotify_full_trail () {
     const int start_level = control[i - 1].trail;
     const int end_level = control[i].trail;
     propagator_level++;
-    LOG ("notification of %d", propagator_level);
+    LOG ("notification of %" LEVEL, propagator_level);
 
     renotify_full_trail_between_trail_pos (
         start_level, end_level, propagator_level, assigned, true);
@@ -240,7 +240,7 @@ bool Internal::is_decision (Lit ilit) {
   Var &v = var (ilit);
 #ifndef NDEBUG
   LOG (v.reason,
-       "is_decision: i%s (current level: %d, is_fixed: %d, v.level: %d, "
+       "is_decision: i%s (current level: %" LEVEL ", is_fixed: %d, v.level: %" LEVEL ", "
        "is_external_reason: %d, v.reason: )",
        LOGLIT(ilit), level, fixed (ilit), v.level, v.reason == external_reason);
 #endif
@@ -250,10 +250,10 @@ bool Internal::is_decision (Lit ilit) {
   return true;
 }
 
-void Internal::force_backtrack (int new_level) {
+void Internal::force_backtrack (Var::Level new_level) {
   REQUIRE (forced_backt_allowed,
            "not allowed to force backtrack in that state of the solver.");
-  REQUIRE (new_level >= 0,
+  REQUIRE ((int64_t)new_level >= 0,
            "the target level of a forced backtrack must be non-negative.");
   REQUIRE (level > 0 && new_level < level,
            "the target level of a forced backtrack must be smaller than "
@@ -261,7 +261,7 @@ void Internal::force_backtrack (int new_level) {
 
 #ifndef NDEBUG
   LOG ("external propagator forces backtrack to decision level"
-       "%d (from level %d)",
+       "%" LEVEL " (from level %" LEVEL ")",
        new_level, level);
 #endif
   backtrack (new_level);
@@ -286,7 +286,7 @@ bool Internal::external_propagate () {
   while (cb_repropagate_needed && !conflict && external_prop &&
          !external_prop_is_lazy && !private_steps) {
 #ifndef NDEBUG
-    LOG ("external propagation starts (decision level: %d, trail size: "
+    LOG ("external propagation starts (decision level: %" LEVEL ", trail size: "
          "%zd, notified %zd)",
          level, trail.size (), notified);
 #endif
@@ -342,7 +342,7 @@ bool Internal::external_propagate () {
         LOG ("External propgation of %s is falsified under current trail",
              LOGLIT(ilit));
         stats.ext_prop.eprop_conf++;
-        int level_before = level;
+        Var::Level level_before = level;
         size_t assigned = num_assigned;
         Clause *res = learn_external_reason_clause (ilit, elit);
 #ifndef LOGGING
@@ -373,12 +373,12 @@ bool Internal::external_propagate () {
     }
 
 #ifndef NDEBUG
-    LOG ("External propagation ends (decision level: %d, trail size: %zd, "
+    LOG ("External propagation ends (decision level: %" LEVEL ", trail size: %zd, "
          "notified %zd)",
          level, trail.size (), notified);
 #endif
     if (!unsat && !conflict) {
-      int level_before = level;
+      Var::Level level_before = level;
       size_t assigned = num_assigned;
       bool has_external_clause = ask_external_clause ();
       // New observed variable might have triggered a backtrack during this
@@ -432,7 +432,7 @@ bool Internal::external_propagate () {
       }
     }
 #ifndef NDEBUG
-    LOG ("External clause addition ends on decision level %d at trail "
+    LOG ("External clause addition ends on decision level %" LEVEL " at trail "
          "size "
          "%zd (notified %zd)",
          level, trail.size (), notified);
@@ -706,11 +706,11 @@ void Internal::explain_external_propagations () {
     Flags &f = flags (lit);
     Var &v = var (lit);
     if (v.reason) {
-      int real_level = 0;
+      Var::Level real_level = 0;
       for (const auto &other : *v.reason) {
         if (other == lit)
           continue;
-        int tmp = var (other).level;
+        const Var::Level tmp = var (other).level;
         if (tmp > real_level)
           real_level = tmp;
       }
@@ -850,7 +850,7 @@ void Internal::handle_external_clause (Clause *res) {
     return;
     // TODO: maybe fix levels
   }
-  const int l1 = var (pos1).level;
+  const Var::Level l1 = var (pos1).level;
   if (val (pos0) < 0) { // conflicting or propagating clause
     assert (0 < l1 && l1 <= var (pos0).level);
     if (!opts.chrono) {
@@ -930,8 +930,8 @@ bool Internal::external_check_solution () {
     // Here the variables must be filtered by external->is_observed,
     // because fixed variables are internally not necessarily observed
     // anymore.
-    for (int idx = 1;
-         idx <= std::min ((int) external->is_observed.size () - 1,
+    for (ELit::base_type idx = 1;
+         idx <= std::min ((ELit::base_type) external->is_observed.size () - 1,
                           external->max_var);
          idx++) {
       if (!external->is_observed[idx])
@@ -941,14 +941,14 @@ bool Internal::external_check_solution () {
 #ifndef NDEBUG
 #ifdef LOGGING
       bool p = external->vals[idx];
-      LOG ("evals[%d]: %d ival(%d): %s", idx, p, idx, LOGLIT(lit));
+      LOG ("evals[%" VAR "]: %d ival(%" VAR "): %s", idx, p, idx, LOGLIT (lit));
 #endif
 #endif
     }
 
     forced_backt_allowed = true;
     size_t assigned = num_assigned;
-    int level_before = level;
+    Var::Level level_before = level;
     bool is_consistent =
         external->propagator->cb_check_found_model (etrail);
     stats.ext_prop.ext_cb++;
@@ -1013,7 +1013,7 @@ bool Internal::external_check_solution () {
   }
 
   if (!unsat && conflict) {
-    const int conflict_level = var (conflict->literals[0]).level;
+    const Var::Level conflict_level = var (conflict->literals[0]).level;
     if (conflict_level != level) {
       backtrack_without_updating_phases (conflict_level);
     }
@@ -1099,7 +1099,7 @@ Lit Internal::ask_decision () {
   assert (!unsat);
   assert (!conflict);
   notify_assignments ();
-  int level_before = level;
+  Var::Level level_before = level;
   forced_backt_allowed = true;
   ELit elit = ELit (external->propagator->cb_decide ());
   forced_backt_allowed = false;

@@ -496,7 +496,7 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
     //
     sort (clause.begin (), clause.end (), vivify_better_watch (this));
 
-    int new_level = level;
+    Var::Level new_level = level;
 
     const Lit lit0 = clause[0];
     signed char val0 = val (lit0);
@@ -509,12 +509,12 @@ void Internal::vivify_strengthen (Clause *c, int64_t &ticks) {
     const Lit lit1 = clause[1];
     const signed char val1 = val (lit1);
     if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
-      const int level1 = var (lit1).level;
-      LOG ("2nd watch %s negative at level %d", LOGLIT(lit1), level1);
+      const Var::Level level1 = var (lit1).level;
+      LOG ("2nd watch %s negative at level %" LEVEL, LOGLIT (lit1), level1);
       new_level = level1 - 1;
     }
 
-    assert (new_level >= 0);
+    assert ((int64_t) new_level >= 0);
     if (new_level < level)
       backtrack (new_level);
 
@@ -539,25 +539,25 @@ void Internal::vivify_sort_watched (Clause *c) {
 
   sort (c->begin (), c->end (), vivify_better_watch (this));
 
-  int new_level = level;
+  Var::Level new_level = level;
 
   const Lit lit0 = c->literals[0];
   signed char val0 = val (lit0);
   if (val0 < 0) {
-    const int level0 = var (lit0).level;
-    LOG ("1st watch %s negative at level %d", LOGLIT(lit0), level0);
+    const Var::Level level0 = var (lit0).level;
+    LOG ("1st watch %s negative at level %" LEVEL, LOGLIT (lit0), level0);
     new_level = level0 - 1;
   }
 
   const Lit lit1 = c->literals[1];
   const signed char val1 = val (lit1);
   if (val1 < 0 && !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
-    const int level1 = var (lit1).level;
-    LOG ("2nd watch %s negative at level %d", LOGLIT(lit1), level1);
+    const Var::Level level1 = var (lit1).level;
+    LOG ("2nd watch %s negative at level %" LEVEL, LOGLIT (lit1), level1);
     new_level = level1 - 1;
   }
 
-  assert (new_level >= 0);
+  assert ((int64_t)new_level >= 0);
   if (new_level < level)
     backtrack_without_updating_phases (new_level);
 
@@ -973,26 +973,26 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
     //
     if (level) {
 
-      int l = 1; // This is the decision level we want to reuse.
+      Var::Level l = 1; // This is the decision level we want to reuse.
 
       for (const auto &lit : sorted) {
         assert (!fixed (lit));
         const Lit decision = control[l].decision;
         if (-lit == decision) {
-          LOG ("reusing decision %s at decision level %d", LOGLIT(decision), l);
+          LOG ("reusing decision %s at decision level %" LEVEL, LOGLIT (decision), l);
           ++stats.vivifyreused;
           if (++l > level)
             break;
         } else {
-          LOG ("literal %s does not match decision %s at decision level %d",
-               LOGLIT(lit), LOGLIT(decision), l);
+          LOG ("literal %s does not match decision %s at decision level %" LEVEL,
+               LOGLIT (lit), LOGLIT (decision), l);
           backtrack_without_updating_phases (l - 1);
           break;
         }
       }
     }
 
-    LOG ("reused %d decision levels from %d", level, orig_level);
+    LOG ("reused %" LEVEL " decision levels from %d", level, orig_level);
   }
 
   LOG (sorted, "sorted size %zd probing schedule", sorted.size ());
@@ -1070,14 +1070,14 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
   }
 
   if (subsume != INVALID_LIT) {
-    int better_subsume_trail = var (subsume).trail;
+    Var::Level better_subsume_trail = var (subsume).trail;
     for (auto lit : sorted) {
       if (val (lit) <= 0)
         continue;
       const Var v = var (lit);
       if (v.trail < better_subsume_trail) {
-        LOG ("improving subsume from %s at %d to %s at %d", LOGLIT(subsume),
-             better_subsume_trail, LOGLIT(lit), v.trail);
+        LOG ("improving subsume from %s at %" LEVEL " to %s at %" LEVEL, LOGLIT (subsume),
+             better_subsume_trail, LOGLIT (lit), v.trail);
         better_subsume_trail = v.trail;
         subsume = lit;
       }
@@ -1086,7 +1086,7 @@ bool Internal::vivify_clause (Vivifier &vivifier, Clause *c) {
 
   Clause *subsuming = nullptr;
   bool redundant = false;
-  const int level_after_assumptions = level;
+  const Var::Level level_after_assumptions = level;
   assert (level_after_assumptions);
   vivify_deduce (c, conflict, subsume, &subsuming, redundant);
 

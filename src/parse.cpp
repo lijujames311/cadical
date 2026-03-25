@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <limits>
 
 /*------------------------------------------------------------------------*/
 
@@ -35,13 +36,13 @@ inline const char *Parser::parse_string (const char *str, char prev) {
   return 0;
 }
 
-inline const char *Parser::parse_positive_int (int &ch, int &res,
+inline const char *Parser::parse_positive_int (int &ch, ELit::base_type &res,
                                                const char *name) {
   assert (isdigit (ch));
   res = ch - '0';
   while (isdigit (ch = parse_char ())) {
     int digit = ch - '0';
-    if (INT_MAX / 10 < res || INT_MAX - digit < 10 * res)
+    if (std::numeric_limits<ELit::base_type>::max () / 10 < res || std::numeric_limits<ELit::base_type>::max () - digit < 10 * res)
       PER ("too large '%s' in header", name);
     res = 10 * res + digit;
   }
@@ -62,7 +63,7 @@ inline const char *Parser::parse_positive_uint64_t (int &ch, uint64_t &res,
 }
 static const char *cube_token = "unexpected 'a' in CNF";
 
-inline const char *Parser::parse_lit (int &ch, int &lit, int &vars,
+inline const char *Parser::parse_lit (int &ch, ELit::base_type &lit, ELit::base_type &vars,
                                       int strict) {
   if (ch == 'a')
     return cube_token;
@@ -78,17 +79,17 @@ inline const char *Parser::parse_lit (int &ch, int &lit, int &vars,
   lit = ch - '0';
   while (isdigit (ch = parse_char ())) {
     int digit = ch - '0';
-    if (INT_MAX / 10 < lit || INT_MAX - digit < 10 * lit)
+    if (std::numeric_limits<ELit::base_type>::max () / 10 < lit || std::numeric_limits<ELit::base_type>::max () - digit < 10 * lit)
       PER ("literal too large");
     lit = 10 * lit + digit;
   }
   if (ch == '\r')
     ch = parse_char ();
   if (ch != 'c' && ch != ' ' && ch != '\t' && ch != '\n' && ch != EOF)
-    PER ("expected white space after '%d'", sign * lit);
+    PER ("expected white space after '%" VAR "'", sign * lit);
   if (lit > vars) {
     if (strict != FORCED)
-      PER ("literal %d exceeds maximum variable %d", sign * lit, vars);
+      PER ("literal %" VAR " exceeds maximum variable %" VAR, sign * lit, vars);
     else
       vars = lit;
   }
@@ -100,7 +101,7 @@ inline const char *Parser::parse_lit (int &ch, int &lit, int &vars,
 
 // Parsing CNF in DIMACS format.
 
-const char *Parser::parse_dimacs_non_profiled (int &vars, int strict) {
+const char *Parser::parse_dimacs_non_profiled (ELit::base_type &vars, int strict) {
 
 #ifndef QUIET
   double start = internal->time ();
@@ -116,6 +117,8 @@ const char *Parser::parse_dimacs_non_profiled (int &vars, int strict) {
   //
   for (;;) {
     ch = parse_char ();
+    printf ("reading %c =================\n", ch);
+    fflush (stdout);
     if (strict != STRICT)
       if (ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r')
         continue;
@@ -169,14 +172,14 @@ const char *Parser::parse_dimacs_non_profiled (int &vars, int strict) {
       if (err)
         return err;
       if (ch != ' ')
-        PER ("expected ' ' after 'p cnf %d'", vars);
+        PER ("expected ' ' after 'p cnf %" VAR "'", vars);
       if (!isdigit (ch = parse_char ()))
-        PER ("expected digit after 'p cnf %d '", vars);
+        PER ("expected digit after 'p cnf %" VAR "'", vars);
       err = parse_positive_uint64_t (ch, clauses, "<num-clauses>");
       if (err)
         return err;
       if (ch != '\n')
-        PER ("expected new-line after 'p cnf %d %" PRIu64 "'", vars,
+        PER ("expected new-line after 'p cnf %" VAR " %" PRIu64 "'", vars,
              clauses);
     } else {
       if (parse_char () != 'n')
@@ -195,24 +198,24 @@ const char *Parser::parse_dimacs_non_profiled (int &vars, int strict) {
       if (err)
         return err;
       if (!isspace (ch))
-        PER ("expected space after 'p cnf %d'", vars);
+        PER ("expected space after 'p cnf %" VAR "'", vars);
       do
         ch = parse_char ();
       while (isspace (ch));
       if (!isdigit (ch))
-        PER ("expected digit after 'p cnf %d '", vars);
+        PER ("expected digit after 'p cnf %" VAR " '", vars);
       err = parse_positive_uint64_t (ch, clauses, "<num-clauses>");
       if (err)
         return err;
       while (ch != '\n') {
         if (ch != '\r' && !isspace (ch))
-          PER ("expected new-line after 'p cnf %d %" PRIu64 "'", vars,
+          PER ("expected new-line after 'p cnf %" VAR " %" PRIu64 "'", vars,
                clauses);
         ch = parse_char ();
       }
     }
 
-    MSG ("found %s'p cnf %d %" PRIu64 "'%s header", tout.green_code (),
+    MSG ("found %s'p cnf %" VAR " %" PRIu64 "'%s header", tout.green_code (),
          vars, clauses, tout.normal_code ());
 
     if (vars) {
@@ -257,7 +260,7 @@ const char *Parser::parse_dimacs_non_profiled (int &vars, int strict) {
 
   // Now read body of DIMACS part.
   //
-  int lit = 0;
+  ELit::base_type lit = 0;
   uint64_t parsed = 0;
   while ((ch = parse_char ()) != EOF) {
     if (ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r')
@@ -416,7 +419,7 @@ const char *Parser::parse_solution_non_profiled () {
       PER ("expected 'v' at start-of-line");
     if ((ch = parse_char ()) != ' ')
       PER ("expected ' ' after 'v', got '%c' instead", ch);
-    int lit = 0;
+    Lit::base_type lit = 0;
     ch = parse_char ();
     do {
       if (ch == ' ' || ch == '\t') {
@@ -431,8 +434,8 @@ const char *Parser::parse_solution_non_profiled () {
       if (!lit)
         break;
       if (external->solution[std::abs (lit)])
-        PER ("variable %d occurs twice", std::abs (lit));
-      LOG ("solution %d", lit);
+        PER ("variable %" VAR " occurs twice", abs (lit));
+      LOG ("solution %" VAR, lit);
       external->solution[std::abs (lit)] = sign (lit);
 #ifndef QUIET
       count++;
@@ -453,7 +456,7 @@ const char *Parser::parse_solution_non_profiled () {
 // Wrappers to profile parsing and at the same time use the convenient
 // implicit 'return' in PER in the non-profiled versions.
 
-const char *Parser::parse_dimacs (int &vars, int strict) {
+const char *Parser::parse_dimacs (ELit::base_type &vars, int strict) {
   assert (strict == FORCED || strict == RELAXED || strict == STRICT);
   START (parse);
   const char *err = parse_dimacs_non_profiled (vars, strict);

@@ -199,7 +199,7 @@ void Internal::reserve_vars (int new_min_vsize) {
     enlarge_init (otab, 2 * new_vsize, Occs ());
   if (!ntab.empty ())
     enlarge_zero (ntab, 2 * new_vsize);
-  LOG ("reserving %d new internal variables, reserved so far: %d", new_vars, max_var);
+  LOG ("reserving %d new internal variables, reserved so far: %" VAR, new_vars, max_var);
   vsize = new_vsize;
 }
 
@@ -386,7 +386,7 @@ int Internal::propagate_assumptions () {
 
   int res = already_solved (); // root-level propagation is done here
 
-  int last_assumption_level = assumptions.size ();
+  Var::Level last_assumption_level = assumptions.size ();
   if (constraint.size ())
     last_assumption_level++;
 
@@ -439,7 +439,7 @@ int Internal::propagate_assumptions () {
 }
 
 void Internal::implied (std::vector<Lit> &entrailed) {
-  int last_assumption_level = assumptions.size ();
+  Var::Level last_assumption_level = assumptions.size ();
   if (constraint.size ())
     last_assumption_level++;
 
@@ -1227,7 +1227,7 @@ void Internal::dump () {
   for (const auto &c : clauses)
     if (!c->garbage)
       m++;
-  printf ("p cnf %d %" PRId64 "\n", max_var, m);
+  printf ("p cnf %" VAR " %" PRId64 "\n", max_var, m);
   for (auto idx : vars) {
     const int tmp = fixed (idx);
     if (tmp)
@@ -1326,7 +1326,7 @@ void Internal::activating_all_new_imported_literals () {
   if (imports.empty ())
     return;
   if (opts.varindexorder)
-    std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return to_external(l.labs ()) < to_external(o.labs ());});
+    std::sort (begin (imports), end (imports), [&] (Lit l, Lit o) {return to_external_var(l.labs ()) < to_external_var(o.labs ());});
   if (!opts.varprioritizefirst)
     std::reverse (begin (imports), end (imports));
   auto max_it = std::max_element(imports.begin(), imports.end(), std::less<Lit>{});

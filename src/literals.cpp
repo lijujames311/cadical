@@ -1,5 +1,7 @@
 #include "literals.hpp"
 
+#include <cmath>
+
 #ifdef __cplusplus
 
 namespace CaDiCaL {
@@ -17,5 +19,12 @@ ELit operator*(int sign, ELit lit) {
     return ELit (lit.lit * sign);
 }
 
+Lit::base_type abs (Lit::base_type lit) {
+#ifdef LITERAL64
+  return lit < 0 ? -lit : lit;
+#else
+  return std::abs (lit);
+#endif
+}
 }
 #endif

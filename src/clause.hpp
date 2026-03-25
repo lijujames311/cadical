@@ -143,7 +143,7 @@ struct Clause {
     //
     assert (size > 1);
     const size_t header_bytes = sizeof (Clause);
-    const size_t actual_literal_bytes = size * sizeof (int);
+    const size_t actual_literal_bytes = size * sizeof (Lit::base_type);
     size_t combined_bytes = header_bytes + actual_literal_bytes;
 #ifdef NFLEXIBLE
     const size_t faked_literals_bytes = sizeof ((Clause *) 0)->literals;

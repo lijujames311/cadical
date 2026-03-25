@@ -5,16 +5,29 @@
 #include <assert.h>
 #include <math.h>
 
+#ifdef LITERAL64
+#include <stdint.h>
+#endif
 
 #ifdef __cplusplus
+
+#ifdef LITERAL64
+#define VAR	 "ld"
+#else
+#define VAR	 "d"
+#endif
+
 //namespace CaDiCaL {
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#ifndef LITERAL64
   typedef int ibase_type;
+#else
+  typedef int64_t ibase_type;
+#endif
 
 struct Lit {
 
@@ -119,8 +132,12 @@ static const Lit INVALID_LIT = Lit();
 static const Lit OTHER_INVALID_LIT = Lit(INT_MIN);
 #endif
 
-
+#ifndef LITERAL64
   typedef int ebase_type;
+#else
+  typedef int64_t ebase_type;
+#endif
+
 struct ELit {
 #ifdef __cplusplus
   using base_type = ebase_type;

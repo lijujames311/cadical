@@ -46,7 +46,7 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
   assert (!flags (lit).eliminated () || reason == decision_reason ||
           reason == external_reason);
   Var &v = var (lit);
-  int lit_level;
+  Var::Level lit_level;
   assert (!lrat || level || reason == external_reason ||
           reason == decision_reason || !lrat_chain.empty ());
   // The following cases are explained in the two comments above before
@@ -85,7 +85,7 @@ inline void Internal::lucky_search_assign (Lit lit, Clause *reason) {
   if (!lit_level)
     LOG ("root-level unit assign %s @ 0", LOGLIT(lit));
   else
-    LOG (reason, "search assign %s @ %d", LOGLIT(lit), lit_level);
+    LOG (reason, "search assign %s @ %" LEVEL, LOGLIT(lit), lit_level);
 #endif
 
   if (watching ()) {

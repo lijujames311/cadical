@@ -4,6 +4,7 @@
 #include "literals.hpp"
 
 #include <climits>
+#include "var.hpp"
 
 namespace CaDiCaL {
 
@@ -14,11 +15,11 @@ namespace CaDiCaL {
 struct Level {
 
   Lit decision; // decision literal of this level
-  int trail;    // trail start of this level
+  Var::Trail_Position trail;    // trail start of this level
 
   struct {
     int count; // how many variables seen during 'analyze'
-    int trail; // smallest trail position seen on this level
+    Var::Trail_Position trail; // smallest trail position seen on this level
   } seen;
 
   void reset () {

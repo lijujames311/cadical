@@ -166,7 +166,7 @@ struct External {
   inline int vidx (ELit elit) const {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int res = elit.var ();
+    Lit::base_type res = elit.var ();
     assert (res <= max_var);
     return res;
   }
@@ -181,8 +181,8 @@ struct External {
   inline bool is_valid_input (ELit elit) {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = elit.var ();
-    return eidx > max_var || !is_extension_var (elit);
+    ELit::base_type eidx = elit.var ();
+    return eidx > max_var || !ervars[eidx];
   }
 
   inline Lit internal_lit (ELit elit) const {
@@ -222,7 +222,7 @@ struct External {
   unsigned elit2ulit (ELit elit) const {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    const int idx = elit.var () - 1;
+    const ELit::base_type idx = elit.var () - 1;
     assert (idx <= max_var);
     return 2u * idx + (elit.is_negated ());
   }
@@ -271,7 +271,7 @@ struct External {
   bool frozen (ELit elit) {
     assert (elit != INVALID_ELIT);
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = elit.var ();
+    ELit::base_type eidx = elit.var ();
     if (eidx > max_var)
       return false;
     if (eidx >= (int) frozentab.size ())
@@ -366,7 +366,7 @@ struct External {
 
   inline ELit ival (ELit elit) const {
     assert (elit != OTHER_INVALID_ELIT);
-    int eidx = elit.var ();
+    ELit::base_type eidx = elit.var ();
     bool val = false;
     if (eidx <= max_var && (size_t) eidx < vals.size ())
       val = vals[eidx];

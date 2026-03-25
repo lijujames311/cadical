@@ -36,19 +36,19 @@ Clause *Internal::decision_reason = &decision_reason_clause;
 // assignment level is the level of the literal (since the reason clause,
 // i.e., the set of other literals, is unknown).
 
-inline int Internal::assignment_level (Lit lit, Clause *reason) {
+inline Var::Level Internal::assignment_level (Lit lit, Clause *reason) {
 
   assert (opts.chrono || external_prop);
   if (!reason || reason == external_reason)
     return level;
 
-  int res = 0;
+  Var::Level res = 0;
 
   for (const auto &other : *reason) {
     if (other == lit)
       continue;
     assert (val (other));
-    int tmp = var (other).level;
+    Var::Level tmp = var (other).level;
     if (tmp > res)
       res = tmp;
   }
@@ -112,7 +112,7 @@ inline void Internal::search_assign (Lit lit, Clause *reason) {
   assert (!flags (lit).eliminated () || reason == decision_reason ||
           reason == external_reason);
   Var &v = var (lit);
-  int lit_level;
+  Var::Level lit_level;
   assert (!lrat || level || reason == external_reason ||
           reason == decision_reason || !lrat_chain.empty ());
   // The following cases are explained in the two comments above before
@@ -156,7 +156,7 @@ inline void Internal::search_assign (Lit lit, Clause *reason) {
   if (!lit_level)
     LOG ("root-level unit assign %s @ 0", LOGLIT(lit));
   else
-    LOG (reason, "search assign %s @ %d", LOGLIT(lit), lit_level);
+    LOG (reason, "search assign %s @ %" LEVEL, LOGLIT(lit), lit_level);
 #endif
 
   if (watching ()) {
@@ -414,7 +414,7 @@ bool Internal::propagate () {
             //
             if (opts.chrono > 1) {
 
-              const int other_level = var (other).level;
+              const Var::Level other_level = var (other).level;
 
               if (other_level > var (lit).level) {
 

@@ -36,6 +36,7 @@ contrib=yes
 ipasir=yes
 shared=no
 pic=no
+lits64=no
 
 #--------------------------------------------------------------------------#
 
@@ -106,6 +107,7 @@ where '<option>' is one of the following
 --no-tracing       compile without API call tracing code
 --no-contrib       compile without contributed code
 --no-ipasir        compile without ipasir interface
+--lits64           use 64 bits for literals
 
 --competition      configure for the competition
                    ('--quiet', '--no-contracts', '--no-tracing')
@@ -171,6 +173,7 @@ do
     --coverage) coverage=yes;;
     --profile) profile=yes;;
     --memory-fuzzing) memory_fuzzing=yes;;
+    --lits64) lits64=yes;;
 
     --competition) competition=yes;;
 
@@ -325,6 +328,15 @@ then
   esac
 fi
 
+if [ $lits64 = yes ]
+then
+  case x"$CXX" in
+    x*g++*)
+      options="$options -DLITERAL64"
+      ;;
+  esac
+fi
+
 if [ $competition = yes ]
 then
   quiet=yes
@@ -352,12 +364,12 @@ then
   CXXFLAGS="$CXXFLAGS --pedantic -Werror -std=c++11"
   CFLAGS="$CFLAGS --pedantic -Werror"
   case x"$CXX" in
-    x*g++*|x*clang++*) 
+    x*g++*|x*clang++*)
       CXXFLAGS="${CXXFLAGS} -Wp,-D_GLIBCXX_ASSERTIONS"
     ;;
   esac
   case x"$CC" in
-    x*g++*|x*clang++*) 
+    x*g++*|x*clang++*)
       CFLAGS="${CFLAGS} -Wp,-D_GLIBCXX_ASSERTIONS"
     ;;
   esac
@@ -412,7 +424,7 @@ fi
 # would fail (configuration flag '-p').  However, older versions of 'gcc'
 # (such as 4.8) would disallow these new forms of macros unless we
 # explicitly enforce the new standard with '-std=c++17'.  Here we try to
-# figure out whether we need that flag. 
+# figure out whether we need that flag.
 
 feature=./configure-requires-c++11
 cat <<EOF > $feature.cpp

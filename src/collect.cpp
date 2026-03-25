@@ -484,7 +484,7 @@ void Internal::remove_garbage_binaries () {
 
   if (!protected_reasons)
     protect_reasons ();
-  int backtrack_level = level + 1;
+  Var::Level backtrack_level = level + 1;
   Watches saved;
   for (auto v : vars) {
     for (auto lit : {-v, v}) {
@@ -505,7 +505,7 @@ void Internal::remove_garbage_binaries () {
           assert (c->size == 2);
           backtrack_level =
               min (backtrack_level, var (c->literals[0]).level);
-          LOG ("need to backtrack to before level %d", backtrack_level);
+          LOG ("need to backtrack to before level %" LEVEL, backtrack_level);
           --j;
           continue;
         }

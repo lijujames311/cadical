@@ -32,7 +32,7 @@ bool Internal::compacting () {
 struct Mapper {
 
   Internal *internal;
-  int new_max_var;             // New 'max_var' after compacting.
+  Lit::base_type new_max_var;             // New 'max_var' after compacting.
   Lit *table;                  // Old variable index to new literal map.
   Lit first_fixed;             // First fixed variable index.
   Lit map_first_fixed;         // Mapped literal of first fixed variable.
@@ -527,7 +527,7 @@ void Internal::compact () {
   /*----------------------------------------------------------------------*/
 
   PHASE ("compact", stats.compacts,
-         "reducing internal variables from %d to %d", max_var,
+         "reducing internal variables from %" VAR " to %" VAR, max_var,
          mapper.new_max_var);
 
   /*----------------------------------------------------------------------*/

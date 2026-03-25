@@ -13,7 +13,7 @@ inline void Internal::unassign (Lit lit) {
   set_val (lit, 0);
 
   int idx = vidx (lit);
-  LOG ("unassign %s @ %d", LOGLIT(lit), var (lit).level);
+  LOG ("unassign %s @ %" LEVEL, LOGLIT (lit), var (lit).level);
   num_assigned--;
 
   if (flags (lit).declared ())
@@ -85,7 +85,7 @@ void Internal::update_target_and_best () {
 // by reassigning them (but you do have to repropagate afterwards!)
 //
 // For inprocessing use the version that does not update the phases.
-void Internal::backtrack (int new_level) {
+void Internal::backtrack (Var::Level new_level) {
   assert (new_level <= level);
   if (new_level == level)
     return;
@@ -101,7 +101,7 @@ void Internal::backtrack (int new_level) {
 //
 // Use `backtrack` to also save the phases. This one is mostly for inprocessing.
 
-void Internal::backtrack_without_updating_phases (int new_level) {
+void Internal::backtrack_without_updating_phases (Var::Level new_level) {
 
   assert (new_level <= level);
   if (new_level == level)
@@ -113,8 +113,8 @@ void Internal::backtrack_without_updating_phases (int new_level) {
 
   const size_t assigned = control[new_level + 1].trail;
 
-  LOG ("backtracking to decision level %d with decision %s and trail %zd",
-       new_level, LOGLIT(control[new_level].decision), assigned);
+  LOG ("backtracking to decision level %" LEVEL " with decision %s and trail %zd",
+       new_level, LOGLIT (control[new_level].decision), assigned);
 
   const size_t end_of_trail = trail.size ();
   size_t i = assigned, j = i;
@@ -152,7 +152,7 @@ void Internal::backtrack_without_updating_phases (int new_level) {
       if (!v.level)
         LOG ("reassign %s @ 0 unit clause %s", LOGLIT(lit), LOGLIT(lit));
       else
-        LOG (v.reason, "reassign %s @ %d", LOGLIT(lit), v.level);
+        LOG (v.reason, "reassign %s @ %" LEVEL, LOGLIT (lit), v.level);
 #endif
       trail[j] = lit;
       v.trail = j++;

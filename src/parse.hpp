@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "literals.hpp"
 #include "cadical.hpp"
 
 namespace CaDiCaL {
@@ -32,11 +33,11 @@ class Parser {
   };
 
   const char *parse_string (const char *str, char prev);
-  const char *parse_positive_int (int &ch, int &res, const char *name);
+  const char *parse_positive_int (int &ch, ELit::base_type &res, const char *name);
   const char *parse_positive_uint64_t (int &ch, uint64_t &res,
                                        const char *name);
-  const char *parse_lit (int &ch, int &lit, int &vars, int strict);
-  const char *parse_dimacs_non_profiled (int &vars, int strict);
+  const char *parse_lit (int &ch, ELit::base_type &lit, ELit::base_type &vars, int strict);
+  const char *parse_dimacs_non_profiled (ELit::base_type &vars, int strict);
   const char *parse_solution_non_profiled ();
 
   bool *parse_inccnf_too;
@@ -61,7 +62,7 @@ public:
   // case the header can not have additional white space, while a value of
   // '1' exactly relaxes this, e.g., 'p cnf \t  1   3  \r\n' becomes legal.
   //
-  const char *parse_dimacs (int &vars, int strict);
+  const char *parse_dimacs (ELit::base_type &vars, int strict);
 
   // Parse a solution file as used in the SAT competition, e.g., with
   // comment lines 'c ...', a status line 's ...' and value lines 'v ...'.

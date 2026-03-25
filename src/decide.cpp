@@ -78,7 +78,7 @@ Lit Internal::next_random_decision () {
     return INVALID_LIT;
 
   if (!randomized_deciding) {
-    if (level > (int) assumptions.size () + !!constraint.size ()) {
+    if (level > (Var::Level) assumptions.size () + !!constraint.size ()) {
       LOG ("random decision delayed because too deep");
       return INVALID_LIT;
     }

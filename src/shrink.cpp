@@ -21,7 +21,7 @@ void Internal::reset_shrinkable () {
 }
 
 void Internal::mark_shrinkable_as_removable (
-    int blevel, std::vector<int>::size_type minimized_start) {
+    Var::Level blevel, std::vector<int>::size_type minimized_start) {
 #ifdef LOGGING
   size_t marked = 0, reset = 0;
 #endif
@@ -64,7 +64,7 @@ void Internal::mark_shrinkable_as_removable (
   LOG ("marked %zu removable variables", marked);
 }
 
-int inline Internal::shrink_literal (Lit lit, int blevel,
+int inline Internal::shrink_literal (Lit lit, Var::Level blevel,
                                      unsigned max_trail) {
   assert (val (lit) < 0);
 
@@ -101,8 +101,8 @@ int inline Internal::shrink_literal (Lit lit, int blevel,
       LOG ("minimized thus shrinkable %s", LOGLIT(lit));
       return 0;
     }
-    LOG ("literal %s on lower blevel %u < %u not removable/shrinkable",
-         LOGLIT(lit), v.level, blevel);
+    LOG ("literal %s on lower blevel % " LEVEL " < %" LEVEL " not removable/shrinkable",
+         LOGLIT (lit), v.level, blevel);
     return -1;
   }
 
@@ -189,7 +189,7 @@ void Internal::push_literals_of_block (
     assert (p != clause.rend () - 1);
     assert (!flags (*p).keep);
     const Lit lit = *p;
-    LOG ("pushing lit %s of blevel %i", LOGLIT(lit), var (lit).level);
+    LOG ("pushing lit %s of blevel %" LEVEL, LOGLIT (lit), var (lit).level);
 #ifndef NDEBUG
     int tmp =
 #endif
@@ -229,7 +229,7 @@ Lit Internal::shrink_next (int blevel, unsigned &open,
   }
 }
 
-unsigned inline Internal::shrink_along_reason (Lit uip, int blevel,
+unsigned inline Internal::shrink_along_reason (Lit uip, Var::Level blevel,
                                                bool resolve_large_clauses,
                                                bool &failed_ptr,
                                                unsigned max_trail) {
@@ -272,7 +272,7 @@ unsigned inline Internal::shrink_along_reason (Lit uip, int blevel,
 unsigned
 Internal::shrink_block (std::vector<Lit>::reverse_iterator &rbegin_lits,
                         std::vector<Lit>::reverse_iterator &rend_block,
-                        int blevel, unsigned &open,
+                        Var::Level blevel, unsigned &open,
                         unsigned &block_minimized, const Lit uip0,
                         unsigned max_trail) {
   assert (shrinkable.empty ());
@@ -285,11 +285,11 @@ Internal::shrink_block (std::vector<Lit>::reverse_iterator &rbegin_lits,
 
 #ifdef LOGGING
 
-  LOG ("trying to shrink %u literals on level %u", open, blevel);
+  LOG ("trying to shrink %u literals on level %" LEVEL, open, blevel);
 
   const auto &t = &trail;
 
-  LOG ("maximum trail position %zd on level %u", t->size (), blevel);
+  LOG ("maximum trail position %zd on level %" LEVEL, t->size (), blevel);
   if (opts.shrinkreap)
     LOG ("shrinking up to %u", max_trail);
 #endif
@@ -318,10 +318,10 @@ Internal::shrink_block (std::vector<Lit>::reverse_iterator &rbegin_lits,
     }
 
     if (!failed)
-      LOG ("shrinking found UIP %s on level %i (open: %d)", LOGLIT(uip),
+      LOG ("shrinking found UIP %s on level %" LEVEL " (open: %d)", LOGLIT (uip),
            blevel, open);
     else
-      LOG ("shrinking failed on level %i", blevel);
+      LOG ("shrinking failed on level %" LEVEL, blevel);
   }
 
   if (failed)
@@ -373,7 +373,7 @@ std::vector<Lit>::reverse_iterator Internal::minimize_and_shrink_block (
 {
   LOG ("shrinking block");
   assert (rbegin_block < clause.rend () - 1);
-  int blevel;
+  Var::Level blevel;
   unsigned open = 0;
   unsigned max_trail;
 
@@ -385,7 +385,7 @@ std::vector<Lit>::reverse_iterator Internal::minimize_and_shrink_block (
     const int idx = vidx (lit);
     blevel = vtab[idx].level;
     max_trail = vtab[idx].trail;
-    LOG ("Block at level %i (first lit: %s)", blevel, LOGLIT(lit));
+    LOG ("Block at level %" LEVEL " (first lit: %s)", blevel, LOGLIT (lit));
 
     rend_block = rbegin_block;
     bool finished;
@@ -398,8 +398,8 @@ std::vector<Lit>::reverse_iterator Internal::minimize_and_shrink_block (
         max_trail = vtab[idx].trail;
       ++open;
       LOG (
-          "testing if lit %s is on the same level (of lit: %i, global: %i)",
-          LOGLIT(lit), vtab[idx].level, blevel);
+          "testing if lit %s is on the same level (of lit: %" LEVEL ", global: %" LEVEL ")",
+          LOGLIT (lit), vtab[idx].level, blevel);
 
     } while (!finished);
   }
@@ -416,7 +416,7 @@ std::vector<Lit>::reverse_iterator Internal::minimize_and_shrink_block (
     block_shrunken = shrink_block (rbegin_block, rend_block, blevel, open,
                                    block_minimized, uip0, max_trail);
 
-  LOG ("shrunken %u literals on level %u (including %u minimized)",
+  LOG ("shrunken %u literals on level %" LEVEL " (including %u minimized)",
        block_shrunken, blevel, block_minimized);
 
   total_shrunken += block_shrunken;

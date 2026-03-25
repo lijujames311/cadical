@@ -477,7 +477,7 @@ int Solver::vars () const {
   return res;
 }
 
-void Solver::resize (int min_max_var) {
+void Solver::resize (ELit::base_type min_max_var) {
   TRACE ("resize", min_max_var);
   REQUIRE_VALID_STATE ();
   if (min_max_var <= external->max_var) {
@@ -1453,7 +1453,7 @@ void Solver::resources () {
 
 /*------------------------------------------------------------------------*/
 
-const char *Solver::read_dimacs (File *file, int &vars, int strict,
+const char *Solver::read_dimacs (File *file, ELit::base_type &vars, int strict,
                                  bool *incremental, vector<int> *cubes) {
   REQUIRE_VALID_STATE ();
   REQUIRE (state () == CONFIGURING,
@@ -1465,7 +1465,7 @@ const char *Solver::read_dimacs (File *file, int &vars, int strict,
 }
 
 const char *Solver::read_dimacs (FILE *external_file, const char *name,
-                                 int &vars, int strict) {
+                                 ELit::base_type &vars, int strict) {
   LOG_API_CALL_BEGIN ("read_dimacs", name);
   REQUIRE_VALID_STATE ();
   REQUIRE (state () == CONFIGURING,
@@ -1478,7 +1478,7 @@ const char *Solver::read_dimacs (FILE *external_file, const char *name,
   return err;
 }
 
-const char *Solver::read_dimacs (const char *path, int &vars, int strict) {
+const char *Solver::read_dimacs (const char *path, ELit::base_type &vars, int strict) {
   LOG_API_CALL_BEGIN ("read_dimacs", path);
   REQUIRE_VALID_STATE ();
   REQUIRE (state () == CONFIGURING,
@@ -1494,7 +1494,7 @@ const char *Solver::read_dimacs (const char *path, int &vars, int strict) {
 }
 
 const char *Solver::read_dimacs (FILE *external_file, const char *name,
-                                 int &vars, int strict, bool &incremental,
+                                 ELit::base_type &vars, int strict, bool &incremental,
                                  vector<int> &cubes) {
   LOG_API_CALL_BEGIN ("read_dimacs", name);
   REQUIRE_VALID_STATE ();
@@ -1508,7 +1508,7 @@ const char *Solver::read_dimacs (FILE *external_file, const char *name,
   return err;
 }
 
-const char *Solver::read_dimacs (const char *path, int &vars, int strict,
+const char *Solver::read_dimacs (const char *path, ELit::base_type &vars, int strict,
                                  bool &incremental, vector<int> &cubes) {
   LOG_API_CALL_BEGIN ("read_dimacs", path);
   REQUIRE_VALID_STATE ();

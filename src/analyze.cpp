@@ -101,7 +101,7 @@ void Internal::rescale_variable_scores () {
     if (tmp > divider)
       divider = tmp;
   }
-  PHASE ("rescore", stats.rescored, "rescoring %d variable scores by 1/%g",
+  PHASE ("rescore", stats.rescored, "rescoring % " VAR " variable scores by 1/%g",
          max_var, divider);
   assert (divider > 0);
   double factor = 1.0 / divider;
@@ -219,7 +219,7 @@ int Internal::recompute_glue (Clause *c) {
   const int64_t stamp = ++stats.recomputed;
   for (const auto &lit : *c) {
     assert (val (lit));
-    int level = var (lit).level;
+    Var::Level level = var (lit).level;
     assert (gtab[level] <= stamp);
     if (gtab[level] == stamp)
       continue;
@@ -313,13 +313,13 @@ inline void Internal::analyze_literal (Lit lit, int &open,
     clause.push_back (lit);
   Level &l = control[v.level];
   if (!l.seen.count++) {
-    LOG ("found new level %d contributing to conflict", v.level);
+    LOG ("found new level %" LEVEL " contributing to conflict", v.level);
     levels.push_back (v.level);
   }
   if (v.trail < l.seen.trail)
     l.seen.trail = v.trail;
   ++resolvent_size;
-  LOG ("analyzed literal %s assigned at level %d", LOGLIT(lit), v.level);
+  LOG ("analyzed literal %s assigned at level %" LEVEL, LOGLIT (lit), v.level);
   if (v.level == level)
     open++;
 }
@@ -361,7 +361,7 @@ inline bool Internal::bump_also_reason_literal (Lit lit) {
     return false;
   f.seen = true;
   analyzed.push_back (lit);
-  LOG ("bumping also reason literal %s assigned at level %d", LOGLIT(lit), v.level);
+  LOG ("bumping also reason literal %s assigned at level %" LEVEL, LOGLIT (lit), v.level);
   return true;
 }
 
@@ -556,17 +556,17 @@ Clause *Internal::new_driving_clause (const int glue, int &jump) {
 // determine the OTFS level for OTFS. Unlike the find_conflict_level, we do
 // not have to fix the clause
 
-inline int Internal::otfs_find_backtrack_level (Lit &forced) {
+inline Var::Trail_Position Internal::otfs_find_backtrack_level (Lit &forced) {
   assert (opts.otfs);
-  int res = 0;
+  Var::Trail_Position res = 0;
 
   for (const auto &lit : *conflict) {
-    const int tmp = var (lit).level;
+    const Var::Level tmp = var (lit).level;
     if (tmp == level) {
       forced = lit;
     } else if (tmp > res) {
       res = tmp;
-      LOG ("bt level is now %d due to %s", res, LOGLIT(lit));
+      LOG ("bt level is now %" LEVEL " due to %s", res, LOGLIT (lit));
     }
   }
   return res;
@@ -585,12 +585,13 @@ inline int Internal::find_conflict_level (Lit &forced) {
   assert (conflict);
   assert (opts.chrono || opts.otfs || external_prop);
 
-  int res = 0, count = 0;
+  Var::Level res = 0;
+  int count = 0;
 
   forced = Lit ();
 
   for (const auto &lit : *conflict) {
-    const int tmp = var (lit).level;
+    const Var::Level tmp = var (lit).level;
     if (tmp > res) {
       res = tmp;
       forced = lit;
@@ -602,7 +603,7 @@ inline int Internal::find_conflict_level (Lit &forced) {
     }
   }
 
-  LOG ("%d literals on actual conflict level %d", count, res);
+  LOG ("%d literals on actual conflict level %" LEVEL, count, res);
 
   const int size = conflict->size;
   Lit *lits = conflict->literals;
@@ -615,11 +616,11 @@ inline int Internal::find_conflict_level (Lit &forced) {
 
     int highest_position = i;
     Lit highest_literal = lit;
-    int highest_level = var (highest_literal).level;
+    Var::Level highest_level = var (highest_literal).level;
 
     for (int j = i + 1; j < size; j++) {
       const Lit other = lits[j];
-      const int tmp = var (other).level;
+      const Var::Level tmp = var (other).level;
       if (highest_level >= tmp)
         continue;
       highest_literal = other;
@@ -657,37 +658,38 @@ inline int Internal::find_conflict_level (Lit &forced) {
 
 /*------------------------------------------------------------------------*/
 
-inline int Internal::determine_actual_backtrack_level (int jump) {
+inline Var::Trail_Position Internal::determine_actual_backtrack_level (Var::Level jump) {
 
-  int res;
+  Var::Trail_Position res;
 
   assert (level > jump);
 
   if (!opts.chrono) {
     res = jump;
-    LOG ("chronological backtracking disabled using jump level %d", res);
+    LOG ("chronological backtracking disabled using jump level %" LEVEL, res);
   } else if (opts.chronoalways) {
     stats.chrono++;
     res = level - 1;
-    LOG ("forced chronological backtracking to level %d", res);
+    LOG ("forced chronological backtracking to level %" LEVEL, res);
   } else if (jump >= level - 1) {
     res = jump;
-    LOG ("jump level identical to chronological backtrack level %d", res);
+    LOG ("jump level identical to chronological backtrack level %" LEVEL, res);
   } else if ((size_t) jump < assumptions.size ()) {
     res = jump;
-    LOG ("using jump level %d since it is lower than assumption level %zd",
+    LOG ("using jump level %" LEVEL " since it is lower than assumption level %zd",
          res, assumptions.size ());
-  } else if (level - jump > opts.chronolevelim) {
+  } else if (level - jump > (Var::Level)opts.chronolevelim) {
     stats.chrono++;
     res = level - 1;
-    LOG ("back-jumping over %d > %d levels prohibited"
-         "thus backtracking chronologically to level %d",
+    LOG ("back-jumping over %" LEVEL " > %d levels prohibited"
+         "thus backtracking chronologically to level %" LEVEL,
          level - jump, opts.chronolevelim, res);
   } else if (opts.chronoreusetrail) {
-    int best_idx = 0, best_pos = 0;
+    int best_idx = 0;
+    Var::Trail_Position best_pos = 0;
 
     if (use_scores ()) {
-      for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
+      for (Var::Trail_Position i = control[jump + 1].trail; i <  get_trail_size (); i++) {
         const int idx = vidx (trail[i]);
         if (best_idx && !score_smaller (this) (best_idx, idx))
           continue;
@@ -696,7 +698,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       }
       LOG ("best variable score %g", score (best_idx));
     } else {
-      for (int i = control[jump + 1].trail; i <  get_trail_size (); i++) {
+      for (Var::Trail_Position i = control[jump + 1].trail; i <  get_trail_size (); i++) {
         const int idx = vidx (trail[i]);
         if (best_idx && bumped (best_idx) >= bumped (idx))
           continue;
@@ -706,7 +708,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       LOG ("best variable bumped %" PRId64 "", bumped (best_idx));
     }
     assert (best_idx);
-    LOG ("best variable %d at trail position %d", best_idx, best_pos);
+    LOG ("best variable %d at trail position %" LEVEL, best_idx, best_pos);
 
     // Now find the frame and decision level in the control stack of that
     // best variable index.  Note that, as in 'reuse_trail', the frame
@@ -720,15 +722,15 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       res++;
 
     if (res == jump)
-      LOG ("default non-chronological back-jumping to level %d", res);
+      LOG ("default non-chronological back-jumping to level %" LEVEL, res);
     else {
       stats.chrono++;
-      LOG ("chronological backtracking to level %d to reuse trail", res);
+      LOG ("chronological backtracking to level %" LEVEL " to reuse trail", res);
     }
 
   } else {
     res = jump;
-    LOG ("non-chronological back-jumping to level %d", res);
+    LOG ("non-chronological back-jumping to level %" LEVEL, res);
   }
 
   return res;
@@ -835,12 +837,12 @@ Clause *Internal::on_the_fly_strengthen (Clause *new_conflict, Lit uip) {
   assert (unit_analyzed.empty ());
   // sort the clause
   {
-    int highest_pos = 0;
-    int highest_level = 0;
+    Var::Trail_Position highest_pos = 0;
+    Var::Level highest_level = 0;
     for (int i = 1; i < new_size; i++) {
       const Lit other = lits[i];
       assert (val (other) < 0);
-      const int level = var (other).level;
+      const Var::Level level = var (other).level;
       assert (level);
       LOG ("checking %s", LOGLIT(other));
       if (level <= highest_level)

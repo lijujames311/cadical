@@ -202,7 +202,7 @@ struct Internal {
   char rephased;        // last type of resetting phases
   Reluctant reluctant;  // restart counter in stable mode
   size_t vsize;         // actually allocated variable data size
-  int max_var;          // internal maximum variable index
+  Lit::base_type max_var;          // internal maximum variable index
   int64_t clause_id;    // last used id for clauses
   int64_t original_id;  // ids for original clauses to produce LRAT
   int64_t reserved_ids; // number of reserved ids for original clauses
@@ -222,7 +222,7 @@ struct Internal {
   bool lrat;                    // generate LRAT internally
   bool frat;                    // finalize non-deleted clauses in proof
   bool new_binary_since_dedup;// new binary clause has been learned since last decompose round
-  int level;                    // decision level ('control.size () - 1')
+  Var::Level level;                    // decision level ('control.size () - 1')
   Phases phases;                // saved, target and best phases
   signed char *vals;            // assignment [-max_var,max_var]
   vector<signed char> marks;    // signed marks [1,max_var]
@@ -483,7 +483,7 @@ struct Internal {
   // INT32_MAX. Therefore the size is at most INT32_MAX. This is already used
   // implicitely in the code (like var (lit).trail). With the assertion we
   // document the invariant.
-  int get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
+  Var::Trail_Position get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
 
   Bins &bins (Lit lit) { return big[vlit (lit)]; }
   Occs &occs (Lit lit) { return otab[vlit (lit)]; }
@@ -715,8 +715,8 @@ struct Internal {
   void minimize_sort_clause ();
   void shrink_and_minimize_clause ();
   void reset_shrinkable ();
-  void mark_shrinkable_as_removable (int, std::vector<int>::size_type);
-  int shrink_literal (Lit lit, int blevel, unsigned);
+  void mark_shrinkable_as_removable (Var::Level, std::vector<int>::size_type);
+  int shrink_literal (Lit lit, Var::Level blevel, unsigned);
   unsigned shrunken_block_uip (Lit, int,
                                std::vector<Lit>::reverse_iterator &,
                                std::vector<Lit>::reverse_iterator &,
@@ -732,9 +732,9 @@ struct Internal {
   minimize_and_shrink_block (std::vector<Lit>::reverse_iterator &,
                              unsigned int &, unsigned int &, const Lit);
   unsigned shrink_block (std::vector<Lit>::reverse_iterator &,
-                         std::vector<Lit>::reverse_iterator &, int,
+                         std::vector<Lit>::reverse_iterator &, Var::Level,
                          unsigned &, unsigned &, const Lit, unsigned);
-  unsigned shrink_along_reason (Lit, int, bool, bool &, unsigned);
+  unsigned shrink_along_reason (Lit, Var::Level, bool, bool &, unsigned);
 
   void deallocate_clause (Clause *);
   void delete_clause (Clause *);
@@ -748,7 +748,7 @@ struct Internal {
 
   // Forward reasoning through propagation in 'propagate.cpp'.
   //
-  int assignment_level (Lit lit, Clause *);
+  Var::Level assignment_level (Lit lit, Clause *);
   void build_chain_for_units (Lit lit, Clause *reason, bool forced);
   void build_chain_for_empty ();
   void search_assign (Lit lit, Clause *);
@@ -785,8 +785,8 @@ struct Internal {
   //
   void unassign (Lit lit);
   void update_target_and_best ();
-  void backtrack (int target_level = 0);
-  void backtrack_without_updating_phases (int target_level = 0);
+  void backtrack (Var::Level target_level = 0);
+  void backtrack_without_updating_phases (Var::Level target_level = 0);
 
   // Minimized learned clauses in 'minimize.cpp'.
   //
@@ -818,11 +818,11 @@ struct Internal {
                        int &antecedent_size);
   Clause *new_driving_clause (const int glue, int &jump);
   int find_conflict_level (Lit &forced);
-  int determine_actual_backtrack_level (int jump);
+  Var::Trail_Position determine_actual_backtrack_level (Var::Level jump);
   void otfs_strengthen_clause (Clause *, Lit, int,
                                const std::vector<Lit> &);
   void otfs_subsume_clause (Clause *subsuming, Clause *subsumed);
-  int otfs_find_backtrack_level (Lit &forced);
+  Var::Trail_Position otfs_find_backtrack_level (Lit &forced);
   Clause *on_the_fly_strengthen (Clause *conflict, Lit lit);
   void update_decision_rate_average ();
   void lazy_external_propagator_out_of_order_clause (Lit &);
@@ -845,7 +845,7 @@ struct Internal {
   void notify_assignments ();
   void notify_decision ();
   void notify_backtrack (size_t new_level);
-  void force_backtrack (int new_level);
+  void force_backtrack (Var::Level new_level);
   Lit ask_decision ();
   bool ask_external_clause ();
   void add_observed_var (Lit ilit);
@@ -859,9 +859,9 @@ struct Internal {
   void renotify_full_trail ();
 
   // adds the assigned literals to assigned
-  void renotify_full_trail_between_trail_pos (int start_level,
-                                              int end_level,
-                                              int propagator_level,
+  void renotify_full_trail_between_trail_pos (Var::Level start_level,
+                                              Var::Level end_level,
+                                              Var::Level propagator_level,
                                               std::vector<int> &assigned,
                                               bool start_new_level);
   void connect_propagator ();
@@ -1109,7 +1109,9 @@ struct Internal {
     Flags &f = flags (lit);
     if (f.subsume)
       return;
-    LOG ("marking %d as subsuming literal candidate", lit.var ());
+
+    LOG ("marking %" VAR " as subsuming literal candidate", lit.var ());
+
     stats.mark.subsume++;
     f.subsume = true;
   }
@@ -1117,7 +1119,7 @@ struct Internal {
     Flags &f = flags (lit);
     if (f.ternary)
       return;
-    LOG ("marking %d as ternary resolution literal candidate", lit.var ());
+    LOG ("marking %" VAR " as ternary resolution literal candidate", lit.var ());
     stats.mark.ternary++;
     f.ternary = true;
   }
@@ -1685,7 +1687,7 @@ struct Internal {
   // External variable of an existing internal variable
   //
   // Use `externalize (Lit)` to get a literal back with the correct polarity
-  ELit &to_external (Lit ilit) {
+  ELit &to_external_var (Lit ilit) {
     assert (ilit.is_positive ());
     return i2e[ilit];
   }

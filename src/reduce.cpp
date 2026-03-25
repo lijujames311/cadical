@@ -174,7 +174,7 @@ bool Internal::propagate_out_of_order_units () {
   if (!level)
     return true;
   Lit oou = INVALID_LIT;
-  for (int i = control[1].trail; oou == INVALID_LIT && i < get_trail_size (); i++) {
+  for (Var::Level i = control[1].trail; oou == INVALID_LIT && i < get_trail_size (); i++) {
     const Lit lit = trail[i];
     assert (val (lit) > 0);
     if (var (lit).level)

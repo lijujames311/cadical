@@ -10,7 +10,7 @@ void Logger::print_log_prefix (Internal *internal) {
   tout.magenta ();
   fputs ("LOG ", stdout);
   tout.magenta (true);
-  printf ("%d ", internal->level);
+  printf ("%" LEVEL " ", internal->level);
   tout.normal ();
 }
 

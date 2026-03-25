@@ -1,6 +1,7 @@
 #include "internal.hpp"
 #include "literals.hpp"
 #include "options.hpp"
+#include <limits>
 
 namespace CaDiCaL {
 
@@ -11,7 +12,7 @@ void Internal::assume (Lit lit) {
   if (level && !opts.ilb)
     backtrack ();
   else if (val (lit) < 0)
-    backtrack_without_updating_phases (max (0, var (lit).level - 1));
+    backtrack_without_updating_phases (var (lit).level > 0 ? var (lit).level - 1 : 0);
   Flags &f = flags (lit);
   const unsigned char bit = bign (lit);
   if (f.assumed & bit) {
@@ -100,7 +101,7 @@ void Internal::failing () {
     Lit failed_unit = INVALID_LIT;
     Lit failed_clashing = INVALID_LIT;
     Lit first_failed = INVALID_LIT;
-    int failed_level = INT_MAX;
+    Var::Level failed_level = std::numeric_limits<Var::Level>::max ();
     ELit efailed = INVALID_ELIT;
 
     for (auto &elit : external->assumptions) {
@@ -132,7 +133,7 @@ void Internal::failing () {
           if (other == -lit)
             continue;
           assert (val (other));
-          int tmp = var (other).level;
+          Var::Level tmp = var (other).level;
           if (tmp > ev.level)
             ev.level = tmp;
         }
@@ -214,8 +215,8 @@ void Internal::failing () {
 
     // Fall through to third case (3).
     LOG ("starting with assumption %s falsified on minimum decision level "
-         "%d",
-         LOGLIT(first_failed), failed_level);
+         "%" LEVEL,
+         LOGLIT (first_failed), failed_level);
 
     assert (first_failed != INVALID_LIT);
     assert (failed_level > 0);
@@ -561,7 +562,7 @@ void Internal::sort_and_reuse_assumptions () {
          sort_assumptions_positive_rank (this),
          sort_assumptions_smaller (this));
 
-  unsigned max_level = 0;
+  Var::Level max_level = 0;
   // assumptions are sorted by level, with unset at the end
   for (auto lit : assumptions) {
     if (val (lit))
@@ -570,15 +571,15 @@ void Internal::sort_and_reuse_assumptions () {
       break;
   }
 
-  const unsigned size = min (level + 1u, max_level + 1);
+  const Var::Level size = min (level + 1, max_level + 1);
   assert ((size_t) level == control.size () - 1);
   LOG (assumptions, "sorted assumptions");
-  int target = 0;
-  for (unsigned i = 1, j = 0; i < size;) {
+  Var::Level target = 0;
+  for (Var::Level i = 1, j = 0; i < size;) {
     const Level &l = control[i];
     const Lit lit = l.decision;
     const Lit alit = assumptions[j];
-    const int lev = i;
+    const Var::Level lev = i;
     target = lev;
     if (val (alit) > 0 &&
         var (alit).level < lev) { // we can ignore propagated assumptions
@@ -606,7 +607,7 @@ void Internal::sort_and_reuse_assumptions () {
     target = assumptions.size ();
   if (target < level)
     backtrack_without_updating_phases (target);
-  LOG ("assumptions allow for reuse of trail up to level %d", level);
+  LOG ("assumptions allow for reuse of trail up to level %" LEVEL, level);
   if ((size_t) level > assumptions.size ())
     stats.assumptionsreused += assumptions.size ();
   else
