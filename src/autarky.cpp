@@ -311,7 +311,8 @@ void Internal::autarky_apply (const std::vector<signed char> &autarky_val,
         continue;
       assert (v == 1 || v == -1);
       int lit = v * var;
-      external->push_external_clause_and_witness_on_extension_stack({lit}, {lit}, lit);
+      // fake id!
+      external->push_external_clause_and_witness_on_extension_stack({lit}, {lit}, var);
     }
   }
 
@@ -337,15 +338,11 @@ bool Internal::autarky () {
   std::vector<int> actual_autarky; actual_autarky.reserve (autarky_found);
   const bool full_aut = !opts.autarkynonincr;
 
-  assert (!actual_autarky.empty ());
-
-  autarky_apply (autarky_val, actual_autarky);
 
   for (auto idx : vars) {
     if (!autarky_val [vlit (idx)])
       continue;
     assert (active (idx));
-    mark_eliminated (idx);
     if (autarky_val [vlit (idx)] > 0){
       if (full_aut) actual_autarky.push_back(idx);
     }
@@ -355,6 +352,16 @@ bool Internal::autarky () {
       if (full_aut) actual_autarky.push_back(-idx);
     }
   }
+  assert (!full_aut || !actual_autarky.empty ());
+
+  autarky_apply (autarky_val, actual_autarky);
+
+
+    for (auto idx : vars) {
+      if (!autarky_val [vlit (idx)])
+        continue;
+      assert (active (idx));
+    }
   ++stats.autarkies.successful;
   stats.autarkies.eliminated += autarky_found;
   //mark_redundant_clauses_with_eliminated_variables_as_garbage ();
