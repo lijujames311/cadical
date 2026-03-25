@@ -352,6 +352,10 @@ struct shrink_trail_negative_rank {
     res |= v.trail;
     return ~res;
   }
+  std::pair <Var::Level, Var::Trail_Position> large_compare (Lit a) {
+    Var &v = internal->var (a);
+    return std::make_pair (~v.level, ~v.trail);
+  };
 };
 
 struct shrink_trail_larger {
@@ -361,6 +365,11 @@ struct shrink_trail_larger {
     return shrink_trail_negative_rank (internal) (a) <
            shrink_trail_negative_rank (internal) (b);
   }
+  bool large_compare (const Lit &a, const Lit &b) {
+    auto va = shrink_trail_negative_rank (internal).large_compare (a);
+    auto vb = shrink_trail_negative_rank (internal).large_compare (b);
+    return va <= vb;
+  };
 };
 
 // Finds the beginning of the block (rend_block, non-included) ending at
@@ -431,8 +440,8 @@ void Internal::shrink_and_minimize_clause () {
 
   START (shrink);
   external->check_learned_clause (); // check 1st UIP learned clause first
-  MSORT (opts.radixsortlim, clause.begin (), clause.end (),
-         shrink_trail_negative_rank (this), shrink_trail_larger (this));
+  MSORTLARGE (opts.radixsortlim, clause.begin (), clause.end (),
+         shrink_trail_negative_rank (this), shrink_trail_larger (this), Lit);
   unsigned total_shrunken = 0;
   unsigned total_minimized = 0;
 

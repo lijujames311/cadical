@@ -166,6 +166,16 @@ template <class I, class Rank> void rsort (I first, I last, Rank rank) {
 // use radix sort.  As usual we do not want to hard code it here (default
 // is '800') in order to make fuzzing and delta debugging more effective.
 
+#ifdef INTERNALLITERAL64
+#define MSORTLARGE(LIMIT, FIRST, LAST, RANK, LESS, T) \
+  do { \
+    sort (FIRST, LAST, [this] (T a, T b) {return LESS.large_compare (a,b);}); \
+  } while (0)
+#else
+#define MSORTLARGE(LIMIT, FIRST, LAST, RANK, LESS, T) \
+  MSORT (LIMIT, FIRST, LAST, RANK, LESS)
+#endif
+
 #define MSORT(LIMIT, FIRST, LAST, RANK, LESS) \
   do { \
     const size_t N = LAST - FIRST; \
@@ -174,6 +184,8 @@ template <class I, class Rank> void rsort (I first, I last, Rank rank) {
     else \
       rsort (FIRST, LAST, RANK); \
   } while (0)
+
+
 
 } // namespace CaDiCaL
 

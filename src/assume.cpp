@@ -533,6 +533,12 @@ struct sort_assumptions_positive_rank {
     res |= (assigned ? v.trail : a.var());
     return res;
   }
+  std::pair<Var::Level, Var::Trail_Position> large_compare (const Lit &a) const {
+    const int val = internal->val (a);
+    const bool assigned = (val != 0);
+    const Var &v = internal->var (a);
+    return {v.level, (assigned ? v.trail : a.var())};
+  }
 };
 
 struct sort_assumptions_smaller {
@@ -541,6 +547,10 @@ struct sort_assumptions_smaller {
   bool operator() (const Lit &a, const Lit &b) const {
     return sort_assumptions_positive_rank (internal) (a) <
            sort_assumptions_positive_rank (internal) (b);
+  }
+  bool large_compare(const Lit &a, const Lit &b) const {
+    return sort_assumptions_positive_rank (internal).large_compare (a) <
+           sort_assumptions_positive_rank (internal).large_compare (b);
   }
 };
 
@@ -558,9 +568,9 @@ void Internal::sort_and_reuse_assumptions () {
       return;
     }
   }
-  MSORT (opts.radixsortlim, assumptions.begin (), assumptions.end (),
+  MSORTLARGE (opts.radixsortlim, assumptions.begin (), assumptions.end (),
          sort_assumptions_positive_rank (this),
-         sort_assumptions_smaller (this));
+         sort_assumptions_smaller (this), Lit);
 
   Var::Level max_level = 0;
   // assumptions are sorted by level, with unset at the end

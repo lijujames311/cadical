@@ -37,6 +37,7 @@ ipasir=yes
 shared=no
 pic=no
 lits64=no
+ilits64=no
 
 #--------------------------------------------------------------------------#
 
@@ -107,7 +108,8 @@ where '<option>' is one of the following
 --no-tracing       compile without API call tracing code
 --no-contrib       compile without contributed code
 --no-ipasir        compile without ipasir interface
---lits64           use 64 bits for literals
+--lits64           use 64 bits for external literals
+--ilits64           use 64 bits for internal literals
 
 --competition      configure for the competition
                    ('--quiet', '--no-contracts', '--no-tracing')
@@ -174,6 +176,7 @@ do
     --profile) profile=yes;;
     --memory-fuzzing) memory_fuzzing=yes;;
     --lits64) lits64=yes;;
+    --ilits64) ilits64=yes;;
 
     --competition) competition=yes;;
 
@@ -333,6 +336,15 @@ then
   case x"$CXX" in
     x*g++*)
       options="$options -DLITERAL64"
+      ;;
+  esac
+fi
+
+if [ $ilits64 = yes ]
+then
+  case x"$CXX" in
+    x*g++*)
+      options="$options -DINTERNALLITERAL64"
       ;;
   esac
 fi

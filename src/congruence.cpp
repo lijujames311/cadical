@@ -2,6 +2,7 @@
 #include "clause.hpp"
 #include "internal.hpp"
 #include "literals.hpp"
+#include "radix.hpp"
 #include "util.hpp"
 #include <algorithm>
 #include <cstdint>
@@ -242,6 +243,10 @@ struct compact_binary_rank {
     return ((uint64_t) internal->vlit (a.lit1) << 32) +
            internal->vlit (a.lit2);
   };
+
+  std::pair <Lit::base_type, Lit::base_type> large_compare (const CompactBinary &a) {
+    return {internal->vlit (a.lit1), internal->vlit (a.lit2)};
+  };
 };
 
 struct compact_binary_order {
@@ -250,6 +255,11 @@ struct compact_binary_order {
   bool operator() (const CompactBinary &a, const CompactBinary &b) {
     return compact_binary_rank (internal) (a) <
            compact_binary_rank (internal) (b);
+  };
+  bool large_compare (const CompactBinary &a, const CompactBinary &b) {
+    auto va = compact_binary_rank (internal).large_compare (a);
+    auto vb = compact_binary_rank (internal).large_compare (b);
+    return va < vb;
   };
 };
 
@@ -301,8 +311,8 @@ void Closure::extract_binaries () {
                                        already_sorted ? other : lit));
   }
 
-  MSORT (internal->opts.radixsortlim, begin (binaries), end (binaries),
-         compact_binary_rank (internal), compact_binary_order (internal));
+  MSORTLARGE (internal->opts.radixsortlim, begin (binaries), end (binaries),
+         compact_binary_rank (internal), compact_binary_order (internal), CompactBinary);
 
   {
     const size_t size = binaries.size ();
@@ -372,8 +382,8 @@ void Closure::extract_binaries () {
 
   // kissat has code to remove duplicates, which we have already removed
   // before starting congruence
-  MSORT (internal->opts.radixsortlim, begin (binaries), end (binaries),
-         compact_binary_rank (internal), compact_binary_order (internal));
+  MSORTLARGE (internal->opts.radixsortlim, begin (binaries), end (binaries),
+         compact_binary_rank (internal), compact_binary_order (internal), CompactBinary);
   const size_t new_size = binaries.size ();
   {
     size_t i = 0;
@@ -498,7 +508,7 @@ struct sort_literals_by_var_smaller {
   CaDiCaL::Internal *internal;
   sort_literals_by_var_smaller (Internal *i) : internal (i) {}
   bool operator() (const Lit &a, const Lit &b) const {
-    return sort_literals_by_var_rank (internal) (a) <
+    return sort_literals_by_var_rank (internal) (a) <=
            sort_literals_by_var_rank (internal) (b);
   }
 };
@@ -3196,6 +3206,9 @@ struct congruence_occurrences_rank {
     res |= a.signed_representation();
     return res;
   }
+  std::pair<size_t, Lit::base_type> large_compare (const Lit a) {
+    return {internal->noccs (-a), a.signed_representation()};
+  }
 };
 
 struct congruence_occurrences_larger {
@@ -3205,6 +3218,11 @@ struct congruence_occurrences_larger {
     return congruence_occurrences_rank (internal) (a) <
            congruence_occurrences_rank (internal) (b);
   }
+  bool large_compare (const Lit &a, const Lit &b) {
+    auto va = congruence_occurrences_rank (internal).large_compare (a);
+    auto vb = congruence_occurrences_rank (internal).large_compare (b);
+    return va < vb;
+  };
 };
 
 void Closure::extract_and_gates_with_base_clause (Clause *c) {
@@ -3292,10 +3310,10 @@ void Closure::extract_and_gates_with_base_clause (Clause *c) {
   assert (reduced_size);
   LOG (c, "trying as base arity %zu AND gate", arity);
   assert (begin (lits) + reduced_size <= end (lits));
-  MSORT (internal->opts.radixsortlim, begin (lits),
+  MSORTLARGE (internal->opts.radixsortlim, begin (lits),
          begin (lits) + reduced_size,
          congruence_occurrences_rank (internal),
-         congruence_occurrences_larger (internal));
+         congruence_occurrences_larger (internal), Lit);
   bool first = true;
   unsigned extracted = 0;
 
@@ -4828,11 +4846,13 @@ bool Closure::propagate_binary_clauses_in_and_gates () {
     // clause is actually a tautology
     if (rhs[0] == -rhs[1])
       continue;
+    // the clause is actually a unit
+    if (rhs[0] == rhs[1])
+      continue;
     // make sure that we did not miss any propagation
     assert (!(internal->val (-rhs[0]) < 0 && internal->val (-rhs[1]) == 0));
     assert (!(internal->val (-rhs[1]) < 0 && internal->val (-rhs[0]) == 0));
-    std::sort (begin (rhs), end (rhs),
-               sort_literals_by_var_smaller (internal));
+    std::sort (begin (rhs), end (rhs), sort_literals_by_var_smaller (internal));
     Gate *h = find_and_lits (rhs);
     if (!h)
       continue;
@@ -7381,6 +7401,9 @@ struct litpair_rank {
     uint64_t litb = internal->vlit (a.second);
     return (lita << 32) + litb;
   }
+  std::pair <Lit::base_type, Lit::base_type> large_compare (const lit_implication& a) {
+    return std::make_pair (internal->vlit (a.first), internal->vlit (a.second));
+  };
 };
 
 struct litpair_smaller {
@@ -7392,6 +7415,11 @@ struct litpair_smaller {
     const uint64_t t = litpair_rank (internal) (b);
     return s < t;
   }
+  bool large_compare (const lit_implication &a, const lit_implication &b) {
+    auto va = litpair_rank (internal).large_compare (a);
+    auto vb = litpair_rank (internal).large_compare (b);
+    return va < vb;
+  };
 };
 
 struct litequivalence_rank {
@@ -7403,6 +7431,9 @@ struct litequivalence_rank {
     uint64_t litb = internal->vlit (a.second);
     return (lita << 32) + litb;
   }
+  std::pair <Lit::base_type, Lit::base_type> large_compare (const lit_equivalence& a) {
+    return std::make_pair (internal->vlit (a.first), internal->vlit (a.second));
+  };
 };
 
 struct litequivalence_smaller {
@@ -7414,6 +7445,11 @@ struct litequivalence_smaller {
     const uint64_t t = litequivalence_rank (internal) (b);
     return s < t;
   }
+  bool large_compare (const lit_equivalence &a, const lit_equivalence &b) {
+    auto va = litequivalence_rank (internal).large_compare (a);
+    auto vb = litequivalence_rank (internal).large_compare (b);
+    return va < vb;
+  };
 };
 
 lit_implications::const_iterator
@@ -7609,13 +7645,13 @@ void Closure::find_conditional_equivalences (Lit lit,
   assert (condeq.empty ());
   assert (internal->occs (lit).size () > 1);
   copy_conditional_equivalences (lit, condbin);
-  MSORT (internal->opts.radixsortlim, begin (condbin), end (condbin),
-         litpair_rank (this->internal), litpair_smaller (this->internal));
+  MSORTLARGE (internal->opts.radixsortlim, begin (condbin), end (condbin),
+         litpair_rank (this->internal), litpair_smaller (this->internal), lit_implication);
 
   extract_condeq_pairs (lit, condbin, condeq);
-  MSORT (internal->opts.radixsortlim, begin (condeq), end (condeq),
+  MSORTLARGE (internal->opts.radixsortlim, begin (condeq), end (condeq),
          litequivalence_rank (this->internal),
-         litequivalence_smaller (this->internal));
+         litequivalence_smaller (this->internal), lit_equivalence);
 
 #ifdef LOGGING
   for (auto pair : condeq)

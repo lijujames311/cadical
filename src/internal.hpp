@@ -1270,7 +1270,7 @@ struct Internal {
   // Bounded variable elimination in 'elim.cpp'.
   //
   bool ineliminating ();
-  double compute_elim_score (unsigned lit);
+  double compute_elim_score (Lit::base_type lit);
   void mark_redundant_clauses_with_eliminated_variables_as_garbage ();
   void unmark_binary_literals (Eliminator &);
   bool resolve_clauses (Eliminator &, Clause *, Lit pivot, Clause *, bool);

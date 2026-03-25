@@ -2008,7 +2008,7 @@ struct FreezeCall : public Call {
 struct MeltCall : public Call {
   MeltCall (int l) : Call (MELT, l) {}
   void execute (Solver *&s, ExtendMap &extendmap) {
-    if (mobical.donot.enforce || s->frozen (map_arg (s, extendmap)))
+    if (mobical.donot.enforce || s->frozen (map_arg (s, extendmap, false)))
       s->melt (map_arg (s, extendmap));
   }
   void print (ostream &o) { o << "melt " << arg << endl; }

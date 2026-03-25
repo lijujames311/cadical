@@ -19,7 +19,7 @@ namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
 
-inline double Internal::compute_elim_score (unsigned lit) {
+inline double Internal::compute_elim_score (Lit::base_type lit) {
   assert (lit >= 1), assert ((Lit::base_type) lit <= max_var);
   const double pos = noccs (Lit (lit));
   const double neg = noccs (Lit (-lit));

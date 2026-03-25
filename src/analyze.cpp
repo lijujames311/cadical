@@ -496,6 +496,10 @@ struct analyze_trail_negative_rank {
     res |= v.trail;
     return ~res;
   }
+  std::pair <Var::Level, Var::Trail_Position> large_compare (const Lit& a) {
+    Var &v = internal->var (a);
+    return std::make_pair (~v.level, ~v.trail);
+  };
 };
 
 struct analyze_trail_larger {
@@ -505,6 +509,11 @@ struct analyze_trail_larger {
     return analyze_trail_negative_rank (internal) (a) <
            analyze_trail_negative_rank (internal) (b);
   }
+  bool large_compare (const Lit &a, const Lit &b) const {
+    auto va = analyze_trail_negative_rank (internal).large_compare (a);
+    auto vb = analyze_trail_negative_rank (internal).large_compare (b);
+    return va < vb;
+  };
 };
 
 /*------------------------------------------------------------------------*/
@@ -538,8 +547,8 @@ Clause *Internal::new_driving_clause (const int glue, int &jump) {
     // the opposite order) with the hope to hit the recursion limit less
     // frequently.  Thus sorting effort is doubled here.
     //
-    MSORT (opts.radixsortlim, clause.begin (), clause.end (),
-           analyze_trail_negative_rank (this), analyze_trail_larger (this));
+    MSORTLARGE (opts.radixsortlim, clause.begin (), clause.end (),
+           analyze_trail_negative_rank (this), analyze_trail_larger (this), Lit);
 
     jump = var (clause[1]).level;
     res = new_learned_redundant_clause (glue);
