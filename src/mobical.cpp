@@ -11,6 +11,7 @@
 
 // Model Based Tester for the CaDiCaL SAT Solver Library.
 
+#include "options.hpp"
 namespace CaDiCaL {
 
 // clang-format off
@@ -2551,6 +2552,8 @@ bool Trace::ignored_option (const char *name) {
     return true;
   if (!strcmp (name, "terminateint"))
     return true;
+  if (!strcmp (name, "autarkynonincr"))
+    return true;
   return false;
 }
 
@@ -3205,6 +3208,9 @@ void Trace::generate (uint64_t i, uint64_t s) {
   else
     calls = mobical.force.phases;
 
+  if (calls == 1 && random.pick_double(0, 100) < 10) {
+    push_back (new SetCall ("autarkynonincr", 1));
+  }
   int minvars, maxvars = 0;
 
   for (int call = 0; call < calls; call++) {
