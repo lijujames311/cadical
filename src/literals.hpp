@@ -12,6 +12,12 @@
 #ifdef __cplusplus
 
 #ifdef LITERAL64
+#define EVAR	 "ld"
+#else
+#define EVAR	 "d"
+#endif
+
+#ifdef INTERNALLITERAL64
 #define VAR	 "ld"
 #else
 #define VAR	 "d"
@@ -23,7 +29,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ifndef LITERAL64
+#ifndef INTERNALLITERAL64
   typedef int ibase_type;
 #else
   typedef int64_t ibase_type;
@@ -48,7 +54,7 @@ struct Lit {
   ~Lit () = default;
   #define CPPCONST const
 
-#ifdef LITERAL64
+#ifdef INTERNALLITERAL64
   explicit Lit (int64_t v) : lit (v) {};
 #else
   explicit Lit (int v) { lit = v; };
@@ -114,6 +120,7 @@ struct Lit {
     return lit;
   }
 
+  // positive version of the literal, as literal.
   Lit labs () CPPCONST {
     if (lit < 0)
       return Lit (-lit);

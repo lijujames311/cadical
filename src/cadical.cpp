@@ -279,7 +279,7 @@ void App::print_witness (FILE *file) {
       else
         tmp = solver->val (elit) < 0 ? ELit (-elit) : ELit (elit);
       char str[64];
-      snprintf (str, sizeof str, " %" VAR, tmp.signed_representation());
+      snprintf (str, sizeof str, " %" EVAR, tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;
@@ -301,7 +301,7 @@ void App::print_witness (FILE *file) {
       else
         tmp = solver->val (elit.signed_representation()) < 0 ? -elit : elit;
       char str[32];
-      snprintf (str, sizeof str, " %" VAR, tmp.signed_representation());
+      snprintf (str, sizeof str, " %" EVAR, tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;

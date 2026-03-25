@@ -21,7 +21,7 @@ void External::check_solution_on_learned_clause () {
   fputs ("learned clause unsatisfied by solution:\n", stderr);
   for (const auto &lit : internal->clause) {
     auto elit = internal->externalize (lit);
-    fprintf (stderr, "%" VAR " ", elit.signed_representation());
+    fprintf (stderr, "%" EVAR " ", elit.signed_representation());
   }
   fputc ('0', stderr);
   fatal_message_end ();
@@ -37,7 +37,7 @@ void External::check_solution_on_shrunken_clause (Clause *c) {
   fatal_message_start ();
   for (const auto &lit : *c) {
     auto elit = internal->externalize (lit);
-    fprintf (stderr, "%" VAR " ", elit.signed_representation());
+    fprintf (stderr, "%" EVAR " ", elit.signed_representation());
   }
   fputc ('0', stderr);
   fatal_message_end ();
@@ -53,7 +53,7 @@ void External::check_solution_on_learned_unit_clause (Lit unit) {
   auto eunit = internal->externalize (unit);
   if (sol (eunit) == eunit)
     return;
-  FATAL ("learned unit %" VAR " contradicts solution", (eunit).signed_representation());
+  FATAL ("learned unit %" EVAR " contradicts solution", (eunit).signed_representation());
 }
 
 } // namespace CaDiCaL

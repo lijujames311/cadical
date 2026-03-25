@@ -941,7 +941,7 @@ bool Internal::external_check_solution () {
 #ifndef NDEBUG
 #ifdef LOGGING
       bool p = external->vals[idx];
-      LOG ("evals[%" VAR "]: %d ival(%" VAR "): %s", idx, p, idx, LOGLIT (lit));
+      LOG ("evals[%" EVAR "]: %d ival(%" EVAR "): %s", idx, p, idx, LOGLIT (lit));
 #endif
 #endif
     }
@@ -1137,7 +1137,7 @@ Lit Internal::ask_decision () {
 
   assert (fixed (ilit) || observed (ilit));
 
-  LOG ("Asking external propagator for decision returned: %" VAR " (internal: "
+  LOG ("Asking external propagator for decision returned: %" EVAR " (internal: "
        "%" VAR ", fixed: %d, val: %d)",
        elit.signed_representation (), ilit.signed_representation (), fixed (ilit), val (ilit));
 

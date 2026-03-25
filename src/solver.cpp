@@ -172,10 +172,12 @@ static void log_api_call_end (Internal *internal, const char *name,
   log_api_call (internal, name, lit, "succeeded");
 }
 
+#ifdef LITERALS64
 static void log_api_call_end (Internal *internal, const char *name,
                               int64_t lit) {
   log_api_call (internal, name, lit, "succeeded");
 }
+#endif
 
 static void log_api_call_end (Internal *internal, const char *name,
                               const char *arg) {
@@ -668,14 +670,14 @@ void Solver::add (ELit::base_type dimacs_lit) {
     if (internal->opts.factor && internal->opts.factorcheck == 1)
       REQUIRE (
           lit.var () <= external->max_var,
-          "adding literal '%" VAR "' with undeclared variable '%d' "
+          "adding literal '%" EVAR "' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as both 'factor' and 'factorcheck' are enabled)",
           lit.signed_representation(), (int) lit.var ());
     if (internal->opts.factorcheck == 2)
       REQUIRE (
           lit.var () <= external->max_var,
-          "adding literal '%" VAR "' with undeclared variable '%d' "
+          "adding literal '%" EVAR "' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as 'factorcheck == 2' even if 'factor' is disabled)",
           lit.signed_representation(), (int) lit.var ());

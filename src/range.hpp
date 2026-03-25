@@ -53,7 +53,7 @@ class Range {
   static unsigned inc (unsigned u) { return u + 1u; }
   static unsigned dec (unsigned u) { return u - 1u; }
   class iterator {
-    Lit::base_type idx;
+    typename Literal::base_type idx;
 
   public:
     iterator (int i) : idx (i) {}
@@ -66,7 +66,7 @@ class Range {
 
   // Reverse iterator for iterating from max_var down to 1
   class reverse_iterator {
-    Lit::base_type idx;
+    typename Literal::base_type idx;
 
   public:
     reverse_iterator (int i) : idx (i) {}
@@ -78,7 +78,7 @@ class Range {
     }
   };
 
-  Lit::base_type &n;
+  typename Literal::base_type &n;
 
 public:
   // forward iterator
@@ -93,7 +93,7 @@ public:
     return assert (n >= 0), reverse_iterator (0);
   }
 
-  Range (Lit::base_type &m) : n (m) { assert (m >= 0); }
+  Range (typename Literal::base_type &m) : n (m) { assert (m >= 0); }
 };
 
 // Same, but iterating over literals '-1,1,-2,2,....,-max_var,max_var'.
@@ -116,7 +116,7 @@ class Sange {
       return a.lit != b.lit;
     }
   };
-  Lit::base_type &n;
+  typename Literal::base_type &n;
 
 public:
   iterator begin () const { return assert (n >= 0), iterator (inc (0)); }

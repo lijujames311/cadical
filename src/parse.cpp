@@ -100,10 +100,10 @@ inline const char *Parser::parse_lit (int &ch, ELit::base_type &lit, ELit::base_
   if (ch == '\r')
     ch = parse_char ();
   if (ch != 'c' && ch != ' ' && ch != '\t' && ch != '\n' && ch != EOF)
-    PER ("expected white space after '%" VAR "'", sign * lit);
+    PER ("expected white space after '%" EVAR "'", sign * lit);
   if (lit > vars) {
     if (strict != FORCED)
-      PER ("literal %" VAR " exceeds maximum variable %" VAR, sign * lit, vars);
+      PER ("literal %" EVAR " exceeds maximum variable %" EVAR, sign * lit, vars);
     else
       vars = lit;
   }
@@ -191,14 +191,14 @@ const char *Parser::parse_dimacs_non_profiled (ELit::base_type &vars, int strict
       if (err)
         return err;
       if (ch != ' ')
-        PER ("expected ' ' after 'p cnf %" VAR "'", vars);
+        PER ("expected ' ' after 'p cnf %" EVAR "'", vars);
       if (!isdigit (ch = parse_char ()))
-        PER ("expected digit after 'p cnf %" VAR "'", vars);
+        PER ("expected digit after 'p cnf %" EVAR "'", vars);
       err = parse_positive_uint64_t (ch, clauses, "<num-clauses>");
       if (err)
         return err;
       if (ch != '\n')
-        PER ("expected new-line after 'p cnf %" VAR " %" PRIu64 "'", vars,
+        PER ("expected new-line after 'p cnf %" EVAR " %" PRIu64 "'", vars,
              clauses);
     } else {
       if (parse_char () != 'n')
@@ -217,24 +217,24 @@ const char *Parser::parse_dimacs_non_profiled (ELit::base_type &vars, int strict
       if (err)
         return err;
       if (!isspace (ch))
-        PER ("expected space after 'p cnf %" VAR "'", vars);
+        PER ("expected space after 'p cnf %" EVAR "'", vars);
       do
         ch = parse_char ();
       while (isspace (ch));
       if (!isdigit (ch))
-        PER ("expected digit after 'p cnf %" VAR " '", vars);
+        PER ("expected digit after 'p cnf %" EVAR " '", vars);
       err = parse_positive_uint64_t (ch, clauses, "<num-clauses>");
       if (err)
         return err;
       while (ch != '\n') {
         if (ch != '\r' && !isspace (ch))
-          PER ("expected new-line after 'p cnf %" VAR " %" PRIu64 "'", vars,
+          PER ("expected new-line after 'p cnf %" EVAR " %" PRIu64 "'", vars,
                clauses);
         ch = parse_char ();
       }
     }
 
-    MSG ("found %s'p cnf %" VAR " %" PRIu64 "'%s header", tout.green_code (),
+    MSG ("found %s'p cnf %" EVAR " %" PRIu64 "'%s header", tout.green_code (),
          vars, clauses, tout.normal_code ());
 
     if (vars) {
@@ -438,7 +438,7 @@ const char *Parser::parse_solution_non_profiled () {
       PER ("expected 'v' at start-of-line");
     if ((ch = parse_char ()) != ' ')
       PER ("expected ' ' after 'v', got '%c' instead", ch);
-    Lit::base_type lit = 0;
+    ELit::base_type lit = 0;
     ch = parse_char ();
     do {
       if (ch == ' ' || ch == '\t') {
@@ -453,8 +453,8 @@ const char *Parser::parse_solution_non_profiled () {
       if (!lit)
         break;
       if (external->solution[std::abs (lit)])
-        PER ("variable %" VAR " occurs twice", abs (lit));
-      LOG ("solution %" VAR, lit);
+        PER ("variable %" EVAR " occurs twice", abs (lit));
+      LOG ("solution %" EVAR, lit);
       external->solution[std::abs (lit)] = sign (lit);
 #ifndef QUIET
       count++;

@@ -118,7 +118,7 @@ void External::extend () {
   internal->stats.extensions++;
 
   PHASE ("extend", internal->stats.extensions,
-         "mapping internal %" VAR " assignments to %" VAR "assignments",
+         "mapping internal %" VAR " assignments to %" EVAR "assignments",
          internal->max_var, max_var);
 
 #ifndef QUIET

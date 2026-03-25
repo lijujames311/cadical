@@ -133,7 +133,7 @@ Lit External::internalize (ELit elit, bool extension) {
     assert (elit != OTHER_INVALID_ELIT);
     const ELit eidx = elit.labs ();
     if (extension && eidx <= ELit (max_var))
-      FATAL ("can not add a definition for an already used variable %" VAR,
+      FATAL ("can not add a definition for an already used variable %" EVAR,
         eidx.signed_representation());
     if (eidx > ELit (max_var)) {
       init (eidx, extension);
@@ -162,7 +162,7 @@ Lit External::internalize (ELit elit, bool extension) {
     if (internal->opts.checkfrozen) {
       assert (eidx.var () < (int64_t) moltentab.size ());
       if (moltentab[eidx.var ()])
-        FATAL ("can not reuse molten literal %" VAR, eidx.signed_representation());
+        FATAL ("can not reuse molten literal %" EVAR, eidx.signed_representation());
     }
     Flags &f = internal->flags (ilit);
     if (f.status == Flags::UNUSED)
@@ -185,7 +185,7 @@ void External::add (ELit elit) {
 
   if (elit != INVALID_ELIT)
     REQUIRE (is_valid_input (elit),
-             "extension variable '%" VAR "' defined by the solver internally "
+             "extension variable '%" EVAR "' defined by the solver internally "
              "(all user variables have to be declared explicitly "
 	     "if 'factor' is enabled)", // TODO only reason?
              elit.signed_representation());
@@ -727,7 +727,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
   //
   for (auto idx : vars) {
     if ((this->*a) (idx) == INVALID_ELIT)
-      FATAL ("unassigned variable: %" VAR, idx.signed_representation());
+      FATAL ("unassigned variable: %" EVAR, idx.signed_representation());
     ELit value_idx = (this->*a) (idx);
     ELit value_neg_idx = (this->*a) (-idx);
     if (value_idx == idx)
@@ -737,7 +737,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
       assert (value_neg_idx == -idx);
     }
     if (value_idx != value_neg_idx)
-      FATAL ("inconsistently assigned literals %" VAR " and %" VAR "", (idx).signed_representation(), (-idx).signed_representation());
+      FATAL ("inconsistently assigned literals %" EVAR " and %" EVAR "", (idx).signed_representation(), (-idx).signed_representation());
   }
 
   // Then check that all (saved) original clauses are satisfied.
@@ -755,7 +755,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
         fatal_message_start ();
         fputs ("unsatisfied clause:\n", stderr);
         for (auto j = start; j != i; j++)
-          fprintf (stderr, "%" VAR " ", (*j).signed_representation());
+          fprintf (stderr, "%" EVAR " ", (*j).signed_representation());
         fputc ('0', stderr);
         fatal_message_end ();
       }
@@ -804,7 +804,7 @@ void External::check_assignment (ELit (External::*a) (ELit) const) {
       fatal_message_start ();
       fputs ("unsatisfied external forgettable clause:\n", stderr);
       for (size_t j = 1; j < forgettables.second.size (); j++)
-        fprintf (stderr, "%" VAR " ", (forgettables.second[j]).signed_representation());
+        fprintf (stderr, "%" EVAR " ", (forgettables.second[j]).signed_representation());
       fputc ('0', stderr);
       fatal_message_end ();
     }
@@ -822,7 +822,7 @@ void External::check_assumptions_satisfied () {
     // Not 'signed char' !!!!
     const ELit tmp = ival (lit);
     if (tmp != lit)
-      FATAL ("assumption %" VAR " falsified", (lit).signed_representation());
+      FATAL ("assumption %" EVAR " falsified", (lit).signed_representation());
     assert (tmp != ELit (0)); // checks if assigned
   }
   VERBOSE (1, "checked that %zd assumptions are satisfied",

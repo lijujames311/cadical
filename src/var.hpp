@@ -5,7 +5,7 @@ namespace CaDiCaL {
 
 struct Clause;
 
-#ifdef LITERAL64
+#ifdef INTERNALLITERAL64
 #define LEVEL	 "ld"
 #else
 #define LEVEL	 "d"
@@ -17,7 +17,7 @@ struct Var {
 
   // Note that none of these members is valid unless the variable is
   // assigned.  During unassigning a variable we do not reset it.
-#ifndef LITERAL64
+#ifndef INTERNALLITERAL64
   using Level = int;
   using Trail_Position = int;
   int level;      // decision level
