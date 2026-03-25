@@ -278,8 +278,8 @@ void App::print_witness (FILE *file) {
         continue;
       else
         tmp = solver->val (elit) < 0 ? ELit (-elit) : ELit (elit);
-      char str[32];
-      snprintf (str, sizeof str, " %d", tmp.signed_representation());
+      char str[64];
+      snprintf (str, sizeof str, " %" VAR, tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;
@@ -290,6 +290,7 @@ void App::print_witness (FILE *file) {
   } else {
     for (auto /*[elit, ilit] C++17*/ eilit : solver->external->e2i) {
       const ELit elit = eilit.first;
+      assert (elit.signed_representation() > 0);
       const Lit ilit = eilit.second;
       if (!c)
         fputc ('v', file), c = 1;
@@ -300,7 +301,7 @@ void App::print_witness (FILE *file) {
       else
         tmp = solver->val (elit.signed_representation()) < 0 ? -elit : elit;
       char str[32];
-      snprintf (str, sizeof str, " %d", tmp.signed_representation());
+      snprintf (str, sizeof str, " %" VAR, tmp.signed_representation());
       int l = strlen (str);
       if (c + l > 78)
         fputs ("\nv", file), c = 1;

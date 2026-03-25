@@ -70,7 +70,7 @@ struct External {
   ELit::base_type max_var;  // External maximum variable index.
   size_t vsize; // Allocated external size.
 
-  vector<bool> vals; // Current external (extended) assignment.
+  std::unordered_map<ELit::base_type, signed char> vals; // Current external (extended) assignment.
   std::unordered_map<ELit, Lit> e2i;   // External 'idx' to internal 'lit'.
 
   vector<ELit> assumptions; // External assumptions.
@@ -368,8 +368,13 @@ struct External {
     assert (elit != OTHER_INVALID_ELIT);
     ELit::base_type eidx = elit.var ();
     bool val = false;
-    if (eidx <= max_var && (size_t) eidx < vals.size ())
-      val = vals[eidx];
+    if (eidx <= max_var) {
+      auto it = vals.find (eidx);
+      if (it == vals.end ())
+        val = 0;
+      else
+        val = it->second;
+    }
     if (elit.is_negated ())
       val = !val;
     return val ? elit : -elit;

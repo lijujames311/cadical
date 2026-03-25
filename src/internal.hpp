@@ -483,7 +483,12 @@ struct Internal {
   // INT32_MAX. Therefore the size is at most INT32_MAX. This is already used
   // implicitely in the code (like var (lit).trail). With the assertion we
   // document the invariant.
-  Var::Trail_Position get_trail_size () const {assert (trail.size () <= INT32_MAX); return static_cast<int>(trail.size ());}
+  Var::Trail_Position get_trail_size () const {
+#ifndef LITERAL64
+    assert (trail.size () <= INT32_MAX);
+#endif
+    return static_cast<int>(trail.size ());
+  }
 
   Bins &bins (Lit lit) { return big[vlit (lit)]; }
   Occs &occs (Lit lit) { return otab[vlit (lit)]; }
@@ -862,15 +867,15 @@ struct Internal {
   void renotify_full_trail_between_trail_pos (Var::Level start_level,
                                               Var::Level end_level,
                                               Var::Level propagator_level,
-                                              std::vector<int> &assigned,
+                                              std::vector<ELit::base_type> &assigned,
                                               bool start_new_level);
   void connect_propagator ();
   void mark_garbage_external_forgettable (int64_t id);
   bool is_external_forgettable (int64_t id);
 #ifndef NDEBUG
   // For mobical only
-  bool get_merged_literals (std::vector<int> &);
-  void get_all_fixed_literals (std::vector<int> &);
+  bool get_merged_literals (std::vector<ELit::base_type> &);
+  void get_all_fixed_literals (std::vector<ELit::base_type> &);
 #endif
 
   void recompute_tier ();

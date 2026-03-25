@@ -259,7 +259,7 @@ public:
   //   if (lit) ensure (ADDING)         // and thus VALID but not READY
   //   if (!lit) ensure (STEADY )       // and thus READY
   //
-  void add (int lit);
+  void add (ELit::base_type lit);
 
   // Here are functions simplifying clause addition. The given literals
   // should all be valid (different from 'INT_MIN' and different from '0').
@@ -319,8 +319,8 @@ public:
   //   require (SATISFIED)
   //   ensure (SATISFIED)
   //
-  int val (
-      int lit,
+  ELit::base_type val (
+      ELit::base_type lit,
       bool use_default_value_for_declared_but_not_used_variable = true);
 
   // Try to flip the value of the given literal without falsifying the
@@ -1112,6 +1112,7 @@ private:
   //===== end of state ====================================================
 
   void trace_api_call (const char *) const;
+  void trace_api_call (const char *, int64_t) const;
   void trace_api_call (const char *, int) const;
   void trace_api_call (const char *, int, int) const;
   void trace_api_call (const char *, const char *) const;
@@ -1254,7 +1255,11 @@ class FixedAssignmentListener {
 public:
   virtual ~FixedAssignmentListener () {}
 
+#ifndef LITERAL64
   virtual void notify_fixed_assignment (int) = 0;
+#else
+  virtual void notify_fixed_assignment (ELit::base_type) = 0;
+#endif
 };
 
 /*------------------------------------------------------------------------*/
@@ -1278,7 +1283,11 @@ public:
   // the call of propagator callbacks and when a driving clause is leading
   // to an assignment.
   //
+#ifndef LITERAL64
   virtual void notify_assignment (const std::vector<int> &lits) = 0;
+#else
+  virtual void notify_assignment (const std::vector<ELit::base_type> &lits) = 0;
+#endif
 
   // The notification for the assignement follow the standard trail
   // used in SAT solvers. The assignment is a stack with (possibly
@@ -1305,14 +1314,19 @@ public:
   // external clause during the next callback or introduce new
   // observed variables during this callback.
   //
+#ifndef LITERAL64
   virtual bool cb_check_found_model (const std::vector<int> &model) = 0;
+#else
+  virtual bool cb_check_found_model (const std::vector<ELit::base_type> &model) = 0;
+#endif
 
   // Ask the external propagator for the next decision literal. If it
   // returns '0', the solver makes its own choice. If it is an already
   // assigned variable or a non-valid literal (e.g., not observed), a
   // runtime error is triggered.
   //
-  virtual int cb_decide () { return 0; };
+  virtual ELit::base_type cb_decide () { return 0; };
+
 
   // Ask the external propagator if there is an external propagation to make
   // under the current assignment. It returns either a literal to be
@@ -1321,7 +1335,7 @@ public:
   // In case the returned literal is not an observed variable, a runtime
   // error is triggered.
   //
-  virtual int cb_propagate () { return 0; };
+  virtual ELit::base_type cb_propagate () { return 0; };
 
   // Ask the external propagator for the reason clause of a previous
   // external propagation step (done by 'cb_propagate ()'). The clause must
@@ -1332,10 +1346,17 @@ public:
   // unless the 'are_reasons_forgettable' flag is changed (see below at
   // 'cb_has_external_clause ()' more details about it).
   //
+#ifndef LITERAL64
   virtual int cb_add_reason_clause_lit (int propagated_lit) {
     (void) propagated_lit;
     return 0;
   };
+#else
+  virtual ELit::base_type cb_add_reason_clause_lit (ELit::base_type propagated_lit) {
+    (void) propagated_lit;
+    return 0;
+  };
+#endif
 
   // The following two functions are used to add external clauses to the
   // solver during the CDCL loop. The external clause is added
@@ -1383,7 +1404,12 @@ public:
 
   // The actual function called to add the external clause.
   //
+#ifndef LITERAL64
   virtual int cb_add_external_clause_lit () = 0;
+#else
+  virtual ELit::base_type cb_add_external_clause_lit () = 0;
+#endif
+
 };
 
 /*------------------------------------------------------------------------*/

@@ -136,7 +136,7 @@ void Internal::renotify_trail_after_local_search () {
 
 void Internal::renotify_full_trail_between_trail_pos (
     Var::Level start_level, Var::Level end_level, Var::Level propagator_level,
-    std::vector<int> &assigned, bool start_new_level) {
+    std::vector<ELit::base_type> &assigned, bool start_new_level) {
   assert (assigned.empty ());
   Var::Level j = start_level;
 #ifdef LOGGING
@@ -192,7 +192,7 @@ void Internal::renotify_full_trail () {
                   // somewhere and use it here
     notify_backtrack (0);
   }
-  std::vector<int> assigned;
+  std::vector<ELit::base_type> assigned;
 
   Var::Level propagator_level = 0;
 
@@ -925,7 +925,7 @@ bool Internal::external_check_solution () {
     external->reset_extended ();
     external->extend ();
 
-    std::vector<int> etrail;
+    std::vector<ELit::base_type> etrail;
 
     // Here the variables must be filtered by external->is_observed,
     // because fixed variables are internally not necessarily observed
@@ -1036,7 +1036,7 @@ void Internal::notify_assignments () {
     return;
 
   LOG ("notify external propagator about new assignments");
-  std::vector<int> assigned;
+  std::vector<ELit::base_type> assigned;
 
   while (notified < end_of_trail) {
     Lit ilit = trail[notified++];
@@ -1137,8 +1137,8 @@ Lit Internal::ask_decision () {
 
   assert (fixed (ilit) || observed (ilit));
 
-  LOG ("Asking external propagator for decision returned: %d (internal: "
-       "%d, fixed: %d, val: %d)",
+  LOG ("Asking external propagator for decision returned: %" VAR " (internal: "
+       "%" VAR ", fixed: %d, val: %d)",
        elit.signed_representation (), ilit.signed_representation (), fixed (ilit), val (ilit));
 
   REQUIRE (
@@ -1270,7 +1270,7 @@ void Internal::check_watched_literal_invariants () {
 // function returns false (indicating that there was no merger literal
 // found).
 //
-bool Internal::get_merged_literals (std::vector<int> &eq_class) {
+bool Internal::get_merged_literals (std::vector<ELit::base_type> &eq_class) {
   eq_class.clear ();
 
   if (!trail.size ())
@@ -1307,7 +1307,7 @@ bool Internal::get_merged_literals (std::vector<int> &eq_class) {
 //
 // Do not use it unless it is really unavoidable.
 //
-void Internal::get_all_fixed_literals (std::vector<int> &fixed_lits) {
+void Internal::get_all_fixed_literals (std::vector<ELit::base_type> &fixed_lits) {
   fixed_lits.clear ();
   if (!trail.size ())
     return;

@@ -124,16 +124,15 @@ void External::extend () {
 #ifndef QUIET
   int64_t updated = 0;
 #endif
-  for (unsigned i = 1; i <= (unsigned) max_var; i++) {
-    const Lit ilit = e2i[ELit (i)];
+  for (auto tmp : e2i) {
+    const ELit elit = tmp.first;
+    const Lit ilit = tmp.second;
     if (ilit == INVALID_LIT)
       continue;
-    if (i >= vals.size ())
-      vals.resize (i + 1, false);
-    vals[i] = (internal->val (ilit) > 0);
-#ifndef QUIET
-    updated++;
-#endif
+    vals[elit.var ()] = (internal->val (ilit) > 0);
+    #ifndef QUIET
+        updated++;
+    #endif
   }
   PHASE ("extend", internal->stats.extensions,
          "updated %" PRId64 " external assignments", updated);
@@ -179,8 +178,6 @@ void External::extend () {
           assert (lit != INVALID_ELIT);
           assert (lit != OTHER_INVALID_ELIT);
           size_t idx = std::abs (p);
-          if (idx >= vals.size ())
-            vals.resize (idx + 1, false);
           vals[idx] = !vals[idx];
           internal->stats.extended++;
 #ifndef QUIET

@@ -85,21 +85,28 @@ static void log_api_call (Internal *internal, const char *name,
                tout.log_code (), suffix);
 }
 
+static void log_api_call (Internal *internal, const char *name, int64_t arg,
+                          const char *suffix) {
+  Logger::log (internal, "API call %s'%s (%" PRId64 ")'%s %s", tout.api_code (),
+               name, arg, tout.log_code (), suffix);
+}
+
+
 static void log_api_call (Internal *internal, const char *name, int arg,
                           const char *suffix) {
   Logger::log (internal, "API call %s'%s (%d)'%s %s", tout.api_code (),
                name, arg, tout.log_code (), suffix);
 }
 
-static void log_api_call (Internal *internal, const char *name, int arg,
+static void log_api_call (Internal *internal, const char *name, int64_t arg,
                           int b, const char *suffix) {
-  Logger::log (internal, "API call %s'%s (%d, %d)'%s %s", tout.api_code (),
+  Logger::log (internal, "API call %s'%s (%" PRId64 ", %d)'%s %s", tout.api_code (),
                name, arg, b, tout.log_code (), suffix);
 }
 
-static void log_api_call (Internal *internal, const char *name, int arg,
-                          int b, int c) {
-  Logger::log (internal, "API call %s'%s (%d, %d)'%s %d", tout.api_code (),
+static void log_api_call (Internal *internal, const char *name, int64_t arg,
+                          int b, int64_t c) {
+  Logger::log (internal, "API call %s'%s (%" PRId64" , %d)'%s %" PRId64, tout.api_code (),
                name, arg, b, tout.log_code (), c);
 }
 
@@ -131,7 +138,13 @@ static void log_api_call_begin (Internal *internal, const char *name,
 }
 
 static void log_api_call_begin (Internal *internal, const char *name,
-                                int arg, int b) {
+                                int64_t arg) {
+  Logger::log_empty_line (internal);
+  log_api_call (internal, name, arg, "started");
+}
+
+static void log_api_call_begin (Internal *internal, const char *name,
+                                int64_t arg, int b) {
   Logger::log_empty_line (internal);
   log_api_call (internal, name, arg, b, "started");
 }
@@ -156,6 +169,11 @@ static void log_api_call_end (Internal *internal, const char *name) {
 
 static void log_api_call_end (Internal *internal, const char *name,
                               int lit) {
+  log_api_call (internal, name, lit, "succeeded");
+}
+
+static void log_api_call_end (Internal *internal, const char *name,
+                              int64_t lit) {
   log_api_call (internal, name, lit, "succeeded");
 }
 
@@ -189,7 +207,7 @@ static void log_api_call_returns (Internal *internal, const char *name,
 
 static void log_api_call_returns (Internal *internal, const char *name,
                                   int64_t res) {
-  char fmt[32];
+  char fmt[64];
   snprintf (fmt, sizeof fmt, "returns '%" PRId64 "'", res);
   log_api_call (internal, name, fmt);
 }
@@ -214,7 +232,7 @@ static void log_api_call_returns (Internal *internal, const char *name,
 }
 
 static void log_api_call_returns (Internal *internal, const char *name,
-                                  int lit, int b, int res) {
+                                  int64_t lit, int b, int64_t res) {
   log_api_call (internal, name, lit, b, res);
 }
 
@@ -293,6 +311,13 @@ void Solver::trace_api_call (const char *s0) const {
   assert (trace_api_file);
   LOG ("TRACE %s", s0);
   fprintf (trace_api_file, "%s\n", s0);
+  fflush (trace_api_file);
+}
+
+void Solver::trace_api_call (const char *s0, int64_t i1) const {
+  assert (trace_api_file);
+  LOG ("TRACE %s %" PRId64, s0, i1);
+  fprintf (trace_api_file, "%s %" PRId64 "\n", s0, i1);
   fflush (trace_api_file);
 }
 
@@ -480,6 +505,7 @@ int Solver::vars () const {
 void Solver::resize (ELit::base_type min_max_var) {
   TRACE ("resize", min_max_var);
   REQUIRE_VALID_STATE ();
+  REQUIRE (min_max_var>=0, "resize only work for positive arguments");
   if (min_max_var <= external->max_var) {
     LOG ("do nothing");
   } else {
@@ -634,22 +660,22 @@ bool Solver::configure (const char *name) {
 
 /*===== IPASIR BEGIN =====================================================*/
 
-void Solver::add (int dimacs_lit) {
-  TRACE ("add", dimacs_lit);
+void Solver::add (ELit::base_type dimacs_lit) {
+  TRACE ("add",(int64_t) dimacs_lit);
   ELit lit (dimacs_lit);
   REQUIRE_VALID_STATE ();
   if (dimacs_lit) {
     if (internal->opts.factor && internal->opts.factorcheck == 1)
       REQUIRE (
           lit.var () <= external->max_var,
-          "adding literal '%d' with undeclared variable '%d' "
+          "adding literal '%" VAR "' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as both 'factor' and 'factorcheck' are enabled)",
           lit.signed_representation(), (int) lit.var ());
     if (internal->opts.factorcheck == 2)
       REQUIRE (
           lit.var () <= external->max_var,
-          "adding literal '%d' with undeclared variable '%d' "
+          "adding literal '%" VAR "' with undeclared variable '%d' "
           "(checking that user variables are declared explicitly failed "
           "as 'factorcheck == 2' even if 'factor' is disabled)",
           lit.signed_representation(), (int) lit.var ());
@@ -891,8 +917,8 @@ int Solver::simplify (int rounds) {
 
 /*------------------------------------------------------------------------*/
 
-int Solver::val (
-    int lit, bool use_default_value_for_declared_but_not_used_variable) {
+ELit::base_type Solver::val (
+    ELit::base_type lit, bool use_default_value_for_declared_but_not_used_variable) {
   LOG_API_CALL_BEGIN (
       "val", lit,
       (int) use_default_value_for_declared_but_not_used_variable);
@@ -1125,7 +1151,7 @@ void Solver::disconnect_external_propagator () {
   LOG_API_CALL_END ("disconnect_external_propagator");
 }
 
-void Solver::add_observed_var (int idx) {
+void Solver::add_observed_var (ELit::base_type idx) {
   TRACE ("observe", idx);
   REQUIRE_VALID_OR_SOLVING_STATE ();
   REQUIRE_VALID_LIT (ELit (idx));

@@ -38,10 +38,6 @@ struct Lit {
 
   // The parameter must a value encoded as a dimacs literal.
 #ifdef __cplusplus
-  explicit
-  Lit (int v) {
-    lit = v;
-  };
 
   // creates an invalid literal
   explicit Lit () : lit (0) {};
@@ -52,6 +48,11 @@ struct Lit {
   ~Lit () = default;
   #define CPPCONST const
 
+#ifdef LITERAL64
+  explicit Lit (int64_t v) : lit (v) {};
+#else
+  explicit Lit (int v) { lit = v; };
+#endif
 
   base_type var () const {
     return std::abs (lit);
@@ -104,7 +105,7 @@ struct Lit {
   // conversion to other representation
   //
   // Conversion to normal dimacs representation
-  int signed_representation () CPPCONST {
+  Lit::base_type signed_representation () CPPCONST {
     return lit;
   }
 
@@ -144,11 +145,15 @@ struct ELit {
 #endif
   ebase_type lit;
 
-  #ifdef __cplusplus
+#ifdef __cplusplus
   // We require the variable to be positive such that we are able to change the
   // representation of literals in this class
-  explicit ELit (int v) : lit (v) {
+#ifdef LITERAL64
+  explicit ELit (int64_t v) : lit (v) {
   };
+#else
+  explicit ELit (int v) { lit = v; };
+#endif
 
   // creates an invalid literal
   explicit ELit () : lit (0) {};
@@ -215,7 +220,7 @@ struct ELit {
   // conversion to other representation
   //
   // Conversion to normal dimacs representation
-  int signed_representation () const {
+  ELit::base_type signed_representation () const {
     return lit;
   }
 

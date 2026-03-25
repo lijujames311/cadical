@@ -1215,7 +1215,7 @@ void Internal::print_statistics () {
 
 void Internal::dump (Clause *c) {
   for (const auto &lit : *c)
-    printf ("%d ", lit.signed_representation ());
+    printf ("%" VAR " ", lit.signed_representation ());
   printf ("0\n");
 }
 
@@ -1231,13 +1231,13 @@ void Internal::dump () {
   for (auto idx : vars) {
     const int tmp = fixed (idx);
     if (tmp)
-      printf ("%d 0\n", (tmp < 0 ? -idx : idx).signed_representation ());
+      printf ("%" VAR " 0\n", (tmp < 0 ? -idx : idx).signed_representation ());
   }
   for (const auto &c : clauses)
     if (!c->garbage)
       dump (c);
   for (const auto &lit : assumptions)
-    printf ("%d 0\n", lit.signed_representation ());
+    printf ("%" VAR " 0\n", lit.signed_representation ());
   fflush (stdout);
 }
 

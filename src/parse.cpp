@@ -61,6 +61,20 @@ inline const char *Parser::parse_positive_uint64_t (int &ch, uint64_t &res,
   }
   return 0;
 }
+
+inline const char *Parser::parse_positive_int64_t (int &ch, int64_t &res,
+                                                    const char *name) {
+  assert (isdigit (ch));
+  res = ch - '0';
+  while (isdigit (ch = parse_char ())) {
+    int digit = ch - '0';
+    if (INT64_MAX / 10 < res || INT64_MAX - digit < 10 * res)
+      PER ("too large int64_t '%s' in header", name);
+    res = 10 * res + digit;
+  }
+  return 0;
+}
+
 static const char *cube_token = "unexpected 'a' in CNF";
 
 inline const char *Parser::parse_lit (int &ch, ELit::base_type &lit, ELit::base_type &vars,
@@ -108,7 +122,8 @@ const char *Parser::parse_dimacs_non_profiled (ELit::base_type &vars, int strict
 #endif
 
   bool found_inccnf_header = false;
-  int ch = 0, declared = 0;
+  int ch = 0;
+  ELit::base_type declared = 0;
   uint64_t clauses = 0;
 
   vars = 0;
@@ -168,7 +183,11 @@ const char *Parser::parse_dimacs_non_profiled (ELit::base_type &vars, int strict
       ch = parse_char ();
       if (!isdigit (ch))
         PER ("expected digit after 'p cnf '");
+#ifdef LITERAL64
+      err = parse_positive_int64_t (ch, vars, "<max-var>");
+#else
       err = parse_positive_int (ch, vars, "<max-var>");
+#endif
       if (err)
         return err;
       if (ch != ' ')

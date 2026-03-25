@@ -138,10 +138,13 @@ static const char *USAGE =
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef MOBICAL_MEMORY
+#include <regex>
+#endif
 
 // MockPropagator
 #include <deque>
@@ -274,14 +277,14 @@ struct ExtendMap {
   // do we need to declare variable before using them?
   bool factor_check = true;
   // mapping of from literals of the trace to CaDiCaL's external literals
-  vector<int> map;
+  vector<ELit::base_type> map;
 
   // either return the external literal from CaDiCaL, create one if
   // `declare_new_var` is one, or return any literal.
-  int map_arg (Solver *s, int arg, bool declare_new_var = true) {
-    const int abs_arg = std::abs (arg);
+  ELit::base_type map_arg (Solver *s, ELit::base_type arg, bool declare_new_var = true) {
+    const size_t abs_arg = std::abs (arg);
     const int sign = arg > 0 ? 1 : -1;
-    const int map_size = map.size ();
+    const size_t map_size = map.size ();
     bool already_declared = (abs_arg < map_size && abs_arg && map[abs_arg]);
     if (!abs_arg) {
       assert (!map[abs_arg]);
@@ -297,18 +300,18 @@ struct ExtendMap {
        map[abs_arg] = s->vars () + 1;
       return map[abs_arg] * sign;
     }
-    const int max_var = s->vars ();
-    const int diff = abs_arg + map_size + 1;
+    const size_t max_var = s->vars ();
+    const size_t diff = abs_arg + map_size + 1;
     return sign * (max_var + diff);
   }
 
   // resize the internal map.
-  void extend_map_to (int arg) {
+  void extend_map_to (ELit::base_type arg) {
     if (map.empty ())
       map.push_back (0); // 0 is always mapped to 0
     if (!arg)
       return;
-    const unsigned abs_arg = std::abs (arg);
+    const size_t abs_arg = std::abs (arg);
     if (abs_arg < map.size ())
       return; // arg is already mapped
     map.resize (abs_arg + 1, 0);
@@ -322,15 +325,15 @@ struct ExtendMap {
   // Important: this mimics the `declare_more_variable`, but does not call
   // `declare_more_variable`. It is the only place in this class where we use
   // our internal knowledge of the API.
-  void extend_map_by (Solver *&s, int diff) {
+  void extend_map_by (Solver *&s, ELit::base_type diff) {
     assert (diff >= 0);
     if (map.empty ())
       map.push_back (0); // 0 is always mapped to 0
     if (!diff)
       return;
-    const int max_var = s->vars ();
+    const size_t max_var = s->vars ();
     map.reserve (max_var + diff);
-    for (int i = 1; i <= diff; i++)
+    for (ELit::base_type i = 1; i <= diff; i++)
       map.push_back (max_var + i);
   }
 
@@ -365,12 +368,12 @@ private:
     // in 'Clause', but here there is no need for making it fast as we are
     // in testing mode anyhow.
     //
-    int *literals;
+    ELit::base_type *literals;
 
-    int *begin () { return literals; }
-    int *end () { return literals + size; }
+    ELit::base_type *begin () { return literals; }
+    ELit::base_type *end () { return literals + size; }
 
-    int next_lit () {
+    ELit::base_type next_lit () {
       if (next < size)
         return literals[next++];
       else {
@@ -384,9 +387,9 @@ private:
   std::vector<ExternalLemma *> external_lemmas;
 
   // The reasons of present external propagations
-  std::map<int, size_t> reason_map;
+  std::map<ELit::base_type, size_t> reason_map;
   // The external propagations that are currently unassigned
-  std::set<int> unassigned_reasons;
+  std::set<ELit::base_type> unassigned_reasons;
 
   // Next lemma to add
   size_t add_lemma_idx = 0;
@@ -398,14 +401,14 @@ private:
   size_t decision_loc = 0;
 
   // Observed variables and their current assignments
-  std::set<int> observed_variables;
-  std::vector<int> new_observed_variables;
-  std::deque<std::vector<int>> observed_trail;
+  std::set<ELit::base_type> observed_variables;
+  std::vector<ELit::base_type> new_observed_variables;
+  std::deque<std::vector<ELit::base_type>> observed_trail;
 
   // Helpers
   size_t added_lemma_count = 0;
   size_t nof_clauses = 0;
-  std::vector<int> clause;
+  std::vector<ELit::base_type> clause;
   bool new_ovars = false;
 
   size_t add_new_lemma (bool forgettable) {
@@ -415,8 +418,8 @@ private:
     size_t size = clause.size ();
     ExternalLemma *lemma = new ExternalLemma;
     DeferDeletePtr<ExternalLemma> delete_lemma (lemma);
-    lemma->literals = new int[size];
-    DeferDeleteArray<int> delete_literals (lemma->literals);
+    lemma->literals = new ELit::base_type[size];
+    DeferDeleteArray<ELit::base_type> delete_literals (lemma->literals);
 
     lemma->id = external_lemmas.size ();
     lemma->add_count = 0;
@@ -426,7 +429,7 @@ private:
     lemma->tainting = true;
     lemma->propagation_reason = false;
 
-    int *q = lemma->literals;
+    ELit::base_type *q = lemma->literals;
     for (const auto &lit : clause)
       *q++ = lit;
 
@@ -437,11 +440,11 @@ private:
     return lemma->id;
   }
 
-  void extend_map (int arg) {
+  void extend_map (ELit::base_type arg) {
     extendmap->extend_map_to(arg);
   }
 
-  int map_arg (int arg, bool declare_new_var = true) {
+  ELit::base_type map_arg (ELit::base_type arg, bool declare_new_var = true) {
     return extendmap->map_arg (s, arg, declare_new_var);
   }
 
@@ -469,11 +472,11 @@ private:
 
 public:
   // It is public, so it can be shared easily between different propagators
-  std::vector<int> observed_fixed;
+  std::vector<ELit::base_type> observed_fixed;
 
   MockPropagator (Solver *solver, ExtendMap *map,
                   bool with_logging = false) {
-    observed_trail.push_back (std::vector<int> ());
+    observed_trail.push_back (std::vector<ELit::base_type> ());
     s = solver;
     extendmap = map;
     logging = logging || with_logging;
@@ -495,7 +498,7 @@ public:
   }
 
   /*-----------------functions for mobical -----------------------------*/
-  void push_lemma_lit (int lit) {
+  void push_lemma_lit (ELit::base_type lit) {
 
     if (lit)
       clause.push_back (lit);
@@ -514,7 +517,7 @@ public:
     }
   }
 
-  void add_observed_lit (int lit) {
+  void add_observed_lit (ELit::base_type lit) {
     // Zero lit indicates that the new observed variables start here
     if (!lit) {
       assert (!new_ovars);
@@ -523,10 +526,10 @@ public:
     }
 
     if (!new_ovars) {
-      const int abs_lit = std::abs (lit);
+      const ELit::base_type abs_lit = std::abs (lit);
       extend_map (lit);
       assert ((size_t)abs_lit < extendmap->map.size());
-      const int elit = map_arg (abs_lit);
+      const ELit::base_type elit = map_arg (abs_lit);
       if (elit && !s->is_witness (elit)) { // does not extend map
         s->add_observed_var (elit); // might be different
         observed_variables.insert (elit);
@@ -536,10 +539,10 @@ public:
     }
   }
 
-  int add_new_observed_var () {
-    for (std::vector<int>::iterator it = new_observed_variables.begin ();
+  ELit::base_type add_new_observed_var () {
+    for (std::vector<ELit::base_type>::iterator it = new_observed_variables.begin ();
          it != new_observed_variables.end (); ++it) {
-      int lit = *it;
+      ELit::base_type lit = *it;
       if (!map_arg (lit, false))
         continue;
       if (s->is_witness (map_arg (lit, false)))
@@ -560,22 +563,22 @@ public:
     return 0;
   }
 
-  bool is_observed_now (int lit) {
+  bool is_observed_now (ELit::base_type lit) {
     return (observed_variables.find (std::abs (lit)) !=
             observed_variables.end ());
   }
   bool compare_trails () {
 #ifndef NDEBUG
-    std::set<int> etrail = {}; // Trail of the solver
-    std::set<int> efixed = {}; // Fixed assignments in the solver
+    std::set<ELit::base_type> etrail = {}; // Trail of the solver
+    std::set<ELit::base_type> efixed = {}; // Fixed assignments in the solver
 
-    std::set<int> otrail = {}; // Observed trail
-    std::set<int> ofixed = {}; // Observed fixed assignments
+    std::set<ELit::base_type> otrail = {}; // Observed trail
+    std::set<ELit::base_type> ofixed = {}; // Observed fixed assignments
 
     size_t idx = 0;
 
     // 1. Collect merged/eliminated variables in case there are:
-    std::vector<int> eq_class = {};
+    std::vector<ELit::base_type> eq_class = {};
     // can be an expensive call, avoid if possible
     bool is_merger = s->internal->get_merged_literals (eq_class);
     if (is_merger) {
@@ -590,7 +593,7 @@ public:
     // 2. Collect all other variables from trail
     for (; idx < s->internal->trail.size (); idx++) {
       Lit ilit = s->internal->trail[idx];
-      int elit = s->internal->externalize (ilit).signed_representation ();
+      ELit::base_type elit = s->internal->externalize (ilit).signed_representation ();
       if (is_observed_now (elit)) {
         etrail.insert (elit);
       }
@@ -632,7 +635,7 @@ public:
 
   /*------------------ FixedAssignmentListener functions
    * ---------------------*/
-  void notify_fixed_assignment (int lit) override {
+  void notify_fixed_assignment (ELit::base_type lit) override {
     MLOG ("notify_fixed_assignment: "
           << lit << " (current level: " << observed_trail.size () - 1
           << ", current fixed count: " << observed_fixed.size () << ")"
@@ -643,7 +646,7 @@ public:
     observed_fixed.push_back (lit);
   };
 
-  void add_prev_fixed (const std::vector<int> &fixed_assignments) {
+  void add_prev_fixed (const std::vector<ELit::base_type> &fixed_assignments) {
     for (auto const &lit : fixed_assignments)
       notify_fixed_assignment (lit);
   }
@@ -653,7 +656,7 @@ public:
     MLOG ("collecting previously fixed assignments for the new "
           "FixedAssignmentListener: ");
 
-    std::vector<int> fixed_lits = {};
+    std::vector<ELit::base_type> fixed_lits = {};
     s->internal->get_all_fixed_literals (fixed_lits);
     MLOGC ("found: " << fixed_lits.size () << " fixed literals"
                      << std::endl);
@@ -667,7 +670,7 @@ public:
 
   /* -------------------- ExternalPropagator functions -----------------*/
 
-  bool cb_check_found_model (const std::vector<int> &model) override {
+  bool cb_check_found_model (const std::vector<ELit::base_type> &model) override {
     MLOG ("cb_check_found_model (" << model.size () << ") returns: ");
 
     // Model reconstruction can change the assignments of certain variables,
@@ -788,8 +791,8 @@ public:
     return false;
   }
 
-  int cb_add_external_clause_lit () override {
-    int lit = external_lemmas[add_lemma_idx]->next_lit ();
+  ELit::base_type cb_add_external_clause_lit () override {
+    ELit::base_type lit = external_lemmas[add_lemma_idx]->next_lit ();
 
     MLOG ("cb_add_external_clause_lit "
           << lit << " (lemma " << add_lemma_idx << "/"
@@ -801,7 +804,7 @@ public:
     return lit;
   }
 
-  int cb_decide () override {
+  ELit::base_type cb_decide () override {
     MLOG ("cb_decide starts." << std::endl);
 
     assert (compare_trails ());
@@ -843,9 +846,9 @@ public:
 
     decision_loc++;
     size_t lit_sum = 0;  // sum of variables of satisfied observed literals
-    int lowest_lit = 0;  // the lowest satisfied observed literal
-    int highest_lit = 0; // the highest satisfied observed literal
-    const std::set<int> &satisfied_literals =
+    ELit::base_type lowest_lit = 0;  // the lowest satisfied observed literal
+    ELit::base_type highest_lit = 0; // the highest satisfied observed literal
+    const std::set<ELit::base_type> &satisfied_literals =
         current_observed_satisfied_set (lit_sum, lowest_lit, highest_lit);
 
     if ((decision_loc % observed_variables.size ()) == 0) {
@@ -889,7 +892,7 @@ public:
     return 0;
   }
 
-  int cb_propagate () override {
+  ELit::base_type cb_propagate () override {
     MLOGC ("cb_propagate starts" << std::endl);
     assert (compare_trails ());
     // if (observed_trail.size () < 2) {
@@ -901,10 +904,10 @@ public:
     // }
 
     size_t lit_sum = 0;  // sum of variables of satisfied observed literals
-    int lowest_lit = 0;  // the lowest satisfied observed literal
-    int highest_lit = 0; // the highest satisfied observed literal
+    ELit::base_type lowest_lit = 0;  // the lowest satisfied observed literal
+    ELit::base_type highest_lit = 0; // the highest satisfied observed literal
 
-    std::set<int> satisfied_literals =
+    std::set<ELit::base_type > satisfied_literals =
         current_observed_satisfied_set (lit_sum, lowest_lit, highest_lit);
 
     if (satisfied_literals.empty ()) {
@@ -966,14 +969,14 @@ public:
     return propagated_lit;
   }
 
-  std::set<int> current_observed_satisfied_set (size_t &lit_sum,
-                                                int &lowest_lit,
-                                                int &highest_lit) {
+  std::set<ELit::base_type> current_observed_satisfied_set (size_t &lit_sum,
+                                                ELit::base_type &lowest_lit,
+                                                ELit::base_type &highest_lit) {
 
     lit_sum = 0;
     lowest_lit = 0;
     highest_lit = 0;
-    std::set<int> satisfied_literals;
+    std::set<ELit::base_type> satisfied_literals;
 
     for (auto level_lits : observed_trail) {
       for (auto lit : level_lits) {
@@ -992,7 +995,7 @@ public:
     return satisfied_literals;
   }
 
-  int cb_add_reason_clause_lit (int plit) override {
+  ELit::base_type cb_add_reason_clause_lit (ELit::base_type plit) override {
 
     // At that point there is no need to assume that the trails are in
     // synchron.
@@ -1011,7 +1014,7 @@ public:
     return lit;
   }
 
-  void notify_assignment (const std::vector<int> &lits) override {
+  void notify_assignment (const std::vector<ELit::base_type> &lits) override {
     MLOG ("notified " << lits.size () << " new assignments on level "
                       << observed_trail.size () - 1);
 #ifndef NDEBUG
@@ -1035,7 +1038,7 @@ public:
     MLOG ("notify new decision level " << observed_trail.size () - 1
                                        << " -> " << observed_trail.size ()
                                        << std::endl);
-    observed_trail.push_back (std::vector<int> ());
+    observed_trail.push_back (std::vector<ELit::base_type> ());
   }
 
   void notify_backtrack (size_t new_level) override {

@@ -36,6 +36,8 @@ class Parser {
   const char *parse_positive_int (int &ch, ELit::base_type &res, const char *name);
   const char *parse_positive_uint64_t (int &ch, uint64_t &res,
                                        const char *name);
+  const char *parse_positive_int64_t (int &ch, int64_t &res,
+                                       const char *name);
   const char *parse_lit (int &ch, ELit::base_type &lit, ELit::base_type &vars, int strict);
   const char *parse_dimacs_non_profiled (ELit::base_type &vars, int strict);
   const char *parse_solution_non_profiled ();

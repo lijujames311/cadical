@@ -1598,13 +1598,13 @@ const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
   stats.sweep_clauses += sweeper.encoded;
   stats.sweep_environment += sweeper.vars.size ();
   VERBOSE (4,
-           "sweeping variable %d environment of "
+           "sweeping variable %" VAR " environment of "
            "%zu variables %u clauses depth %u",
            externalize (idx).signed_representation(), sweeper.vars.size (), sweeper.encoded, depth);
 
   int res;
   if (sweeper.vars.size () == 1) {
-    LOG ("not sweeping literal %d with environment size 1", externalize (idx).signed_representation());
+    LOG ("not sweeping literal %" VAR " with environment size 1", externalize (idx).signed_representation());
     goto DONE;
   }
   res = sweep_solve ();
@@ -1645,7 +1645,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
     solved = stats.sweep_solved - solved;
 #endif
     VERBOSE (4,
-             "complete swept variable %d backbone with %" PRIu64
+             "complete swept variable %" VAR " backbone with %" PRIu64
              " units in %" PRIu64 " solver calls",
              externalize (idx).signed_representation(), units, solved);
     assert (sweeper.backbone.empty ());
@@ -1686,7 +1686,7 @@ const char *Internal::sweep_variable (Sweeper &sweeper, Lit idx) {
     solved = stats.sweep_solved - solved;
     if (equivalences)
       VERBOSE (3,
-               "complete swept variable %d partition with %" PRIu64
+               "complete swept variable %" VAR " partition with %" PRIu64
                " equivalences in %" PRIu64 " solver calls",
                externalize (idx).signed_representation(), equivalences, solved);
 #endif
@@ -1919,7 +1919,7 @@ bool Internal::sweep () {
     const char *res =
 #endif
         sweep_variable (sweeper, idx);
-    VERBOSE (4, "swept[%" PRIu64 "] external variable %d %s", swept,
+    VERBOSE (4, "swept[%" PRIu64 "] external variable %" VAR " %s", swept,
              externalize (idx).signed_representation(), res);
     if (++swept == limit) {
       VERBOSE (2,
