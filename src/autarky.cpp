@@ -340,6 +340,8 @@ bool Internal::autarky () {
 
 
   for (auto idx : vars) {
+    if (!active (idx))
+      continue;
     if (!autarky_val [vlit (idx)])
       continue;
     assert (active (idx));

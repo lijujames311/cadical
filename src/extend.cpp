@@ -118,6 +118,7 @@ void External::push_external_clause_and_witness_on_extension_stack (
     int elit = internal->externalize(ilit);
     assert (elit != INT_MIN);
     assert (elit);
+    assert (abs (elit) <= max_var);
     init (abs (elit));
     extension.push_back (elit);
     mark (witness, elit);
