@@ -363,6 +363,7 @@ bool Internal::autarky () {
       if (!autarky_val [vlit (idx)])
         continue;
       assert (active (idx));
+      mark_eliminated (idx);
     }
   ++stats.autarkies.successful;
   stats.autarkies.eliminated += autarky_found;
