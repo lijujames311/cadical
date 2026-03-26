@@ -181,8 +181,8 @@ void Logger::log (Internal *internal, const vector<ELit> &c, const char *fmt,
 // Now for 'restore_clause' to avoid copying (without logging).
 
 void Logger::log (Internal *internal,
-                  const vector<int>::const_iterator &begin,
-                  const vector<int>::const_iterator &end, const char *fmt,
+                  const vector<ELit::base_type>::const_iterator &begin,
+                  const vector<ELit::base_type>::const_iterator &end, const char *fmt,
                   ...) {
   print_log_prefix (internal);
   tout.magenta ();
@@ -191,15 +191,15 @@ void Logger::log (Internal *internal,
   vprintf (fmt, ap);
   va_end (ap);
   if (internal->opts.logsort) {
-    vector<int> s;
+    vector<ELit::base_type> s;
     for (auto p = begin; p != end; p++)
       s.push_back (*p);
     sort (s.begin (), s.end (), std::less<int> ());
     for (const auto &lit : s)
-      printf (" %d", lit);
+      printf (" %" VAR, lit);
   } else {
     for (auto p = begin; p != end; p++)
-      printf (" %d", *p);
+      printf (" %" VAR, *p);
   }
   fputc ('\n', stdout);
   tout.normal ();

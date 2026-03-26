@@ -89,7 +89,7 @@ struct External {
 
   bool extended; // Have been extended.
   bool concluded;
-  vector<int> extension; // Solution reconstruction extension stack.
+  vector<ELit::base_type> extension; // Solution reconstruction extension stack.
 
   vector<bool> witness; // Literal witness on extension stack.
   vector<bool> tainted; // Literal tainted in adding literals.
@@ -248,13 +248,13 @@ struct External {
   /*----------------------------------------------------------------------*/
 
   void push_external_clause_and_witness_on_extension_stack (
-      const vector<int> &clause, const vector<int> &witness, int64_t id);
+      const vector<ELit::base_type> &clause, const vector<ELit::base_type> &witness, int64_t id);
 
   void push_id_on_extension_stack (int64_t id);
 
   // Restore a clause, which was pushed on the extension stack.
-  void restore_clause (const vector<int>::const_iterator &begin,
-                       const vector<int>::const_iterator &end,
+  void restore_clause (const vector<ELit::base_type>::const_iterator &begin,
+                       const vector<ELit::base_type>::const_iterator &end,
                        const int64_t id);
 
   void restore_clauses ();

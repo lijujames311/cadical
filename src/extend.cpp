@@ -75,7 +75,7 @@ void External::push_binary_clause_on_extension_stack (int64_t id, Lit pivot,
 /*------------------------------------------------------------------------*/
 
 void External::push_external_clause_and_witness_on_extension_stack (
-    const vector<int> &c, const vector<int> &w, int64_t id) {
+    const vector<ELit::base_type> &c, const vector<ELit::base_type> &w, int64_t id) {
   assert (id);
   extension.push_back (0);
   for (const auto &dimacs_lit : w) {
@@ -86,6 +86,7 @@ void External::push_external_clause_and_witness_on_extension_stack (
     mark (witness, elit);
   }
   extension.push_back (0);
+
   const uint32_t higher_bits = static_cast<int> (id << 32);
   const uint32_t lower_bits = (id & (((int64_t) 1 << 32) - 1));
   extension.push_back (higher_bits);
@@ -200,7 +201,7 @@ void External::extend () {
 bool External::traverse_witnesses_backward (WitnessIterator &it) {
   if (internal->unsat)
     return true;
-  vector<int> clause, witness;
+  vector<ELit::base_type> clause, witness;
   const auto begin = extension.begin ();
   auto i = extension.end ();
   while (i != begin) {
@@ -235,7 +236,7 @@ bool External::traverse_witnesses_backward (WitnessIterator &it) {
 bool External::traverse_witnesses_forward (WitnessIterator &it) {
   if (internal->unsat)
     return true;
-  vector<int> clause, witness;
+  vector<ELit::base_type> clause, witness;
   const auto end = extension.end ();
   auto i = extension.begin ();
   if (i != end) {

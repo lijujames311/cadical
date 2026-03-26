@@ -1247,7 +1247,7 @@ bool Internal::traverse_constraint (ClauseIterator &it) {
   if (constraint.empty () && !unsat_constraint)
     return true;
 
-  vector<int> eclause;
+  vector<ELit::base_type> eclause;
   if (unsat)
     return it.clause (eclause);
 
@@ -1272,7 +1272,7 @@ bool Internal::traverse_constraint (ClauseIterator &it) {
 /*------------------------------------------------------------------------*/
 
 bool Internal::traverse_clauses (ClauseIterator &it) {
-  vector<int> eclause;
+  vector<ELit::base_type> eclause;
   if (unsat)
     return it.clause (eclause);
   for (const auto &c : clauses) {

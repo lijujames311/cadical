@@ -1656,7 +1656,7 @@ public:
   int vars;
   int64_t clauses;
   ClauseCounter () : vars (0), clauses (0) {}
-  bool clause (const vector<int> &c) {
+  bool clause (const vector<ELit::base_type> &c) {
     for (const auto &lit : c) {
       assert (lit != INT_MIN);
       int idx = std::abs (lit);
@@ -1673,7 +1673,7 @@ class ClauseWriter : public ClauseIterator {
 
 public:
   ClauseWriter (File *f) : file (f) {}
-  bool clause (const vector<int> &c) {
+  bool clause (const vector<ELit::base_type> &c) {
     for (const auto &lit : c) {
       if (!file->put (lit))
         return false;
@@ -1732,7 +1732,7 @@ struct WitnessWriter : public WitnessIterator {
   File *file;
   int64_t witnesses;
   WitnessWriter (File *f) : file (f), witnesses (0) {}
-  bool write (const vector<int> &a) {
+  bool write (const vector<ELit::base_type> &a) {
     for (const auto &lit : a) {
       if (!file->put (lit))
         return false;
@@ -1741,7 +1741,7 @@ struct WitnessWriter : public WitnessIterator {
     }
     return file->put ('0');
   }
-  bool witness (const vector<int> &c, const vector<int> &w, int64_t) {
+  bool witness (const vector<ELit::base_type> &c, const vector<ELit::base_type> &w, int64_t) {
     if (!write (c))
       return false;
     if (!file->put (' '))
@@ -1791,7 +1791,7 @@ struct ClauseCopier : public ClauseIterator {
 
 public:
   ClauseCopier (Solver &d) : dst (d) {}
-  bool clause (const vector<int> &c) {
+  bool clause (const vector<ELit::base_type> &c) {
     for (const auto &lit : c)
       dst.add (lit);
     dst.add (0);
@@ -1804,7 +1804,7 @@ struct WitnessCopier : public WitnessIterator {
 
 public:
   WitnessCopier (External *d) : dst (d) {}
-  bool witness (const vector<int> &c, const vector<int> &w, int64_t id) {
+  bool witness (const vector<ELit::base_type> &c, const vector<ELit::base_type> &w, int64_t id) {
     dst->push_external_clause_and_witness_on_extension_stack (c, w, id);
     return true;
   }

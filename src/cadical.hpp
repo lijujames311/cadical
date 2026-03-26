@@ -1424,7 +1424,7 @@ public:
 class ClauseIterator {
 public:
   virtual ~ClauseIterator () {}
-  virtual bool clause (const std::vector<int> &) = 0;
+  virtual bool clause (const std::vector<ELit::base_type> &) = 0;
 };
 
 /*------------------------------------------------------------------------*/
@@ -1448,8 +1448,8 @@ public:
 class WitnessIterator {
 public:
   virtual ~WitnessIterator () {}
-  virtual bool witness (const std::vector<int> &clause,
-                        const std::vector<int> &witness,
+  virtual bool witness (const std::vector<ELit::base_type> &clause,
+                        const std::vector<ELit::base_type> &witness,
                         int64_t id = 0) = 0;
 };
 

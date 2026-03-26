@@ -942,7 +942,7 @@ bool External::traverse_all_frozen_units_as_clauses (ClauseIterator &it) {
   if (internal->unsat)
     return true;
 
-  vector<int> clause;
+  vector<ELit::base_type> clause;
 
   for (auto idx : vars) {
     if (!frozen (idx))
@@ -965,7 +965,7 @@ bool External::traverse_all_non_frozen_units_as_witnesses (
   if (internal->unsat)
     return true;
 
-  vector<int> clause_and_witness;
+  vector<ELit::base_type> clause_and_witness;
   for (auto idx : vars) {
     if (frozen (idx))
       continue;

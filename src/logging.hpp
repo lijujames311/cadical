@@ -2,6 +2,7 @@
 #define _logging_hpp_INCLUDED
 
 /*------------------------------------------------------------------------*/
+#include "literals.hpp"
 #ifdef LOGGING
 /*------------------------------------------------------------------------*/
 
@@ -58,8 +59,8 @@ struct Logger {
 
   // Another variant, to avoid copying (without logging).
   //
-  static void log (Internal *, const vector<int>::const_iterator &begin,
-                   const vector<int>::const_iterator &end, const char *fmt,
+  static void log (Internal *, const vector<ELit::base_type>::const_iterator &begin,
+                   const vector<ELit::base_type>::const_iterator &end, const char *fmt,
                    ...) CADICAL_ATTRIBUTE_FORMAT (4, 5);
 
   // used for logging LRAT proof chains

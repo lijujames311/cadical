@@ -48,8 +48,8 @@ namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
 
-void External::restore_clause (const vector<int>::const_iterator &begin,
-                               const vector<int>::const_iterator &end,
+void External::restore_clause (const vector<ELit::base_type>::const_iterator &begin,
+                               const vector<ELit::base_type>::const_iterator &end,
                                const int64_t id) {
   LOG (begin, end, "restoring external clause[%" PRId64 "]", id);
   assert (eclause.empty ());
