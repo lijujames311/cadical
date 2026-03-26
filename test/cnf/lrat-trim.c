@@ -1,4 +1,4 @@
-static const char *version = "0.2.1-rc1";
+static const char *version = "0.2.1-rc2";
 
 // clang-format off
 
@@ -207,6 +207,8 @@ static struct {
   struct int_map map;
 } clauses;
 
+static double start;
+
 static void die (const char *, ...) __attribute__ ((format (printf, 1, 2)));
 static void prr (const char *, ...) __attribute__ ((format (printf, 1, 2)));
 static void msg (const char *, ...) __attribute__ ((format (printf, 1, 2)));
@@ -296,9 +298,9 @@ static char *next_pretty_buffer () {
 
 static const char *pretty_bytes (size_t bytes) {
   char *buffer = next_pretty_buffer ();
-  double kb = bytes / (double) (1u << 10);
-  double mb = bytes / (double) (1u << 20);
-  double gb = bytes / (double) (1u << 30);
+  double kb = bytes / (double)(1u << 10);
+  double mb = bytes / (double)(1u << 20);
+  double gb = bytes / (double)(1u << 30);
   if (kb < 1)
     snprintf (buffer, size_pretty_buffer, "%zu bytes", bytes);
   else if (mb < 1)
@@ -326,7 +328,7 @@ static const char *pretty_bytes (size_t bytes) {
 // after a given number of allocated bytes specified through the environment
 // variable 'LRAT_TRIM_ALLOCATION_LIMIT'.
 
-#define size_allocation_lines ((size_t) (1u << 12))
+#define size_allocation_lines ((size_t)(1u << 12))
 
 static size_t allocation_lines[size_allocation_lines];
 static bool allocation_limit_set;
@@ -337,7 +339,7 @@ static bool check_allocation (size_t line, size_t bytes) {
   assert (bytes);
   if (!allocation_limit_set) {
     const char *env = getenv ("LRAT_TRIM_ALLOCATION_LIMIT");
-    allocation_limit = env ? atol (env) : ~(size_t) 0;
+    allocation_limit = env ? atol (env) : ~(size_t)0;
     printf ("c COVERED allocated bytes limit %zu\n", allocation_limit);
     allocation_limit_set = true;
   }
@@ -419,7 +421,7 @@ static void *coverage_realloc (size_t line, void *p, size_t bytes) {
 
 #define ADJUST(MAP, N) \
   do { \
-    size_t NEEDED_SIZE = (size_t) (N) + 1; \
+    size_t NEEDED_SIZE = (size_t)(N) + 1; \
     size_t OLD_SIZE = SIZE (MAP); \
     if (OLD_SIZE >= NEEDED_SIZE) \
       break; \
@@ -436,7 +438,7 @@ static void *coverage_realloc (size_t line, void *p, size_t bytes) {
         die ("out-of-memory resizing '" #MAP "' map"); \
       size_t OLD_BYTES = OLD_SIZE * sizeof *(MAP).begin; \
       size_t DELTA_BYTES = NEW_BYTES - OLD_BYTES; \
-      memset ((char *) NEW_BEGIN + OLD_BYTES, 0, DELTA_BYTES); \
+      memset ((char *)NEW_BEGIN + OLD_BYTES, 0, DELTA_BYTES); \
     } else { \
       assert (!OLD_BEGIN); \
       NEW_BEGIN = calloc (NEW_SIZE, sizeof *(MAP).begin); \
@@ -693,7 +695,7 @@ static inline void write_unsigned (unsigned u) {
 
 static inline void write_signed (int i) {
   assert (i != INT_MIN);
-  write_unsigned ((i < 0) + 2 * (unsigned) abs (i));
+  write_unsigned ((i < 0) + 2 * (unsigned)abs (i));
 }
 
 static inline void write_ascii (unsigned char)
@@ -756,23 +758,31 @@ static inline void write_size_t (size_t i) {
 #include <sys/time.h>
 #include <unistd.h>
 
-static double process_time () {
+static double process_time (void) {
   struct rusage u;
   double res;
-  (void) getrusage (RUSAGE_SELF, &u);
+  (void)getrusage (RUSAGE_SELF, &u);
   res = u.ru_utime.tv_sec + 1e-6 * u.ru_utime.tv_usec;
   res += u.ru_stime.tv_sec + 1e-6 * u.ru_stime.tv_usec;
   return res;
 }
 
+static double real_time (void) {
+  struct timeval tv;
+  double res = 0;
+  if (!gettimeofday (&tv, 0))
+    res = 1e-6 * tv.tv_usec + tv.tv_sec;
+  return res;
+}
+
 static size_t maximum_resident_set_size (void) {
   struct rusage u;
-  (void) getrusage (RUSAGE_SELF, &u);
-  return ((size_t) u.ru_maxrss) << 10;
+  (void)getrusage (RUSAGE_SELF, &u);
+  return ((size_t)u.ru_maxrss) << 10;
 }
 
 static double mega_bytes (void) {
-  return maximum_resident_set_size () / (double) (1 << 20);
+  return maximum_resident_set_size () / (double)(1 << 20);
 }
 
 static double average (double a, double b) { return b ? a / b : 0; }
@@ -914,7 +924,7 @@ static void check_strict_clause_extension (int id, int *literals,
       if (ACCESS (clauses.marked, -aid)++) {
         if (strict)
           crr (id, "multiple occurrence of (negative) id '%d'", aid);
-        dbg ("skipping multple occurrence of '%d", aid);
+        dbg ("skipping multiple occurrence of '%d", aid);
       } else if (numants)
         numants--;
       else
@@ -1005,7 +1015,7 @@ static void check_clause_extension (int id, int *literals,
              aid);
       ADJUST (clauses.marked, -aid);
       if (ACCESS (clauses.marked, -aid)++) {
-        dbg ("skipping multple occurrence of '%d", aid);
+        dbg ("skipping multiple occurrence of '%d", aid);
       } else if (numants)
         numants--;
       else
@@ -1036,7 +1046,7 @@ static void check_clause_extension (int id, int *literals,
     for (int *a = antecedents, aid; (aid = *a); a++)
       ACCESS (clauses.marked, -aid) = 0;
     if (numants)
-      crr (id, "occurrences of '%d' not equal antecendents (missing %zd)",
+      crr (id, "occurrences of '%d' not equal antecedents (missing %zd)",
            -ext, numants);
     backtrack ();
   }
@@ -1607,7 +1617,7 @@ static void parse_proof () {
     if (isprint (ch))
       prr ("unexpected first character '%c'", ch);
     else
-      prr ("unexpected first byte '0x%02x'", (unsigned) ch);
+      prr ("unexpected first byte '0x%02x'", (unsigned)ch);
   }
 
   // To track in the binary proof format we use byte offsets instead of line
@@ -1658,7 +1668,7 @@ static void parse_proof () {
         if (uid & 1)
           prr ("negative identifier in clause addition");
         uid >>= 1;
-        if (uid > (unsigned) INT_MAX)
+        if (uid > (unsigned)INT_MAX)
           prr ("clause identifier %u too large", uid);
         id = uid;
         dbg ("parsed clause identifier %d at byte %zu", id, info);
@@ -2754,7 +2764,7 @@ static void print_banner () {
     return;
   printf (
       "c LRAT-TRIM Version %s trims LRAT proofs\n"
-      "c Copyright (c) 2023-2025 A. Biere, F. Pollitt, Univ. Freiburg\n",
+      "c Copyright (c) 2023-2026 A. Biere, F. Pollitt, Univ. Freiburg\n",
       version);
   fflush (stdout);
 }
@@ -2802,11 +2812,12 @@ static void print_mode () {
 }
 
 static void print_statistics () {
-  double t = process_time ();
+  double p = process_time ();
+  double r = real_time () - start;
   if (checking) {
     msg ("checked %zu clauses %.0f per second",
          statistics.clauses.checked.total,
-         average (statistics.clauses.checked.total, t));
+         average (statistics.clauses.checked.total, p));
     msg ("resolved %zu clauses %.2f per checked clause",
          statistics.clauses.resolved,
          average (statistics.clauses.resolved,
@@ -2822,8 +2833,9 @@ static void print_statistics () {
            average (statistics.literals.assigned,
                     statistics.clauses.checked.total));
   }
-  msg ("maximum memory usage of %.0f MB", mega_bytes ());
-  msg ("total time of %.2f seconds", t);
+  msg ("maximum-resident-set-size of %.0f MB", mega_bytes ());
+  msg ("process-time of %.2f seconds (%.2f %%)", p, percent (p, r));
+  msg ("wall-clock-time of %.2f seconds", r);
 }
 
 static void close_coverage () {
@@ -2834,6 +2846,7 @@ static void close_coverage () {
 }
 
 int main (int argc, char **argv) {
+  start = real_time ();
   options (argc, argv);
   open_input_files ();
   print_banner ();
