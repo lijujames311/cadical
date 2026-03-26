@@ -962,7 +962,7 @@ void Internal::update_decision_rate_average () {
 void Internal::fix_trail_levels () {
   LOG ("fixing all trail levels before backtracking");
   assert (out_of_order_level != -1);
-  if (out_of_order_level > level) {
+  if (out_of_order_level > level || opts.chronoadd != 3) {
     out_of_order_level = -1;
     out_of_order_trail = -1;
     return;
