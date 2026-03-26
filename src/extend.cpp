@@ -80,8 +80,9 @@ void External::push_external_clause_and_witness_on_extension_stack (
   assert (id);
   extension.push_back (0);
   for (const auto &elit : w) {
-    assert (elit != INT_MIN);
-    init (abs (elit));
+    assert (elit != INT_MIN && elit);
+    assert (abs (elit) <= max_var);
+    assert (e2i[elit] && e2i[elit] != INT_MIN);
     extension.push_back (elit);
     mark (witness, elit);
   }
@@ -93,7 +94,8 @@ void External::push_external_clause_and_witness_on_extension_stack (
   extension.push_back (0);
   for (const auto &elit : c) {
     assert (elit != INT_MIN);
-    init (abs (elit));
+    assert (abs (elit) <= max_var);
+    assert (e2i[elit] && e2i[elit] != INT_MIN);
     extension.push_back (elit);
   }
 }
