@@ -35,11 +35,10 @@ inline unsigned Internal::autarky_propagate_clause (Clause *c, std::vector<signe
     return 0;
   if (!falsified)
     return 0;
-  LOG ("clause is neither satisfied nor falsified, removing all set literals");
+  LOG ("clause is falsified and not satisfied, removing all set literals");
 
   for (auto lit : *c) {
-    const int idx = abs (lit);
-    if (frozen (idx))
+    if (frozen (lit))
       continue;
     if (val (lit) < 0)
       continue;
@@ -48,7 +47,7 @@ inline unsigned Internal::autarky_propagate_clause (Clause *c, std::vector<signe
       continue;
     assert (v < 0);
     LOG ("unassigning lit %d", lit);
-    autarky_val[vlit (idx)] = autarky_val[vlit (-idx)] = 0;
+    autarky_val[vlit (lit)] = autarky_val[vlit (-lit)] = 0;
     work.push_back (-lit);
 
     ++unassigned;
@@ -86,10 +85,27 @@ unsigned Internal::autarky_propagate_unassigned (std::vector<signed char> &autar
       continue;
     LOG (w.clause, "autarking working on clause");
     if (w.binary()){
-      unassigned += autarky_propagate_binary (w.clause, autarky_val, work, w.blit);
+        unassigned += autarky_propagate_binary (w.clause, autarky_val, work, w.blit);
     }
     else
       unassigned += autarky_propagate_clause (w.clause, autarky_val, work);
+  }
+  return unassigned;
+}
+
+unsigned Internal::autarky_propagate_unassigned_binary (std::vector<signed char> &autarky_val, std::vector<int> &work, int lit) {
+  int unassigned = 0;
+  assert (autarky_val[vlit (lit)] <= 0);
+  const Watches &ws = watches (lit);
+  for (auto &w : ws) {
+    if (w.clause->garbage)
+      continue;
+    if (w.clause->redundant)
+      continue;
+    LOG (w.clause, "autarking working on clause");
+    if (w.binary()){
+        unassigned += autarky_propagate_binary (w.clause, autarky_val, work, w.blit);
+    }
   }
   return unassigned;
 }
@@ -185,6 +201,8 @@ int Internal::determine_autarky (std::vector<signed char> &autarky_val, std::vec
 
     if (v > 0)
       continue;
+    // first just do the binary watches for speed
+    assigned -= autarky_propagate_unassigned_binary (autarky_val, work, lit);
     work.push_back(lit);
     assigned -= autarky_propagate (autarky_val, work);
   }
@@ -344,6 +362,7 @@ bool Internal::autarky (char c) {
      return false;
   }
   START (autarky);
+  START (autarkydetermine);
 
   std::vector<signed char> autarky_val; autarky_val.resize (2*max_var + 2);
   std::vector<int> work;
@@ -352,6 +371,7 @@ bool Internal::autarky (char c) {
   int autarky_found = determine_autarky(autarky_val, work);
   if (!autarky_found){
     delay_autarky.bumpreasons.bump_delay ();
+    STOP (autarkydetermine);
     STOP (autarky);
     return false;
   }
@@ -359,7 +379,7 @@ bool Internal::autarky (char c) {
   std::vector<int> actual_autarky; actual_autarky.reserve (autarky_found);
   const bool full_aut = !opts.autarkynonincr;
 
-
+  START (autarkyapply);
   for (auto idx : vars) {
     if (!active (idx))
       continue;
