@@ -134,7 +134,7 @@ will have the same effect as
 
   CXX="g++-8" ./configure -fPIC -fsanitize=address
 
-The following configuration options might be usefull during porting the
+The following configuration options might be useful during porting the
 code to a new platform and are usually not necessary to change.
 
 --no-closefrom     use our own 'closefrom' replacement
